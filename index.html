@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Brew Recommender</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>☕ Coffee Brew Recommender</h1>
+            <p class="subtitle">Upload a photo of your coffee bag for personalized brew recommendations</p>
+        </header>
+
+        <main>
+            <div id="upload-section" class="section">
+                <div class="upload-area" id="upload-area">
+                    <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <p class="upload-text">Click to upload or drag and drop</p>
+                    <p class="upload-subtext">Take a photo or choose from your gallery</p>
+                    <input type="file" id="file-input" accept="image/*" capture="environment" hidden>
+                </div>
+
+                <div class="button-group">
+                    <button id="camera-btn" class="btn btn-primary">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        Take Photo
+                    </button>
+                    <button id="upload-btn" class="btn btn-secondary">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        Choose File
+                    </button>
+                </div>
+            </div>
+
+            <div id="preview-section" class="section hidden">
+                <div class="image-preview">
+                    <img id="preview-image" src="" alt="Coffee bag preview">
+                    <button id="remove-image" class="btn-close">✕</button>
+                </div>
+
+                <div class="api-key-section">
+                    <label for="api-key-input">Anthropic API Key:</label>
+                    <div class="api-key-input-group">
+                        <input
+                            type="password"
+                            id="api-key-input"
+                            placeholder="sk-ant-..."
+                            autocomplete="off">
+                        <button id="toggle-key-visibility" class="btn-icon" type="button">
+                            <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                        </button>
+                    </div>
+                    <p class="api-key-note">Get your API key from <a href="https://console.anthropic.com/" target="_blank">Anthropic Console</a>. Your key is stored locally and never sent to our servers.</p>
+                </div>
+
+                <button id="analyze-btn" class="btn btn-primary btn-large">
+                    Analyze & Get Recommendations
+                </button>
+            </div>
+
+            <div id="loading-section" class="section hidden">
+                <div class="loading-spinner"></div>
+                <p class="loading-text">Analyzing your coffee...</p>
+            </div>
+
+            <div id="results-section" class="section hidden">
+                <div class="results-container">
+                    <h2>Brew Recommendations</h2>
+
+                    <div id="coffee-analysis" class="card">
+                        <h3>Coffee Analysis</h3>
+                        <div id="analysis-content"></div>
+                    </div>
+
+                    <div id="brew-method" class="card highlight">
+                        <h3>Recommended Brew Method</h3>
+                        <div id="method-content"></div>
+                    </div>
+
+                    <div id="brew-recipe" class="card">
+                        <h3>Brew Recipe</h3>
+                        <div id="recipe-content"></div>
+                    </div>
+
+                    <button id="try-again-btn" class="btn btn-secondary">
+                        Analyze Another Coffee
+                    </button>
+                </div>
+            </div>
+
+            <div id="error-section" class="section hidden">
+                <div class="error-container">
+                    <p class="error-icon">⚠️</p>
+                    <p class="error-message" id="error-message"></p>
+                    <button id="retry-btn" class="btn btn-primary">Try Again</button>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Powered by Claude AI • Your API key is stored locally in your browser</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
