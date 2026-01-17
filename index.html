@@ -11,7 +11,85 @@
         <header>
             <h1>☕ Coffee Brew Recommender</h1>
             <p class="subtitle">Upload a photo of your coffee bag for personalized brew recommendations</p>
+            <button id="settings-toggle-btn" class="btn btn-secondary" style="margin-top: 15px;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 20px; height: 20px;">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                My Equipment
+            </button>
         </header>
+
+        <div id="settings-section" class="section hidden">
+            <div class="card">
+                <h3>Your Coffee Equipment</h3>
+                <p style="margin-bottom: 20px; color: var(--secondary-color);">Tell us what equipment you have, and we'll recommend brew methods that work with your gear!</p>
+
+                <form id="equipment-form">
+                    <div class="form-group">
+                        <label>Espresso Machine</label>
+                        <input type="text" id="espresso-machine" placeholder="e.g., Breville Barista Express, Gaggia Classic" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Pour Over Devices</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="pour-over" value="V60" /> Hario V60
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="pour-over" value="Chemex" /> Chemex
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="pour-over" value="Kalita Wave" /> Kalita Wave
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="pour-over" value="Bee House" /> Bee House
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Grinder</label>
+                        <input type="text" id="grinder" placeholder="e.g., Baratza Encore, Hand grinder, Blade grinder" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Other Brewing Methods</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="other-methods" value="French Press" /> French Press
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="other-methods" value="Aeropress" /> Aeropress
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="other-methods" value="Moka Pot" /> Moka Pot
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="other-methods" value="Cold Brew" /> Cold Brew
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="other-methods" value="Drip Coffee Maker" /> Drip Coffee Maker
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="other-methods" value="Siphon" /> Siphon
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Additional Equipment or Notes</label>
+                        <textarea id="additional-equipment" rows="3" placeholder="e.g., Gooseneck kettle, Scale, Temperature-controlled kettle"></textarea>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="submit" class="btn btn-primary">Save Equipment</button>
+                        <button type="button" id="clear-equipment-btn" class="btn btn-secondary">Clear All</button>
+                    </div>
+                </form>
+            </div>
+        </div>
 
         <main>
             <div id="upload-section" class="section">

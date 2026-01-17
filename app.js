@@ -1,7 +1,8 @@
 // State management
 const state = {
     imageData: null,
-    imageFile: null
+    imageFile: null,
+    equipment: null
 };
 
 // DOM elements
@@ -11,6 +12,7 @@ const elements = {
     loadingSection: document.getElementById('loading-section'),
     resultsSection: document.getElementById('results-section'),
     errorSection: document.getElementById('error-section'),
+    settingsSection: document.getElementById('settings-section'),
 
     uploadArea: document.getElementById('upload-area'),
     fileInput: document.getElementById('file-input'),
@@ -28,12 +30,18 @@ const elements = {
 
     tryAgainBtn: document.getElementById('try-again-btn'),
     retryBtn: document.getElementById('retry-btn'),
-    errorMessage: document.getElementById('error-message')
+    errorMessage: document.getElementById('error-message'),
+
+    // Settings elements
+    settingsToggleBtn: document.getElementById('settings-toggle-btn'),
+    equipmentForm: document.getElementById('equipment-form'),
+    clearEquipmentBtn: document.getElementById('clear-equipment-btn')
 };
 
 // Initialize app
 function init() {
     setupEventListeners();
+    loadEquipment();
 }
 
 // Setup all event listeners
@@ -95,6 +103,22 @@ function setupEventListeners() {
     elements.tryAgainBtn.addEventListener('click', resetApp);
     elements.retryBtn.addEventListener('click', () => {
         showSection('preview');
+    });
+
+    // Settings toggle
+    elements.settingsToggleBtn.addEventListener('click', () => {
+        elements.settingsSection.classList.toggle('hidden');
+    });
+
+    // Equipment form submit
+    elements.equipmentForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        saveEquipment();
+    });
+
+    // Clear equipment
+    elements.clearEquipmentBtn.addEventListener('click', () => {
+        clearEquipment();
     });
 }
 
@@ -170,6 +194,8 @@ async function analyzeImage() {
         const base64Image = await getBase64Image(state.imageFile);
         const mediaType = state.imageFile.type;
 
+        const equipmentDescription = getEquipmentDescription();
+
         const response = await fetch('/api/analyze', {
             method: 'POST',
             headers: {
@@ -177,7 +203,8 @@ async function analyzeImage() {
             },
             body: JSON.stringify({
                 image: base64Image,
-                mediaType: mediaType
+                mediaType: mediaType,
+                equipment: equipmentDescription
             })
         });
 
@@ -364,6 +391,120 @@ function resetApp() {
     elements.fileInput.value = '';
     elements.previewImage.src = '';
     showSection('upload');
+}
+
+// Equipment management functions
+function saveEquipment() {
+    const equipment = {
+        espressoMachine: document.getElementById('espresso-machine').value.trim(),
+        grinder: document.getElementById('grinder').value.trim(),
+        pourOver: Array.from(document.querySelectorAll('input[name="pour-over"]:checked')).map(cb => cb.value),
+        otherMethods: Array.from(document.querySelectorAll('input[name="other-methods"]:checked')).map(cb => cb.value),
+        additionalEquipment: document.getElementById('additional-equipment').value.trim()
+    };
+
+    // Save to localStorage
+    try {
+        localStorage.setItem('coffee_equipment', JSON.stringify(equipment));
+        state.equipment = equipment;
+
+        // Show success feedback
+        const saveBtn = elements.equipmentForm.querySelector('button[type="submit"]');
+        const originalText = saveBtn.textContent;
+        saveBtn.textContent = '✓ Saved!';
+        saveBtn.style.backgroundColor = 'var(--success-color)';
+
+        setTimeout(() => {
+            saveBtn.textContent = originalText;
+            saveBtn.style.backgroundColor = '';
+            elements.settingsSection.classList.add('hidden');
+        }, 1500);
+    } catch (e) {
+        console.error('Failed to save equipment:', e);
+        showError('Failed to save equipment preferences');
+    }
+}
+
+function loadEquipment() {
+    try {
+        const savedEquipment = localStorage.getItem('coffee_equipment');
+        if (savedEquipment) {
+            const equipment = JSON.parse(savedEquipment);
+            state.equipment = equipment;
+
+            // Populate form fields
+            if (equipment.espressoMachine) {
+                document.getElementById('espresso-machine').value = equipment.espressoMachine;
+            }
+            if (equipment.grinder) {
+                document.getElementById('grinder').value = equipment.grinder;
+            }
+            if (equipment.additionalEquipment) {
+                document.getElementById('additional-equipment').value = equipment.additionalEquipment;
+            }
+
+            // Check appropriate checkboxes
+            equipment.pourOver?.forEach(value => {
+                const checkbox = document.querySelector(`input[name="pour-over"][value="${value}"]`);
+                if (checkbox) checkbox.checked = true;
+            });
+
+            equipment.otherMethods?.forEach(value => {
+                const checkbox = document.querySelector(`input[name="other-methods"][value="${value}"]`);
+                if (checkbox) checkbox.checked = true;
+            });
+        }
+    } catch (e) {
+        console.error('Failed to load equipment:', e);
+    }
+}
+
+function clearEquipment() {
+    if (confirm('Are you sure you want to clear all equipment preferences?')) {
+        // Clear form
+        document.getElementById('equipment-form').reset();
+
+        // Clear localStorage
+        localStorage.removeItem('coffee_equipment');
+        state.equipment = null;
+
+        // Show feedback
+        const clearBtn = elements.clearEquipmentBtn;
+        const originalText = clearBtn.textContent;
+        clearBtn.textContent = '✓ Cleared!';
+
+        setTimeout(() => {
+            clearBtn.textContent = originalText;
+        }, 1500);
+    }
+}
+
+function getEquipmentDescription() {
+    if (!state.equipment) return null;
+
+    const parts = [];
+
+    if (state.equipment.espressoMachine) {
+        parts.push(`Espresso Machine: ${state.equipment.espressoMachine}`);
+    }
+
+    if (state.equipment.pourOver && state.equipment.pourOver.length > 0) {
+        parts.push(`Pour Over: ${state.equipment.pourOver.join(', ')}`);
+    }
+
+    if (state.equipment.grinder) {
+        parts.push(`Grinder: ${state.equipment.grinder}`);
+    }
+
+    if (state.equipment.otherMethods && state.equipment.otherMethods.length > 0) {
+        parts.push(`Other Methods: ${state.equipment.otherMethods.join(', ')}`);
+    }
+
+    if (state.equipment.additionalEquipment) {
+        parts.push(`Additional: ${state.equipment.additionalEquipment}`);
+    }
+
+    return parts.length > 0 ? parts.join('; ') : null;
 }
 
 // Initialize app when DOM is ready

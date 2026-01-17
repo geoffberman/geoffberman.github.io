@@ -18,7 +18,16 @@ module.exports = async function handler(req, res) {
     }
 
     try {
-        const { image, mediaType } = req.body;
+        const { image, mediaType, equipment } = req.body;
+
+        // Build the prompt with equipment info if available
+        let promptText = 'Analyze this coffee bag image and provide detailed brewing recommendations.';
+
+        if (equipment) {
+            promptText += `\n\nIMPORTANT: The user has the following coffee equipment available: ${equipment}\n\nPlease recommend brew methods that work with their available equipment. Prioritize methods they can actually use with what they own.`;
+        }
+
+        promptText += '\n\nPlease structure your response in the following JSON format:';
 
         const response = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
@@ -43,7 +52,7 @@ module.exports = async function handler(req, res) {
                         },
                         {
                             type: 'text',
-                            text: `Analyze this coffee bag image and provide detailed brewing recommendations. Please structure your response in the following JSON format:
+                            text: promptText + `
 
 {
   "coffee_analysis": {
