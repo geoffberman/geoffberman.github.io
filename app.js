@@ -1,8 +1,7 @@
 // State management
 const state = {
     imageData: null,
-    imageFile: null,
-    apiKey: null
+    imageFile: null
 };
 
 // DOM elements
@@ -21,8 +20,6 @@ const elements = {
     previewImage: document.getElementById('preview-image'),
     removeImageBtn: document.getElementById('remove-image'),
 
-    apiKeyInput: document.getElementById('api-key-input'),
-    toggleKeyVisibility: document.getElementById('toggle-key-visibility'),
     analyzeBtn: document.getElementById('analyze-btn'),
 
     analysisContent: document.getElementById('analysis-content'),
@@ -37,7 +34,6 @@ const elements = {
 // Initialize app
 function init() {
     setupEventListeners();
-    loadApiKey();
 }
 
 // Setup all event listeners
@@ -90,19 +86,6 @@ function setupEventListeners() {
     elements.removeImageBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         resetApp();
-    });
-
-    // API key visibility toggle
-    elements.toggleKeyVisibility.addEventListener('click', () => {
-        const input = elements.apiKeyInput;
-        input.type = input.type === 'password' ? 'text' : 'password';
-    });
-
-    // API key input
-    elements.apiKeyInput.addEventListener('input', (e) => {
-        state.apiKey = e.target.value.trim();
-        saveApiKey(state.apiKey);
-        updateAnalyzeButton();
     });
 
     // Analyze button
@@ -160,35 +143,6 @@ function showSection(section) {
     }
 }
 
-// Update analyze button state
-function updateAnalyzeButton() {
-    const hasApiKey = state.apiKey && state.apiKey.length > 0;
-    elements.analyzeBtn.disabled = !hasApiKey;
-}
-
-// Save API key to localStorage
-function saveApiKey(key) {
-    try {
-        localStorage.setItem('anthropic_api_key', key);
-    } catch (e) {
-        console.error('Failed to save API key:', e);
-    }
-}
-
-// Load API key from localStorage
-function loadApiKey() {
-    try {
-        const savedKey = localStorage.getItem('anthropic_api_key');
-        if (savedKey) {
-            state.apiKey = savedKey;
-            elements.apiKeyInput.value = savedKey;
-            updateAnalyzeButton();
-        }
-    } catch (e) {
-        console.error('Failed to load API key:', e);
-    }
-}
-
 // Convert image to base64 without data URL prefix
 async function getBase64Image(file) {
     return new Promise((resolve, reject) => {
@@ -203,13 +157,8 @@ async function getBase64Image(file) {
     });
 }
 
-// Analyze image using Claude API
+// Analyze image using backend serverless function
 async function analyzeImage() {
-    if (!state.apiKey) {
-        showError('Please enter your Anthropic API key.');
-        return;
-    }
-
     if (!state.imageFile) {
         showError('Please upload an image first.');
         return;
@@ -221,67 +170,20 @@ async function analyzeImage() {
         const base64Image = await getBase64Image(state.imageFile);
         const mediaType = state.imageFile.type;
 
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
+        const response = await fetch('/api/analyze', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': state.apiKey,
-                'anthropic-version': '2023-06-01'
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'claude-3-5-sonnet-20241022',
-                max_tokens: 2048,
-                messages: [{
-                    role: 'user',
-                    content: [
-                        {
-                            type: 'image',
-                            source: {
-                                type: 'base64',
-                                media_type: mediaType,
-                                data: base64Image
-                            }
-                        },
-                        {
-                            type: 'text',
-                            text: `Analyze this coffee bag image and provide detailed brewing recommendations. Please structure your response in the following JSON format:
-
-{
-  "coffee_analysis": {
-    "name": "Coffee name if visible",
-    "roaster": "Roaster name if visible",
-    "roast_level": "Light/Medium/Dark or Unknown",
-    "origin": "Origin if visible or Unknown",
-    "flavor_notes": ["note1", "note2"] or [],
-    "bean_type": "Arabica/Robusta/Blend or Unknown",
-    "processing": "Processing method if visible or Unknown"
-  },
-  "recommended_brew_method": {
-    "primary_method": "Name of recommended brew method",
-    "reasoning": "Why this method is recommended for this coffee",
-    "alternative_methods": ["method1", "method2"]
-  },
-  "brew_recipe": {
-    "coffee_amount": "Amount in grams",
-    "water_amount": "Amount in ml or grams",
-    "ratio": "Coffee to water ratio (e.g., 1:16)",
-    "water_temperature": "Temperature in °F and °C",
-    "grind_size": "Grind size description",
-    "brew_time": "Total brew time",
-    "instructions": ["step1", "step2", "step3"]
-  }
-}
-
-If you cannot clearly see certain information on the bag, use "Unknown" or empty arrays. Focus on providing the best brewing recommendations based on what you can observe.`
-                        }
-                    ]
-                }]
+                image: base64Image,
+                mediaType: mediaType
             })
         });
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error?.message || `API request failed with status ${response.status}`);
+            throw new Error(errorData.error || `API request failed with status ${response.status}`);
         }
 
         const data = await response.json();
