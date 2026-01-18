@@ -1502,28 +1502,46 @@ async function adjustRecipeBasedOnRating(rating) {
             }
         } catch (parseError) {
             console.error('Failed to parse JSON adjustment:', parseError);
-            // Fallback to plain text display
-            const htmlText = adjustmentText
-                .replace(/\n\n/g, '</p><p>')
-                .replace(/\n/g, '<br>')
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em>$1</em>');
+            console.log('Raw adjustment text:', adjustmentText);
 
-            elements.methodContent.innerHTML = `
-                <div class="adjustment-notice" style="background: #FFF3CD; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
-                    <strong>📊 Recipe Adjusted Based on Your Feedback</strong>
-                </div>
-                <div style="line-height: 1.6;"><p>${htmlText}</p></div>
-            `;
-            elements.adjustmentFeedback.classList.remove('hidden');
-            elements.adjustmentFeedback.querySelector('p').textContent = rating < 0
-                ? '✓ Recipe adjusted to increase extraction (reduce sourness)'
-                : '✓ Recipe adjusted to decrease extraction (reduce bitterness)';
-            elements.adjustRecipeBtn.textContent = 'Adjust Recipe Based on Rating';
-            elements.adjustRecipeBtn.disabled = true;
-            elements.tasteRating.value = 0;
-            updateRatingLabel(0);
-            return;
+            // Try more aggressive JSON extraction
+            try {
+                // Remove any markdown code blocks
+                let cleanText = adjustmentText.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+                // Find JSON object
+                const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    adjustedData = JSON.parse(jsonMatch[0]);
+                    console.log('Successfully parsed JSON on second attempt');
+                    // Continue to the table rendering below
+                } else {
+                    throw new Error('Could not extract JSON');
+                }
+            } catch (secondError) {
+                console.error('Second parse attempt failed:', secondError);
+                // Final fallback - display as plain text
+                const htmlText = adjustmentText
+                    .replace(/\n\n/g, '</p><p>')
+                    .replace(/\n/g, '<br>')
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+                elements.methodContent.innerHTML = `
+                    <div class="adjustment-notice" style="background: #FFF3CD; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
+                        <strong>📊 Recipe Adjusted Based on Your Feedback</strong>
+                    </div>
+                    <div style="line-height: 1.6;"><p>${htmlText}</p></div>
+                `;
+                elements.adjustmentFeedback.classList.remove('hidden');
+                elements.adjustmentFeedback.querySelector('p').textContent = rating < 0
+                    ? '✓ Recipe adjusted to increase extraction (reduce sourness)'
+                    : '✓ Recipe adjusted to decrease extraction (reduce bitterness)';
+                elements.adjustRecipeBtn.textContent = 'Adjust Recipe Based on Rating';
+                elements.adjustRecipeBtn.disabled = true;
+                elements.tasteRating.value = 0;
+                updateRatingLabel(0);
+                return;
+            }
         }
 
         // Display adjusted recipe with parameters table
