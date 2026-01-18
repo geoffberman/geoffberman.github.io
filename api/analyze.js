@@ -21,13 +21,13 @@ module.exports = async function handler(req, res) {
         const { image, mediaType, equipment } = req.body;
 
         // Build the prompt with equipment info if available
-        let promptText = 'Analyze this coffee bag image and provide detailed brewing recommendations.';
+        let promptText = 'Analyze this coffee bag image and provide expert-level brewing recommendations. Assume the user is an experienced home barista who understands brewing parameters and techniques.';
 
         if (equipment) {
-            promptText += `\n\nIMPORTANT: The user has the following coffee equipment available: ${equipment}\n\nPlease recommend brew methods that work with their available equipment. Prioritize methods they can actually use with what they own.`;
+            promptText += `\n\nUser's available equipment: ${equipment}\n\nRecommend brew methods compatible with their equipment.`;
         }
 
-        promptText += '\n\nPlease structure your response in the following JSON format:';
+        promptText += '\n\nProvide your response in the following JSON format:';
 
         const response = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
@@ -56,31 +56,46 @@ module.exports = async function handler(req, res) {
 
 {
   "coffee_analysis": {
-    "name": "Coffee name if visible",
-    "roaster": "Roaster name if visible",
-    "roast_level": "Light/Medium/Dark or Unknown",
-    "origin": "Origin if visible or Unknown",
-    "flavor_notes": ["note1", "note2"] or [],
-    "bean_type": "Arabica/Robusta/Blend or Unknown",
-    "processing": "Processing method if visible or Unknown"
+    "name": "Coffee name",
+    "roaster": "Roaster name",
+    "roast_level": "Light/Medium/Dark",
+    "origin": "Origin",
+    "flavor_notes": ["note1", "note2"],
+    "processing": "Processing method"
   },
-  "recommended_brew_method": {
-    "primary_method": "Name of recommended brew method",
-    "reasoning": "Why this method is recommended for this coffee",
-    "alternative_methods": ["method1", "method2"]
-  },
-  "brew_recipe": {
-    "coffee_amount": "Amount in grams",
-    "water_amount": "Amount in ml or grams",
-    "ratio": "Coffee to water ratio (e.g., 1:16)",
-    "water_temperature": "Temperature in °F and °C",
-    "grind_size": "Grind size description",
-    "brew_time": "Total brew time",
-    "instructions": ["step1", "step2", "step3"]
-  }
+  "recommended_techniques": [
+    {
+      "technique_name": "First recommended brew method",
+      "reasoning": "Brief technical reason (1-2 sentences)",
+      "parameters": {
+        "dose": "Coffee dose in grams",
+        "yield": "Total brew output in grams or ml",
+        "ratio": "Coffee:water ratio (e.g., 1:16)",
+        "water_temp": "Water temperature (e.g., 93°C / 200°F)",
+        "grind_size": "Grind size (e.g., Medium-fine)",
+        "brew_time": "Total brew time (e.g., 2:30-3:00)",
+        "pressure": "Pressure if applicable (e.g., 9 bar, N/A for pour over)",
+        "flow_control": "Flow control notes if applicable or N/A"
+      }
+    },
+    {
+      "technique_name": "Second recommended brew method",
+      "reasoning": "Brief technical reason (1-2 sentences)",
+      "parameters": {
+        "dose": "Coffee dose in grams",
+        "yield": "Total brew output in grams or ml",
+        "ratio": "Coffee:water ratio",
+        "water_temp": "Water temperature",
+        "grind_size": "Grind size",
+        "brew_time": "Total brew time",
+        "pressure": "Pressure if applicable or N/A",
+        "flow_control": "Flow control notes if applicable or N/A"
+      }
+    }
+  ]
 }
 
-If you cannot clearly see certain information on the bag, use "Unknown" or empty arrays. Focus on providing the best brewing recommendations based on what you can observe.`
+Provide only the top 2 most suitable techniques. Use technical language. If info isn't visible, make educated estimates based on roast level and origin.`
                         }
                     ]
                 }]

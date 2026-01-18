@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Coffee Brew Recommender</title>
+    <title>Better Coffee</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>☕ Coffee Brew Recommender</h1>
+            <h1>☕ Better Coffee</h1>
             <p class="subtitle">Upload a photo of your coffee bag for personalized brew recommendations</p>
             <button id="settings-toggle-btn" class="btn btn-secondary" style="margin-top: 15px;">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 20px; height: 20px;">
@@ -23,9 +23,17 @@
         <div id="settings-section" class="section hidden">
             <div class="card">
                 <h3>Your Coffee Equipment</h3>
-                <p style="margin-bottom: 20px; color: var(--secondary-color);">Tell us what equipment you have, and we'll recommend brew methods that work with your gear!</p>
 
-                <form id="equipment-form">
+                <div id="equipment-summary" class="equipment-summary hidden">
+                    <p style="margin-bottom: 15px; color: var(--secondary-color);"><strong>Currently Saved:</strong></p>
+                    <div id="equipment-summary-content"></div>
+                    <button type="button" id="edit-equipment-btn" class="btn btn-secondary" style="margin-top: 15px;">Edit Equipment</button>
+                </div>
+
+                <div id="equipment-form-container">
+                    <p style="margin-bottom: 20px; color: var(--secondary-color);">Tell us what equipment you have, and we'll recommend brew methods that work with your gear!</p>
+
+                    <form id="equipment-form">
                     <div class="form-group">
                         <label>Espresso Machine</label>
                         <input type="text" id="espresso-machine" placeholder="e.g., Breville Barista Express, Gaggia Classic" />
@@ -88,6 +96,7 @@
                         <button type="button" id="clear-equipment-btn" class="btn btn-secondary">Clear All</button>
                     </div>
                 </form>
+                </div>
             </div>
         </div>
 
@@ -145,14 +154,9 @@
                         <div id="analysis-content"></div>
                     </div>
 
-                    <div id="brew-method" class="card highlight">
-                        <h3>Recommended Brew Method</h3>
+                    <div id="brew-method" class="card">
+                        <h3>Recommended Techniques</h3>
                         <div id="method-content"></div>
-                    </div>
-
-                    <div id="brew-recipe" class="card">
-                        <h3>Brew Recipe</h3>
-                        <div id="recipe-content"></div>
                     </div>
 
                     <button id="try-again-btn" class="btn btn-secondary">

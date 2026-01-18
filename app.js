@@ -35,7 +35,11 @@ const elements = {
     // Settings elements
     settingsToggleBtn: document.getElementById('settings-toggle-btn'),
     equipmentForm: document.getElementById('equipment-form'),
-    clearEquipmentBtn: document.getElementById('clear-equipment-btn')
+    clearEquipmentBtn: document.getElementById('clear-equipment-btn'),
+    equipmentSummary: document.getElementById('equipment-summary'),
+    equipmentSummaryContent: document.getElementById('equipment-summary-content'),
+    equipmentFormContainer: document.getElementById('equipment-form-container'),
+    editEquipmentBtn: document.getElementById('edit-equipment-btn')
 };
 
 // Initialize app
@@ -107,7 +111,18 @@ function setupEventListeners() {
 
     // Settings toggle
     elements.settingsToggleBtn.addEventListener('click', () => {
+        const isHidden = elements.settingsSection.classList.contains('hidden');
         elements.settingsSection.classList.toggle('hidden');
+
+        if (isHidden) {
+            // Opening settings - show summary if equipment exists, otherwise show form
+            updateEquipmentDisplay();
+        }
+    });
+
+    // Edit equipment button
+    elements.editEquipmentBtn.addEventListener('click', () => {
+        showEquipmentForm();
     });
 
     // Equipment form submit
@@ -278,28 +293,24 @@ function parseFallbackResponse(text) {
 // Display results
 function displayResults(data) {
     const analysis = data.coffee_analysis;
-    const method = data.recommended_brew_method;
-    const recipe = data.brew_recipe;
+    const techniques = data.recommended_techniques || [];
 
     // Coffee Analysis
     let analysisHTML = '<div class="analysis-details">';
 
-    if (analysis.name && analysis.name !== "Unknown") {
+    if (analysis.name) {
         analysisHTML += `<p><strong>Coffee:</strong> ${analysis.name}</p>`;
     }
-    if (analysis.roaster && analysis.roaster !== "Unknown") {
+    if (analysis.roaster) {
         analysisHTML += `<p><strong>Roaster:</strong> ${analysis.roaster}</p>`;
     }
-    if (analysis.roast_level && analysis.roast_level !== "Unknown") {
+    if (analysis.roast_level) {
         analysisHTML += `<p><strong>Roast Level:</strong> ${analysis.roast_level}</p>`;
     }
-    if (analysis.origin && analysis.origin !== "Unknown") {
+    if (analysis.origin) {
         analysisHTML += `<p><strong>Origin:</strong> ${analysis.origin}</p>`;
     }
-    if (analysis.bean_type && analysis.bean_type !== "Unknown") {
-        analysisHTML += `<p><strong>Bean Type:</strong> ${analysis.bean_type}</p>`;
-    }
-    if (analysis.processing && analysis.processing !== "Unknown") {
+    if (analysis.processing) {
         analysisHTML += `<p><strong>Processing:</strong> ${analysis.processing}</p>`;
     }
     if (analysis.flavor_notes && analysis.flavor_notes.length > 0) {
@@ -309,63 +320,68 @@ function displayResults(data) {
     analysisHTML += '</div>';
     elements.analysisContent.innerHTML = analysisHTML;
 
-    // Brew Method
-    let methodHTML = `
-        <div class="method-details">
-            <p class="method-name" style="font-size: 1.5rem; font-weight: 700; color: var(--primary-color); margin-bottom: 15px;">
-                ${method.primary_method}
-            </p>
-            <p><strong>Why this method:</strong></p>
-            <p style="margin-bottom: 15px;">${method.reasoning}</p>
-    `;
+    // Brew Techniques with Tables
+    let techniquesHTML = '';
 
-    if (method.alternative_methods && method.alternative_methods.length > 0) {
-        methodHTML += `
-            <p><strong>Alternative methods:</strong></p>
-            <p>${method.alternative_methods.join(', ')}</p>
-        `;
-    }
+    techniques.forEach((technique, index) => {
+        const params = technique.parameters;
 
-    methodHTML += '</div>';
-    elements.methodContent.innerHTML = methodHTML;
-
-    // Brew Recipe
-    let recipeHTML = `
-        <div class="recipe-details">
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px;">
-                <div>
-                    <p><strong>Coffee:</strong></p>
-                    <p style="font-size: 1.3rem; color: var(--primary-color);">${recipe.coffee_amount}</p>
-                </div>
-                <div>
-                    <p><strong>Water:</strong></p>
-                    <p style="font-size: 1.3rem; color: var(--primary-color);">${recipe.water_amount}</p>
-                </div>
-                <div>
-                    <p><strong>Ratio:</strong></p>
-                    <p style="font-size: 1.3rem; color: var(--primary-color);">${recipe.ratio}</p>
-                </div>
+        techniquesHTML += `
+            <div class="technique-header">
+                <h4><span class="technique-number">#${index + 1}</span>${technique.technique_name}</h4>
             </div>
 
-            <p><strong>Water Temperature:</strong> ${recipe.water_temperature}</p>
-            <p><strong>Grind Size:</strong> ${recipe.grind_size}</p>
-            <p><strong>Brew Time:</strong> ${recipe.brew_time}</p>
+            <p style="margin-bottom: 15px; line-height: 1.6;">${technique.reasoning}</p>
 
-            <div style="margin-top: 20px;">
-                <p><strong>Instructions:</strong></p>
-                <ol style="margin-left: 20px; margin-top: 10px;">
-    `;
-
-    recipe.instructions.forEach(instruction => {
-        recipeHTML += `<li style="margin-bottom: 8px;">${instruction}</li>`;
+            <table class="brew-parameters-table">
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Dose</td>
+                        <td>${params.dose}</td>
+                    </tr>
+                    <tr>
+                        <td>Yield</td>
+                        <td>${params.yield}</td>
+                    </tr>
+                    <tr>
+                        <td>Ratio</td>
+                        <td>${params.ratio}</td>
+                    </tr>
+                    <tr>
+                        <td>Water Temp</td>
+                        <td>${params.water_temp}</td>
+                    </tr>
+                    <tr>
+                        <td>Grind Size</td>
+                        <td>${params.grind_size}</td>
+                    </tr>
+                    <tr>
+                        <td>Brew Time</td>
+                        <td>${params.brew_time}</td>
+                    </tr>
+                    <tr>
+                        <td>Pressure</td>
+                        <td>${params.pressure}</td>
+                    </tr>
+                    <tr>
+                        <td>Flow Control</td>
+                        <td>${params.flow_control}</td>
+                    </tr>
+                </tbody>
+            </table>
+        `;
     });
 
-    recipeHTML += `
-                </ol>
-            </div>
-        </div>
-    `;
-    elements.recipeContent.innerHTML = recipeHTML;
+    elements.methodContent.innerHTML = techniquesHTML;
+
+    // Clear recipe content (not needed with new format)
+    elements.recipeContent.innerHTML = '';
 
     // If there's a raw response (fallback), show it
     if (data.raw_response) {
@@ -417,7 +433,7 @@ function saveEquipment() {
         setTimeout(() => {
             saveBtn.textContent = originalText;
             saveBtn.style.backgroundColor = '';
-            elements.settingsSection.classList.add('hidden');
+            showEquipmentSummary();
         }, 1500);
     } catch (e) {
         console.error('Failed to save equipment:', e);
@@ -505,6 +521,85 @@ function getEquipmentDescription() {
     }
 
     return parts.length > 0 ? parts.join('; ') : null;
+}
+
+function updateEquipmentDisplay() {
+    if (state.equipment && hasEquipment()) {
+        showEquipmentSummary();
+    } else {
+        showEquipmentForm();
+    }
+}
+
+function hasEquipment() {
+    if (!state.equipment) return false;
+
+    return !!(
+        state.equipment.espressoMachine ||
+        state.equipment.grinder ||
+        (state.equipment.pourOver && state.equipment.pourOver.length > 0) ||
+        (state.equipment.otherMethods && state.equipment.otherMethods.length > 0) ||
+        state.equipment.additionalEquipment
+    );
+}
+
+function showEquipmentSummary() {
+    elements.equipmentSummary.classList.remove('hidden');
+    elements.equipmentFormContainer.classList.add('hidden');
+
+    let summaryHTML = '';
+
+    if (state.equipment.espressoMachine) {
+        summaryHTML += `
+            <div class="equipment-summary-item">
+                <strong>Espresso Machine</strong>
+                <span>${state.equipment.espressoMachine}</span>
+            </div>
+        `;
+    }
+
+    if (state.equipment.pourOver && state.equipment.pourOver.length > 0) {
+        summaryHTML += `
+            <div class="equipment-summary-item">
+                <strong>Pour Over Devices</strong>
+                <span>${state.equipment.pourOver.join(', ')}</span>
+            </div>
+        `;
+    }
+
+    if (state.equipment.grinder) {
+        summaryHTML += `
+            <div class="equipment-summary-item">
+                <strong>Grinder</strong>
+                <span>${state.equipment.grinder}</span>
+            </div>
+        `;
+    }
+
+    if (state.equipment.otherMethods && state.equipment.otherMethods.length > 0) {
+        summaryHTML += `
+            <div class="equipment-summary-item">
+                <strong>Other Brewing Methods</strong>
+                <span>${state.equipment.otherMethods.join(', ')}</span>
+            </div>
+        `;
+    }
+
+    if (state.equipment.additionalEquipment) {
+        summaryHTML += `
+            <div class="equipment-summary-item">
+                <strong>Additional Equipment</strong>
+                <span>${state.equipment.additionalEquipment}</span>
+            </div>
+        `;
+    }
+
+    elements.equipmentSummaryContent.innerHTML = summaryHTML;
+}
+
+function showEquipmentForm() {
+    elements.equipmentSummary.classList.add('hidden');
+    elements.equipmentFormContainer.classList.remove('hidden');
 }
 
 // Initialize app when DOM is ready
