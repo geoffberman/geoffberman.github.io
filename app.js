@@ -651,35 +651,52 @@ function loadEquipment() {
         if (savedEquipment) {
             const equipment = JSON.parse(savedEquipment);
             state.equipment = equipment;
-            console.log('✓ Equipment loaded successfully:', equipment);
+            console.log('✓ Parsed equipment object:', equipment);
 
-            // Populate form fields
-            if (equipment.espressoMachine) {
-                document.getElementById('espresso-machine').value = equipment.espressoMachine;
-            }
-            if (equipment.flowControl) {
-                document.getElementById('flow-control').checked = true;
-            }
-            if (equipment.grinder) {
-                document.getElementById('grinder').value = equipment.grinder;
-            }
-            if (equipment.additionalEquipment) {
-                document.getElementById('additional-equipment').value = equipment.additionalEquipment;
-            }
+            // Check if equipment is actually empty (all fields blank)
+            const actuallyHasEquipment = !!(
+                (equipment.espressoMachine && equipment.espressoMachine.trim()) ||
+                (equipment.grinder && equipment.grinder.trim()) ||
+                (equipment.pourOver && equipment.pourOver.length > 0) ||
+                (equipment.otherMethods && equipment.otherMethods.length > 0) ||
+                (equipment.additionalEquipment && equipment.additionalEquipment.trim())
+            );
 
-            // Check appropriate checkboxes
-            equipment.pourOver?.forEach(value => {
-                const checkbox = document.querySelector(`input[name="pour-over"][value="${value}"]`);
-                if (checkbox) checkbox.checked = true;
-            });
+            if (!actuallyHasEquipment) {
+                console.log('⚠️ Equipment object exists but all fields are empty - clearing');
+                localStorage.removeItem('coffee_equipment');
+                state.equipment = null;
+            } else {
+                console.log('✓ Equipment has data - loading into form');
 
-            equipment.otherMethods?.forEach(value => {
-                const checkbox = document.querySelector(`input[name="other-methods"][value="${value}"]`);
-                if (checkbox) checkbox.checked = true;
-            });
+                // Populate form fields
+                if (equipment.espressoMachine) {
+                    document.getElementById('espresso-machine').value = equipment.espressoMachine;
+                }
+                if (equipment.flowControl) {
+                    document.getElementById('flow-control').checked = true;
+                }
+                if (equipment.grinder) {
+                    document.getElementById('grinder').value = equipment.grinder;
+                }
+                if (equipment.additionalEquipment) {
+                    document.getElementById('additional-equipment').value = equipment.additionalEquipment;
+                }
 
-            // Show summary view if equipment is loaded
-            showEquipmentSummary();
+                // Check appropriate checkboxes
+                equipment.pourOver?.forEach(value => {
+                    const checkbox = document.querySelector(`input[name="pour-over"][value="${value}"]`);
+                    if (checkbox) checkbox.checked = true;
+                });
+
+                equipment.otherMethods?.forEach(value => {
+                    const checkbox = document.querySelector(`input[name="other-methods"][value="${value}"]`);
+                    if (checkbox) checkbox.checked = true;
+                });
+
+                // Show summary view if equipment is loaded
+                showEquipmentSummary();
+            }
         } else {
             console.log('⚠️ No saved equipment found in localStorage');
             console.log('→ Click "My Equipment" button to add your coffee gear');
@@ -744,23 +761,34 @@ function getEquipmentDescription() {
 }
 
 function updateEquipmentDisplay() {
+    console.log('updateEquipmentDisplay called');
+    console.log('Current state.equipment:', state.equipment);
+
     if (state.equipment && hasEquipment()) {
+        console.log('Showing equipment summary');
         showEquipmentSummary();
     } else {
+        console.log('Showing equipment form (no equipment found)');
         showEquipmentForm();
     }
 }
 
 function hasEquipment() {
-    if (!state.equipment) return false;
+    if (!state.equipment) {
+        console.log('hasEquipment: No equipment object in state');
+        return false;
+    }
 
-    return !!(
-        state.equipment.espressoMachine ||
-        state.equipment.grinder ||
+    const hasAny = !!(
+        (state.equipment.espressoMachine && state.equipment.espressoMachine.trim()) ||
+        (state.equipment.grinder && state.equipment.grinder.trim()) ||
         (state.equipment.pourOver && state.equipment.pourOver.length > 0) ||
         (state.equipment.otherMethods && state.equipment.otherMethods.length > 0) ||
-        state.equipment.additionalEquipment
+        (state.equipment.additionalEquipment && state.equipment.additionalEquipment.trim())
     );
+
+    console.log('hasEquipment check:', hasAny, 'Equipment:', state.equipment);
+    return hasAny;
 }
 
 function showEquipmentSummary() {
@@ -840,13 +868,17 @@ function showEquipmentForm() {
 function updateEquipmentButton() {
     const hasEquipmentSaved = state.equipment && hasEquipment();
 
+    console.log('updateEquipmentButton: hasEquipmentSaved =', hasEquipmentSaved);
+
     // Get the SVG element and preserve it
     const svg = elements.settingsToggleBtn.querySelector('svg');
     const svgHTML = svg ? svg.outerHTML : '';
 
     if (hasEquipmentSaved) {
+        console.log('Setting button to "My Equipment"');
         elements.settingsToggleBtn.innerHTML = svgHTML + ' My Equipment';
     } else {
+        console.log('Setting button to "Set Up Equipment ⚠️"');
         elements.settingsToggleBtn.innerHTML = svgHTML + ' Set Up Equipment ⚠️';
     }
 }
