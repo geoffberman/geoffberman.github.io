@@ -59,6 +59,8 @@ const elements = {
     authSkipBtn: document.getElementById('auth-skip-btn'),
     tabSignin: document.getElementById('tab-signin'),
     tabSignup: document.getElementById('tab-signup'),
+    signInSection: document.getElementById('sign-in-section'),
+    showAuthBtn: document.getElementById('show-auth-btn'),
     userProfile: document.getElementById('user-profile'),
     userEmailDisplay: document.getElementById('user-email-display'),
     userMenuBtn: document.getElementById('user-menu-btn'),
@@ -93,6 +95,7 @@ async function init() {
             // User is logged in - load from database
             await loadEquipmentFromDatabase();
             showUserProfile();
+            hideSignInButton();
         } else {
             // Try loading from localStorage first (migration path)
             loadEquipment();
@@ -106,6 +109,7 @@ async function init() {
                 showAuthModal();
             } else {
                 console.log('User previously skipped auth - using localStorage only');
+                showSignInButton();
             }
         }
 
@@ -135,11 +139,12 @@ function handleAuthStateChange(event, session) {
     if (event === 'SIGNED_IN') {
         hideAuthModal();
         showUserProfile();
+        hideSignInButton();
         migrateLocalStorageToDatabase();
         loadEquipmentFromDatabase();
     } else if (event === 'SIGNED_OUT') {
         hideUserProfile();
-        // Optionally show auth modal again
+        showSignInButton();
     }
 }
 
@@ -252,6 +257,12 @@ function setupEventListeners() {
     elements.authSkipBtn.addEventListener('click', () => {
         localStorage.setItem('auth_skipped', 'true');
         hideAuthModal();
+        showSignInButton();
+    });
+
+    // Show auth modal from sign in button
+    elements.showAuthBtn.addEventListener('click', () => {
+        showAuthModal();
     });
 
     // User menu toggle
@@ -1098,6 +1109,14 @@ async function loadUsername() {
 function hideUserProfile() {
     elements.userProfile.classList.add('hidden');
     elements.userDropdown.classList.add('hidden');
+}
+
+function showSignInButton() {
+    elements.signInSection.classList.remove('hidden');
+}
+
+function hideSignInButton() {
+    elements.signInSection.classList.add('hidden');
 }
 
 // ========================================
