@@ -20,6 +20,52 @@
             </button>
         </header>
 
+        <!-- Authentication Modal -->
+        <div id="auth-modal" class="auth-modal hidden">
+            <div class="auth-modal-content">
+                <h2 id="auth-title">Welcome to Better Coffee</h2>
+                <p id="auth-subtitle">Sign in to save your equipment and brew recipes across devices</p>
+
+                <div id="auth-tabs" class="auth-tabs">
+                    <button id="tab-signin" class="auth-tab active">Sign In</button>
+                    <button id="tab-signup" class="auth-tab">Sign Up</button>
+                </div>
+
+                <form id="auth-form">
+                    <div class="form-group">
+                        <label for="auth-email">Email</label>
+                        <input type="email" id="auth-email" required placeholder="your@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="auth-password">Password</label>
+                        <input type="password" id="auth-password" required placeholder="••••••••" minlength="6">
+                    </div>
+                    <div id="auth-error" class="auth-error hidden"></div>
+                    <button type="submit" id="auth-submit-btn" class="btn btn-primary" style="width: 100%;">
+                        Sign In
+                    </button>
+                </form>
+
+                <button id="auth-skip-btn" class="btn btn-secondary" style="width: 100%; margin-top: 10px;">
+                    Skip for now
+                </button>
+
+                <p style="font-size: 0.85rem; color: var(--secondary-color); margin-top: 15px; text-align: center;">
+                    By signing up, your equipment and brew history will sync across all your devices.
+                </p>
+            </div>
+        </div>
+
+        <!-- User Profile Button (shown when logged in) -->
+        <div id="user-profile" class="hidden" style="position: absolute; top: 20px; right: 20px;">
+            <button id="user-menu-btn" class="btn btn-secondary" style="padding: 8px 16px;">
+                <span id="user-email-display"></span>
+            </button>
+            <div id="user-dropdown" class="hidden" style="position: absolute; right: 0; top: 45px; background: white; border-radius: 8px; box-shadow: var(--shadow); min-width: 150px; z-index: 1000;">
+                <button id="logout-btn" class="btn btn-secondary" style="width: 100%; text-align: left;">Sign Out</button>
+            </div>
+        </div>
+
         <div id="settings-section" class="section hidden">
             <div class="card">
                 <h3>Your Coffee Equipment</h3>
@@ -208,6 +254,12 @@
         </footer>
     </div>
 
+    <!-- Supabase Client Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- App Scripts -->
+    <script src="supabase-client.js"></script>
+    <script src="auth.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
