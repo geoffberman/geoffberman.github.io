@@ -65,7 +65,16 @@ const elements = {
     userEmailDisplay: document.getElementById('user-email-display'),
     userMenuBtn: document.getElementById('user-menu-btn'),
     userDropdown: document.getElementById('user-dropdown'),
+    editProfileBtn: document.getElementById('edit-profile-btn'),
     logoutBtn: document.getElementById('logout-btn'),
+
+    // Edit profile modal elements
+    editProfileModal: document.getElementById('edit-profile-modal'),
+    editProfileForm: document.getElementById('edit-profile-form'),
+    editUsername: document.getElementById('edit-username'),
+    editProfileError: document.getElementById('edit-profile-error'),
+    saveProfileBtn: document.getElementById('save-profile-btn'),
+    cancelEditProfileBtn: document.getElementById('cancel-edit-profile-btn'),
 
     // Rating slider elements
     ratingSection: document.getElementById('rating-section'),
@@ -270,9 +279,26 @@ function setupEventListeners() {
         elements.userDropdown.classList.toggle('hidden');
     });
 
+    // Edit Profile
+    elements.editProfileBtn.addEventListener('click', () => {
+        elements.userDropdown.classList.add('hidden');
+        showEditProfileModal();
+    });
+
     // Logout
     elements.logoutBtn.addEventListener('click', async () => {
         await handleLogout();
+    });
+
+    // Edit profile form submit
+    elements.editProfileForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await handleProfileUpdate();
+    });
+
+    // Cancel edit profile
+    elements.cancelEditProfileBtn.addEventListener('click', () => {
+        hideEditProfileModal();
     });
 
     // Alternative brew method dropdown
@@ -1117,6 +1143,109 @@ async function loadUsername() {
 function hideUserProfile() {
     elements.userProfile.classList.add('hidden');
     elements.userDropdown.classList.add('hidden');
+}
+
+async function showEditProfileModal() {
+    const user = window.auth.getUser();
+    if (!user) return;
+
+    // Load current username
+    let currentUsername = user.user_metadata?.username;
+    if (!currentUsername) {
+        currentUsername = await loadUsername();
+    }
+
+    // Pre-fill the form
+    elements.editUsername.value = currentUsername || '';
+    elements.editProfileError.classList.add('hidden');
+
+    // Show modal
+    elements.editProfileModal.classList.remove('hidden');
+}
+
+function hideEditProfileModal() {
+    elements.editProfileModal.classList.add('hidden');
+    elements.editProfileError.classList.add('hidden');
+    elements.editProfileForm.reset();
+}
+
+async function handleProfileUpdate() {
+    const newUsername = elements.editUsername.value.trim();
+
+    if (!newUsername) {
+        elements.editProfileError.textContent = 'Username is required';
+        elements.editProfileError.classList.remove('hidden');
+        return;
+    }
+
+    if (newUsername.length < 3 || newUsername.length > 20) {
+        elements.editProfileError.textContent = 'Username must be 3-20 characters';
+        elements.editProfileError.classList.remove('hidden');
+        return;
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(newUsername)) {
+        elements.editProfileError.textContent = 'Username can only contain letters, numbers, and underscores';
+        elements.editProfileError.classList.remove('hidden');
+        return;
+    }
+
+    try {
+        elements.saveProfileBtn.disabled = true;
+        elements.saveProfileBtn.textContent = 'Saving...';
+        elements.editProfileError.classList.add('hidden');
+
+        const supabase = window.getSupabase();
+        const userId = window.auth.getUserId();
+
+        // Update username in profiles table
+        const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert({
+                id: userId,
+                username: newUsername,
+                updated_at: new Date().toISOString()
+            }, {
+                onConflict: 'id'
+            });
+
+        if (profileError) {
+            if (profileError.code === '23505') {
+                throw new Error('Username already taken. Please choose another.');
+            }
+            throw new Error('Failed to update profile: ' + profileError.message);
+        }
+
+        // Update user metadata
+        const { error: metadataError } = await supabase.auth.updateUser({
+            data: {
+                username: newUsername
+            }
+        });
+
+        if (metadataError) {
+            console.warn('Failed to update metadata:', metadataError);
+            // Not critical - continue anyway
+        }
+
+        // Update the display
+        elements.userEmailDisplay.textContent = newUsername;
+
+        // Show success and close
+        elements.saveProfileBtn.textContent = '✓ Saved!';
+        setTimeout(() => {
+            hideEditProfileModal();
+            elements.saveProfileBtn.textContent = 'Save Changes';
+            elements.saveProfileBtn.disabled = false;
+        }, 1000);
+
+    } catch (error) {
+        console.error('Failed to update profile:', error);
+        elements.editProfileError.textContent = error.message;
+        elements.editProfileError.classList.remove('hidden');
+        elements.saveProfileBtn.textContent = 'Save Changes';
+        elements.saveProfileBtn.disabled = false;
+    }
 }
 
 function showSignInButton() {
