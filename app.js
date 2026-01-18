@@ -1004,9 +1004,10 @@ function switchAuthTab(tab) {
         document.getElementById('auth-title').textContent = 'Welcome Back';
         document.getElementById('auth-subtitle').textContent = 'Sign in to access your saved equipment and recipes';
 
-        // Hide username field for sign in
+        // Hide and disable username field for sign in
         elements.usernameGroup.style.display = 'none';
         elements.authUsername.required = false;
+        elements.authUsername.disabled = true;
     } else {
         elements.tabSignup.classList.add('active');
         elements.tabSignin.classList.remove('active');
@@ -1014,9 +1015,10 @@ function switchAuthTab(tab) {
         document.getElementById('auth-title').textContent = 'Create Account';
         document.getElementById('auth-subtitle').textContent = 'Sign up to save your equipment and recipes across devices';
 
-        // Show username field for sign up
+        // Show and enable username field for sign up
         elements.usernameGroup.style.display = 'block';
         elements.authUsername.required = true;
+        elements.authUsername.disabled = false;
     }
 }
 
