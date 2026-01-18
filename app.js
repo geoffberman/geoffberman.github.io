@@ -187,14 +187,46 @@ function setupEventListeners() {
     });
 
     // Equipment form submit
-    elements.equipmentForm.addEventListener('submit', (e) => {
+    elements.equipmentForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        saveEquipment();
+        await saveEquipment();
     });
 
     // Clear equipment
     elements.clearEquipmentBtn.addEventListener('click', () => {
         clearEquipment();
+    });
+
+    // Auth event listeners
+    // Tab switching
+    elements.tabSignin.addEventListener('click', () => {
+        switchAuthTab('signin');
+    });
+
+    elements.tabSignup.addEventListener('click', () => {
+        switchAuthTab('signup');
+    });
+
+    // Auth form submit
+    elements.authForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await handleAuthSubmit();
+    });
+
+    // Skip auth
+    elements.authSkipBtn.addEventListener('click', () => {
+        localStorage.setItem('auth_skipped', 'true');
+        hideAuthModal();
+    });
+
+    // User menu toggle
+    elements.userMenuBtn.addEventListener('click', () => {
+        elements.userDropdown.classList.toggle('hidden');
+    });
+
+    // Logout
+    elements.logoutBtn.addEventListener('click', async () => {
+        await handleLogout();
     });
 
     // Alternative brew method dropdown
@@ -551,7 +583,7 @@ function resetApp() {
 }
 
 // Equipment management functions
-function saveEquipment() {
+async function saveEquipment() {
     const equipment = {
         espressoMachine: document.getElementById('espresso-machine').value.trim(),
         flowControl: document.getElementById('flow-control').checked,
@@ -561,10 +593,15 @@ function saveEquipment() {
         additionalEquipment: document.getElementById('additional-equipment').value.trim()
     };
 
-    // Save to localStorage
+    // Save to localStorage (always, as backup)
     try {
         localStorage.setItem('coffee_equipment', JSON.stringify(equipment));
         state.equipment = equipment;
+
+        // If user is authenticated, also save to database
+        if (window.auth && window.auth.isAuthenticated()) {
+            await saveEquipmentToDatabase(equipment);
+        }
 
         // Show success feedback
         const saveBtn = elements.equipmentForm.querySelector('button[type="submit"]');
@@ -768,6 +805,233 @@ function showEquipmentSummary() {
 function showEquipmentForm() {
     elements.equipmentSummary.classList.add('hidden');
     elements.equipmentFormContainer.classList.remove('hidden');
+}
+
+// ========================================
+// Authentication UI Functions
+// ========================================
+
+function showAuthModal() {
+    elements.authModal.classList.remove('hidden');
+}
+
+function hideAuthModal() {
+    elements.authModal.classList.add('hidden');
+    elements.authError.classList.add('hidden');
+    elements.authForm.reset();
+}
+
+function switchAuthTab(tab) {
+    if (tab === 'signin') {
+        elements.tabSignin.classList.add('active');
+        elements.tabSignup.classList.remove('active');
+        elements.authSubmitBtn.textContent = 'Sign In';
+        document.getElementById('auth-title').textContent = 'Welcome Back';
+        document.getElementById('auth-subtitle').textContent = 'Sign in to access your saved equipment and recipes';
+    } else {
+        elements.tabSignup.classList.add('active');
+        elements.tabSignin.classList.remove('active');
+        elements.authSubmitBtn.textContent = 'Sign Up';
+        document.getElementById('auth-title').textContent = 'Create Account';
+        document.getElementById('auth-subtitle').textContent = 'Sign up to save your equipment and recipes across devices';
+    }
+}
+
+async function handleAuthSubmit() {
+    const email = elements.authEmail.value;
+    const password = elements.authPassword.value;
+    const isSignup = elements.tabSignup.classList.contains('active');
+
+    try {
+        elements.authSubmitBtn.disabled = true;
+        elements.authSubmitBtn.textContent = isSignup ? 'Signing up...' : 'Signing in...';
+        elements.authError.classList.add('hidden');
+
+        if (isSignup) {
+            await window.auth.signUp(email, password);
+        } else {
+            await window.auth.signIn(email, password);
+        }
+
+        // Success - modal will be hidden by auth state change handler
+    } catch (error) {
+        elements.authError.textContent = error.message;
+        elements.authError.classList.remove('hidden');
+        elements.authSubmitBtn.disabled = false;
+        elements.authSubmitBtn.textContent = isSignup ? 'Sign Up' : 'Sign In';
+    }
+}
+
+async function handleLogout() {
+    try {
+        await window.auth.signOut();
+        hideUserProfile();
+
+        // Clear state but keep localStorage as backup
+        state.equipment = null;
+
+        // Optionally show auth modal again
+        showAuthModal();
+    } catch (error) {
+        console.error('Logout error:', error);
+        showError('Failed to log out');
+    }
+}
+
+function showUserProfile() {
+    const user = window.auth.getUser();
+    if (user) {
+        elements.userProfile.classList.remove('hidden');
+        elements.userEmailDisplay.textContent = user.email;
+    }
+}
+
+function hideUserProfile() {
+    elements.userProfile.classList.add('hidden');
+    elements.userDropdown.classList.add('hidden');
+}
+
+// ========================================
+// Database Functions
+// ========================================
+
+async function loadEquipmentFromDatabase() {
+    const supabase = window.getSupabase();
+    if (!supabase) return;
+
+    const userId = window.auth.getUserId();
+    if (!userId) return;
+
+    try {
+        const { data, error } = await supabase
+            .from('equipment')
+            .select('*')
+            .eq('user_id', userId)
+            .single();
+
+        if (error) {
+            if (error.code === 'PGRST116') {
+                // No equipment found - that's okay
+                console.log('No equipment saved in database yet');
+                return;
+            }
+            throw error;
+        }
+
+        if (data) {
+            // Convert database format to app format
+            state.equipment = {
+                espressoMachine: data.espresso_machine || '',
+                flowControl: data.flow_control || false,
+                grinder: data.grinder || '',
+                pourOver: data.pour_over || [],
+                otherMethods: data.other_methods || [],
+                additionalEquipment: data.additional_equipment || ''
+            };
+
+            // Populate the form
+            if (state.equipment.espressoMachine) {
+                document.getElementById('espresso-machine').value = state.equipment.espressoMachine;
+            }
+            if (state.equipment.flowControl) {
+                document.getElementById('flow-control').checked = true;
+            }
+            if (state.equipment.grinder) {
+                document.getElementById('grinder').value = state.equipment.grinder;
+            }
+            if (state.equipment.additionalEquipment) {
+                document.getElementById('additional-equipment').value = state.equipment.additionalEquipment;
+            }
+
+            // Check boxes
+            state.equipment.pourOver.forEach(value => {
+                const checkbox = document.querySelector(`input[name="pour-over"][value="${value}"]`);
+                if (checkbox) checkbox.checked = true;
+            });
+
+            state.equipment.otherMethods.forEach(value => {
+                const checkbox = document.querySelector(`input[name="other-methods"][value="${value}"]`);
+                if (checkbox) checkbox.checked = true;
+            });
+
+            // Show summary
+            showEquipmentSummary();
+            console.log('Equipment loaded from database');
+        }
+    } catch (error) {
+        console.error('Failed to load equipment from database:', error);
+    }
+}
+
+async function saveEquipmentToDatabase(equipment) {
+    const supabase = window.getSupabase();
+    if (!supabase) return false;
+
+    const userId = window.auth.getUserId();
+    if (!userId) return false;
+
+    try {
+        // Convert app format to database format
+        const dbEquipment = {
+            user_id: userId,
+            espresso_machine: equipment.espressoMachine,
+            flow_control: equipment.flowControl,
+            grinder: equipment.grinder,
+            pour_over: equipment.pourOver,
+            other_methods: equipment.otherMethods,
+            additional_equipment: equipment.additionalEquipment,
+            updated_at: new Date().toISOString()
+        };
+
+        // Try to update existing equipment first
+        const { data: existing } = await supabase
+            .from('equipment')
+            .select('id')
+            .eq('user_id', userId)
+            .single();
+
+        if (existing) {
+            // Update existing
+            const { error } = await supabase
+                .from('equipment')
+                .update(dbEquipment)
+                .eq('user_id', userId);
+
+            if (error) throw error;
+        } else {
+            // Insert new
+            const { error } = await supabase
+                .from('equipment')
+                .insert([dbEquipment]);
+
+            if (error) throw error;
+        }
+
+        console.log('Equipment saved to database');
+        return true;
+    } catch (error) {
+        console.error('Failed to save equipment to database:', error);
+        return false;
+    }
+}
+
+async function migrateLocalStorageToDatabase() {
+    // Check if there's localStorage data to migrate
+    const localData = localStorage.getItem('coffee_equipment');
+    if (!localData) return;
+
+    try {
+        const equipment = JSON.parse(localData);
+        const saved = await saveEquipmentToDatabase(equipment);
+
+        if (saved) {
+            console.log('Successfully migrated localStorage data to database');
+            // Optionally clear localStorage after successful migration
+            // localStorage.removeItem('coffee_equipment');
+        }
+    } catch (error) {
+        console.error('Failed to migrate localStorage to database:', error);
+    }
 }
 
 // Initialize app when DOM is ready
