@@ -29,11 +29,12 @@ class Auth {
         }
     }
 
-    // Sign up with email and password
-    async signUp(email, password) {
+    // Sign up with email, password, and username
+    async signUp(email, password, username) {
         const supabase = window.getSupabase();
         if (!supabase) throw new Error('Supabase not configured');
 
+        // First, sign up with email and password
         const { data, error } = await supabase.auth.signUp({
             email,
             password
@@ -43,6 +44,34 @@ class Auth {
 
         this.user = data.user;
         this.session = data.session;
+
+        // Then create the user profile with username
+        if (data.user) {
+            try {
+                const { error: profileError } = await supabase
+                    .from('profiles')
+                    .insert([
+                        {
+                            id: data.user.id,
+                            username: username
+                        }
+                    ]);
+
+                if (profileError) {
+                    console.error('Failed to create profile:', profileError);
+                    // If username is taken, show a better error message
+                    if (profileError.code === '23505') { // PostgreSQL unique violation
+                        throw new Error('Username already taken. Please choose another.');
+                    }
+                    throw new Error('Failed to create profile: ' + profileError.message);
+                }
+            } catch (profileError) {
+                // If profile creation fails, we should ideally delete the auth user
+                // but for now just throw the error
+                throw profileError;
+            }
+        }
+
         return data;
     }
 

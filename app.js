@@ -50,6 +50,8 @@ const elements = {
     // Auth elements
     authModal: document.getElementById('auth-modal'),
     authForm: document.getElementById('auth-form'),
+    authUsername: document.getElementById('auth-username'),
+    usernameGroup: document.getElementById('username-group'),
     authEmail: document.getElementById('auth-email'),
     authPassword: document.getElementById('auth-password'),
     authSubmitBtn: document.getElementById('auth-submit-btn'),
@@ -947,12 +949,20 @@ function switchAuthTab(tab) {
         elements.authSubmitBtn.textContent = 'Sign In';
         document.getElementById('auth-title').textContent = 'Welcome Back';
         document.getElementById('auth-subtitle').textContent = 'Sign in to access your saved equipment and recipes';
+
+        // Hide username field for sign in
+        elements.usernameGroup.style.display = 'none';
+        elements.authUsername.required = false;
     } else {
         elements.tabSignup.classList.add('active');
         elements.tabSignin.classList.remove('active');
         elements.authSubmitBtn.textContent = 'Sign Up';
         document.getElementById('auth-title').textContent = 'Create Account';
         document.getElementById('auth-subtitle').textContent = 'Sign up to save your equipment and recipes across devices';
+
+        // Show username field for sign up
+        elements.usernameGroup.style.display = 'block';
+        elements.authUsername.required = true;
     }
 }
 
@@ -967,7 +977,20 @@ async function handleAuthSubmit() {
         elements.authError.classList.add('hidden');
 
         if (isSignup) {
-            await window.auth.signUp(email, password);
+            const username = elements.authUsername.value.trim();
+
+            // Validate username
+            if (!username) {
+                throw new Error('Username is required');
+            }
+            if (username.length < 3 || username.length > 20) {
+                throw new Error('Username must be 3-20 characters');
+            }
+            if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+                throw new Error('Username can only contain letters, numbers, and underscores');
+            }
+
+            await window.auth.signUp(email, password, username);
         } else {
             await window.auth.signIn(email, password);
         }
@@ -997,11 +1020,37 @@ async function handleLogout() {
     }
 }
 
-function showUserProfile() {
+async function showUserProfile() {
     const user = window.auth.getUser();
     if (user) {
         elements.userProfile.classList.remove('hidden');
-        elements.userEmailDisplay.textContent = user.email;
+
+        // Try to load username from profile
+        const username = await loadUsername();
+        elements.userEmailDisplay.textContent = username || user.email;
+    }
+}
+
+async function loadUsername() {
+    try {
+        const supabase = window.getSupabase();
+        const userId = window.auth.getUserId();
+
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', userId)
+            .single();
+
+        if (error) {
+            console.error('Failed to load username:', error);
+            return null;
+        }
+
+        return data?.username || null;
+    } catch (error) {
+        console.error('Error loading username:', error);
+        return null;
     }
 }
 

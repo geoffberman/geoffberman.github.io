@@ -7,6 +7,14 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Users table (Supabase auth handles this automatically)
 -- We'll use auth.users for authentication
 
+-- User profiles table - stores additional user info like username
+CREATE TABLE profiles (
+    id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Equipment table - stores user's coffee equipment
 CREATE TABLE equipment (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -78,9 +86,23 @@ CREATE TABLE saved_recipes (
 -- Row Level Security (RLS) policies
 -- Users can only access their own data
 
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE equipment ENABLE ROW LEVEL SECURITY;
 ALTER TABLE brew_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE saved_recipes ENABLE ROW LEVEL SECURITY;
+
+-- Profiles policies
+CREATE POLICY "Users can view their own profile"
+    ON profiles FOR SELECT
+    USING (auth.uid() = id);
+
+CREATE POLICY "Users can insert their own profile"
+    ON profiles FOR INSERT
+    WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "Users can update their own profile"
+    ON profiles FOR UPDATE
+    USING (auth.uid() = id);
 
 -- Equipment policies
 CREATE POLICY "Users can view their own equipment"
@@ -134,6 +156,7 @@ CREATE POLICY "Users can delete their own saved recipes"
     USING (auth.uid() = user_id);
 
 -- Indexes for performance
+CREATE INDEX idx_profiles_username ON profiles(username);
 CREATE INDEX idx_equipment_user_id ON equipment(user_id);
 CREATE INDEX idx_brew_sessions_user_id ON brew_sessions(user_id);
 CREATE INDEX idx_brew_sessions_created_at ON brew_sessions(created_at DESC);
