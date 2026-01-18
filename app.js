@@ -495,6 +495,9 @@ function loadEquipment() {
                 const checkbox = document.querySelector(`input[name="other-methods"][value="${value}"]`);
                 if (checkbox) checkbox.checked = true;
             });
+
+            // Show summary view if equipment is loaded
+            showEquipmentSummary();
         }
     } catch (e) {
         console.error('Failed to load equipment:', e);
