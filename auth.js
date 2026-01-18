@@ -45,8 +45,20 @@ class Auth {
         this.user = data.user;
         this.session = data.session;
 
+        // Ensure the session is set on the Supabase client for RLS to work
+        if (data.session) {
+            const { error: sessionError } = await supabase.auth.setSession({
+                access_token: data.session.access_token,
+                refresh_token: data.session.refresh_token
+            });
+
+            if (sessionError) {
+                console.error('Failed to set session:', sessionError);
+            }
+        }
+
         // Then create the user profile with username
-        if (data.user) {
+        if (data.user && data.session) {
             try {
                 const { error: profileError } = await supabase
                     .from('profiles')
