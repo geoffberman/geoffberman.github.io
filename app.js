@@ -404,6 +404,10 @@ function displayResults(data) {
                     </tr>
                 </tbody>
             </table>
+
+            ${technique.technique_notes ? `<div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 3px solid var(--accent-color); border-radius: 4px;">
+                <p style="margin: 0; line-height: 1.6; color: var(--secondary-color);">${technique.technique_notes}</p>
+            </div>` : ''}
         `;
     });
 
@@ -439,6 +443,7 @@ function resetApp() {
 function saveEquipment() {
     const equipment = {
         espressoMachine: document.getElementById('espresso-machine').value.trim(),
+        flowControl: document.getElementById('flow-control').checked,
         grinder: document.getElementById('grinder').value.trim(),
         pourOver: Array.from(document.querySelectorAll('input[name="pour-over"]:checked')).map(cb => cb.value),
         otherMethods: Array.from(document.querySelectorAll('input[name="other-methods"]:checked')).map(cb => cb.value),
@@ -477,6 +482,9 @@ function loadEquipment() {
             // Populate form fields
             if (equipment.espressoMachine) {
                 document.getElementById('espresso-machine').value = equipment.espressoMachine;
+            }
+            if (equipment.flowControl) {
+                document.getElementById('flow-control').checked = true;
             }
             if (equipment.grinder) {
                 document.getElementById('grinder').value = equipment.grinder;
@@ -530,7 +538,7 @@ function getEquipmentDescription() {
     const parts = [];
 
     if (state.equipment.espressoMachine) {
-        parts.push(`Espresso Machine: ${state.equipment.espressoMachine}`);
+        parts.push(`Espresso Machine: ${state.equipment.espressoMachine}${state.equipment.flowControl ? ' (with flow control)' : ''}`);
     }
 
     if (state.equipment.pourOver && state.equipment.pourOver.length > 0) {
@@ -582,7 +590,7 @@ function showEquipmentSummary() {
         summaryHTML += `
             <div class="equipment-summary-item">
                 <strong>Espresso Machine</strong>
-                <span>${state.equipment.espressoMachine}</span>
+                <span>${state.equipment.espressoMachine}${state.equipment.flowControl ? ' (with flow control)' : ''}</span>
             </div>
         `;
     }

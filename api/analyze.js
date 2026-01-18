@@ -23,11 +23,17 @@ module.exports = async function handler(req, res) {
         // Build the prompt with equipment info if available
         let promptText = 'Analyze this coffee bag image and provide expert-level brewing recommendations. Assume the user is an experienced home barista who understands brewing parameters and techniques.';
 
+        const hasFlowControl = equipment && equipment.includes('with flow control');
+
         if (specificMethod) {
             // User wants a specific brew method
             promptText += `\n\nThe user specifically wants a recipe for: ${specificMethod}\n\nProvide ONLY one recommendation using this method. Tailor the parameters to this coffee based on what you can see.`;
         } else if (equipment) {
             promptText += `\n\nUser's available equipment: ${equipment}\n\nRecommend brew methods compatible with their equipment.`;
+        }
+
+        if (hasFlowControl) {
+            promptText += `\n\nIMPORTANT: The user has a flow control device on their espresso machine. For any espresso-based methods, provide specific pressure modulation guidance in the flow_control parameter (e.g., "Start at 9 bar, drop to 6 bar at 15s, ramp back to 9 bar at 25s").`;
         }
 
         promptText += '\n\nProvide your response in the following JSON format:';
@@ -59,7 +65,8 @@ module.exports = async function handler(req, res) {
         "brew_time": "Total brew time (e.g., 2:30-3:00)",
         "pressure": "Pressure if applicable (e.g., 9 bar, N/A for pour over)",
         "flow_control": "Flow control notes if applicable or N/A"
-      }
+      },
+      "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid."
     }
   ]
 }
@@ -90,7 +97,8 @@ Provide expert-level parameters optimized for this coffee. Use technical languag
         "brew_time": "Total brew time (e.g., 2:30-3:00)",
         "pressure": "Pressure if applicable (e.g., 9 bar, N/A for pour over)",
         "flow_control": "Flow control notes if applicable or N/A"
-      }
+      },
+      "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid."
     },
     {
       "technique_name": "Second recommended brew method",
@@ -104,7 +112,8 @@ Provide expert-level parameters optimized for this coffee. Use technical languag
         "brew_time": "Total brew time",
         "pressure": "Pressure if applicable or N/A",
         "flow_control": "Flow control notes if applicable or N/A"
-      }
+      },
+      "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid."
     }
   ]
 }
