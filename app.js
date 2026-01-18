@@ -758,9 +758,10 @@ async function saveEquipment() {
     const equipment = {
         espressoMachine: document.getElementById('espresso-machine').value.trim(),
         flowControl: document.getElementById('flow-control').checked,
+        pourOver: Array.from(document.querySelectorAll('input[name="pour-over"]:checked')).map(cb => cb.value),
+        podMachines: Array.from(document.querySelectorAll('input[name="pod-machines"]:checked')).map(cb => cb.value),
         grinder: document.getElementById('grinder').value.trim(),
         noGrinder: document.getElementById('no-grinder').checked,
-        pourOver: Array.from(document.querySelectorAll('input[name="pour-over"]:checked')).map(cb => cb.value),
         otherMethods: Array.from(document.querySelectorAll('input[name="other-methods"]:checked')).map(cb => cb.value),
         otherEquipment: document.getElementById('other-equipment').value.trim(),
         additionalEquipment: document.getElementById('additional-equipment').value.trim()
@@ -811,6 +812,7 @@ function loadEquipment() {
                 (equipment.grinder && equipment.grinder.trim()) ||
                 equipment.noGrinder ||
                 (equipment.pourOver && equipment.pourOver.length > 0) ||
+                (equipment.podMachines && equipment.podMachines.length > 0) ||
                 (equipment.otherMethods && equipment.otherMethods.length > 0) ||
                 (equipment.otherEquipment && equipment.otherEquipment.trim()) ||
                 (equipment.additionalEquipment && equipment.additionalEquipment.trim())
@@ -846,6 +848,11 @@ function loadEquipment() {
                 // Check appropriate checkboxes
                 equipment.pourOver?.forEach(value => {
                     const checkbox = document.querySelector(`input[name="pour-over"][value="${value}"]`);
+                    if (checkbox) checkbox.checked = true;
+                });
+
+                equipment.podMachines?.forEach(value => {
+                    const checkbox = document.querySelector(`input[name="pod-machines"][value="${value}"]`);
                     if (checkbox) checkbox.checked = true;
                 });
 
@@ -905,6 +912,10 @@ function getEquipmentDescription() {
         parts.push(`Pour Over: ${state.equipment.pourOver.join(', ')}`);
     }
 
+    if (state.equipment.podMachines && state.equipment.podMachines.length > 0) {
+        parts.push(`Pod/Capsule Machines: ${state.equipment.podMachines.join(', ')}`);
+    }
+
     if (state.equipment.grinder) {
         parts.push(`Grinder: ${state.equipment.grinder}`);
     } else if (state.equipment.noGrinder) {
@@ -929,17 +940,8 @@ function getEquipmentDescription() {
 function checkForPoorEquipment() {
     if (!state.equipment) return null;
 
-    // Check all equipment fields for nespresso or k-cup mentions
-    const allEquipmentText = [
-        state.equipment.espressoMachine,
-        state.equipment.otherEquipment,
-        state.equipment.additionalEquipment,
-        ...(state.equipment.otherMethods || [])
-    ].filter(Boolean).join(' ').toLowerCase();
-
-    if (allEquipmentText.includes('nespresso') || allEquipmentText.includes('k-cup') ||
-        allEquipmentText.includes('kcup') || allEquipmentText.includes('k cup') ||
-        allEquipmentText.includes('keurig')) {
+    // Check if any pod machines are selected
+    if (state.equipment.podMachines && state.equipment.podMachines.length > 0) {
         return 'Warning: Not an ideal brewing setup for specialty coffee. Consider upgrading to manual brewing methods for better results!';
     }
 
@@ -969,6 +971,7 @@ function hasEquipment() {
     const hasBrewingMethod = !!(
         (state.equipment.espressoMachine && state.equipment.espressoMachine.trim()) ||
         (state.equipment.pourOver && state.equipment.pourOver.length > 0) ||
+        (state.equipment.podMachines && state.equipment.podMachines.length > 0) ||
         (state.equipment.otherMethods && state.equipment.otherMethods.length > 0) ||
         (state.equipment.otherEquipment && state.equipment.otherEquipment.trim())
     );
@@ -1025,6 +1028,15 @@ function showEquipmentSummary() {
             <div class="equipment-summary-item">
                 <strong>Pour Over Devices</strong>
                 <span>${state.equipment.pourOver.join(', ')}</span>
+            </div>
+        `;
+    }
+
+    if (state.equipment.podMachines && state.equipment.podMachines.length > 0) {
+        summaryHTML += `
+            <div class="equipment-summary-item">
+                <strong>Pod/Capsule Machines</strong>
+                <span>${state.equipment.podMachines.join(', ')}</span>
             </div>
         `;
     }
@@ -1425,9 +1437,10 @@ async function loadEquipmentFromDatabase() {
             state.equipment = {
                 espressoMachine: data.espresso_machine || '',
                 flowControl: data.flow_control || false,
+                pourOver: data.pour_over || [],
+                podMachines: data.pod_machines || [],
                 grinder: data.grinder || '',
                 noGrinder: data.no_grinder || false,
-                pourOver: data.pour_over || [],
                 otherMethods: data.other_methods || [],
                 otherEquipment: data.other_equipment || '',
                 additionalEquipment: data.additional_equipment || ''
@@ -1456,6 +1469,11 @@ async function loadEquipmentFromDatabase() {
             // Check boxes
             state.equipment.pourOver.forEach(value => {
                 const checkbox = document.querySelector(`input[name="pour-over"][value="${value}"]`);
+                if (checkbox) checkbox.checked = true;
+            });
+
+            state.equipment.podMachines.forEach(value => {
+                const checkbox = document.querySelector(`input[name="pod-machines"][value="${value}"]`);
                 if (checkbox) checkbox.checked = true;
             });
 
@@ -1489,9 +1507,10 @@ async function saveEquipmentToDatabase(equipment) {
             user_id: userId,
             espresso_machine: equipment.espressoMachine,
             flow_control: equipment.flowControl,
+            pour_over: equipment.pourOver,
+            pod_machines: equipment.podMachines,
             grinder: equipment.grinder,
             no_grinder: equipment.noGrinder,
-            pour_over: equipment.pourOver,
             other_methods: equipment.otherMethods,
             other_equipment: equipment.otherEquipment,
             additional_equipment: equipment.additionalEquipment,
