@@ -17,9 +17,28 @@ async function initSupabase() {
         const config = await response.json();
 
         if (config.SUPABASE_URL && config.SUPABASE_ANON_KEY) {
-            supabaseClient = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+            supabaseClient = window.supabase.createClient(
+                config.SUPABASE_URL,
+                config.SUPABASE_ANON_KEY,
+                {
+                    auth: {
+                        autoRefreshToken: true,
+                        persistSession: true,
+                        detectSessionInUrl: true
+                    },
+                    db: {
+                        schema: 'public'
+                    },
+                    global: {
+                        headers: {
+                            'apikey': config.SUPABASE_ANON_KEY,
+                            'Prefer': 'return=representation'
+                        }
+                    }
+                }
+            );
             configLoaded = true;
-            console.log('Supabase initialized successfully');
+            console.log('Supabase initialized successfully with URL:', config.SUPABASE_URL);
             return true;
         } else {
             console.warn('Supabase credentials not found - running in demo mode');
