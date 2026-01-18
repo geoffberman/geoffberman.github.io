@@ -21,7 +21,7 @@ module.exports = async function handler(req, res) {
         const { image, mediaType, equipment, specificMethod } = req.body;
 
         // Build the prompt with equipment info if available
-        let promptText = 'Analyze this coffee bag image and provide expert-level brewing recommendations. Assume the user is an experienced home barista who understands brewing parameters and techniques.';
+        let promptText = 'Analyze this coffee bag image and provide expert-level brewing recommendations. Assume the user is an experienced home barista who understands brewing parameters and techniques. Consider all brewing methods including espresso, pour over, immersion methods, and milk-based drinks like lattes.';
 
         const hasFlowControl = equipment && equipment.includes('with flow control');
 
