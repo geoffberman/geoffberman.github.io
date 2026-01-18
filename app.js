@@ -323,26 +323,43 @@ function parseFallbackResponse(text) {
 function getBrewMethodImage(techniqueName) {
     const technique = techniqueName.toLowerCase();
 
-    // Map technique names to Unsplash image search terms
-    if (technique.includes('espresso') || technique.includes('turbo')) {
+    // Map technique names to specific brew method images
+    if (technique.includes('turbo')) {
+        // Espresso shot - turbo shot
+        return 'https://images.unsplash.com/photo-1610889556528-9a770e32642f?w=400&h=300&fit=crop&q=80';
+    } else if (technique.includes('lungo')) {
+        // Lungo - longer espresso
+        return 'https://images.unsplash.com/photo-1534687920214-dcab4b5da211?w=400&h=300&fit=crop&q=80';
+    } else if (technique.includes('espresso')) {
+        // Traditional espresso shot
         return 'https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('latte')) {
-        return 'https://images.unsplash.com/photo-1561882468-9110e03e0f78?w=400&h=300&fit=crop&q=80';
-    } else if (technique.includes('v60') || technique.includes('pour over')) {
-        return 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=300&fit=crop&q=80';
+        // Latte with art in cup
+        return 'https://images.unsplash.com/photo-1570968915860-54d5c301fa9f?w=400&h=300&fit=crop&q=80';
+    } else if (technique.includes('v60')) {
+        // V60 pour over
+        return 'https://images.unsplash.com/photo-1498804103079-a6351b050096?w=400&h=300&fit=crop&q=80';
+    } else if (technique.includes('pour over')) {
+        // Generic pour over
+        return 'https://images.unsplash.com/photo-1442512595331-e89e73853f31?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('chemex')) {
+        // Chemex brewer
         return 'https://images.unsplash.com/photo-1517487881594-2787fef5ebf7?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('french press')) {
-        return 'https://images.unsplash.com/photo-1572286258217-a1dc32fe6c9f?w=400&h=300&fit=crop&q=80';
+        // French press
+        return 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('aeropress')) {
-        return 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=400&h=300&fit=crop&q=80';
+        // Aeropress
+        return 'https://images.unsplash.com/photo-1611564154665-e64f686e0d3d?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('moka')) {
+        // Moka pot
         return 'https://images.unsplash.com/photo-1517487881594-2787fef5ebf7?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('oxo') || technique.includes('soup')) {
-        return 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&h=300&fit=crop&q=80';
+        // Oxo/single cup brewer
+        return 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=400&h=300&fit=crop&q=80';
     } else {
         // Default coffee cup image
-        return 'https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=400&h=300&fit=crop&q=80';
+        return 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&h=300&fit=crop&q=80';
     }
 }
 

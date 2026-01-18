@@ -31,7 +31,22 @@ module.exports = async function handler(req, res) {
 - Flavor notes or tasting notes
 - Any other relevant details
 
-Then provide expert-level brewing recommendations using MODERN specialty coffee methodologies and thinking from experts like Lance Hedrick and James Hoffmann. Favor contemporary approaches:
+CRITICAL: Think deeply about the brewing recommendations. Don't just apply generic formulas based on roast level.
+
+1. If you recognize this specific coffee, roaster, or blend, draw on known recipes from the community (YouTube videos, Reddit r/coffee, home-barista.com forums, etc.)
+2. If not, consider similar coffees with the same characteristics (origin + processing + roast level + flavor notes)
+3. Reference specific recipes from experts like:
+   - James Hoffmann's Ultimate V60 technique and espresso dialing guides
+   - Lance Hedrick's pressure profiling recipes and "soup" method
+   - Scott Rao's work on even extraction
+   - Community-tested recipes for that origin/processing combo
+
+Examples of thinking deeply:
+- Ethiopian natural light roast → higher temps (96-100°C), gentle agitation, turbo shots work well
+- Colombian washed medium → classic balanced approach, 1:2-1:2.5 espresso, 92-94°C pour over
+- Kenyan AA → higher extraction, longer ratios, bloom importance
+
+Then provide expert-level brewing recommendations using MODERN specialty coffee methodologies:
 
 For Espresso:
 - Consider turbo/blooming shots for lighter roasts (higher ratios like 1:2.5-3.5, shorter times 20-25s)
