@@ -68,7 +68,8 @@ const elements = {
     tasteRating: document.getElementById('taste-rating'),
     ratingLabel: document.getElementById('rating-label'),
     adjustRecipeBtn: document.getElementById('adjust-recipe-btn'),
-    adjustmentFeedback: document.getElementById('adjustment-feedback')
+    adjustmentFeedback: document.getElementById('adjustment-feedback'),
+    saveRecipeBtn: document.getElementById('save-recipe-btn')
 };
 
 // Initialize app
@@ -277,14 +278,29 @@ function setupEventListeners() {
 
     // Rating slider
     elements.tasteRating.addEventListener('input', (e) => {
-        updateRatingLabel(e.target.value);
-        elements.adjustRecipeBtn.disabled = false;
+        const rating = parseFloat(e.target.value);
+        updateRatingLabel(rating);
+
+        // Show adjust button if not perfect, show save button if perfect
+        if (rating === 0) {
+            elements.adjustRecipeBtn.disabled = true;
+            elements.saveRecipeBtn.classList.remove('hidden');
+        } else {
+            elements.adjustRecipeBtn.disabled = false;
+            elements.saveRecipeBtn.classList.add('hidden');
+        }
     });
 
     // Adjust recipe button
     elements.adjustRecipeBtn.addEventListener('click', async () => {
         const rating = parseFloat(elements.tasteRating.value);
         await adjustRecipeBasedOnRating(rating);
+    });
+
+    // Save recipe button
+    elements.saveRecipeBtn.addEventListener('click', async () => {
+        const rating = parseFloat(elements.tasteRating.value);
+        await saveBrewSession(rating);
     });
 }
 
@@ -1138,6 +1154,141 @@ async function migrateLocalStorageToDatabase() {
     } catch (error) {
         console.error('Failed to migrate localStorage to database:', error);
     }
+}
+
+// Brew Session Tracking Functions
+async function saveBrewSession(rating) {
+    if (!window.auth || !window.auth.isAuthenticated()) {
+        // Show message that they need to sign in to save
+        elements.adjustmentFeedback.classList.remove('hidden');
+        elements.adjustmentFeedback.querySelector('p').innerHTML =
+            '⚠️ <a href="#" onclick="document.getElementById(\'auth-modal\').classList.remove(\'hidden\'); return false;">Sign in</a> to save your recipes across devices';
+        return;
+    }
+
+    if (!state.currentCoffeeAnalysis || !state.currentRecipe) {
+        console.error('No brew session to save');
+        return;
+    }
+
+    const supabase = window.getSupabase();
+    const userId = window.auth.getUserId();
+
+    try {
+        // Show loading state
+        elements.saveRecipeBtn.disabled = true;
+        elements.saveRecipeBtn.textContent = 'Saving...';
+
+        const session = {
+            user_id: userId,
+            coffee_name: state.currentCoffeeAnalysis.name || 'Unknown',
+            roaster: state.currentCoffeeAnalysis.roaster || 'Unknown',
+            roast_level: state.currentCoffeeAnalysis.roast_level || 'Unknown',
+            origin: state.currentCoffeeAnalysis.origin || 'Unknown',
+            processing: state.currentCoffeeAnalysis.processing || 'Unknown',
+            flavor_notes: state.currentCoffeeAnalysis.flavor_notes || [],
+            brew_method: state.currentBrewMethod,
+            original_recipe: state.currentRecipe,
+            rating: rating === 0 ? 'perfect' : rating < 0 ? 'too_sour' : 'too_bitter'
+        };
+
+        const { error } = await supabase
+            .from('brew_sessions')
+            .insert([session]);
+
+        if (error) throw error;
+
+        // If rating is perfect, also save as preferred recipe
+        if (rating === 0) {
+            await saveAsPreferredRecipe();
+        }
+
+        // Show success feedback
+        elements.adjustmentFeedback.classList.remove('hidden');
+        elements.adjustmentFeedback.querySelector('p').textContent =
+            '✓ Recipe saved! You can access it later from your brew history.';
+
+        // Reset button
+        elements.saveRecipeBtn.textContent = '✓ Saved!';
+        setTimeout(() => {
+            elements.saveRecipeBtn.classList.add('hidden');
+            elements.saveRecipeBtn.textContent = '💾 Save This Recipe';
+            elements.saveRecipeBtn.disabled = false;
+        }, 2000);
+
+    } catch (error) {
+        console.error('Failed to save brew session:', error);
+        elements.adjustmentFeedback.classList.remove('hidden');
+        elements.adjustmentFeedback.querySelector('p').textContent =
+            '❌ Failed to save recipe. Please try again.';
+        elements.saveRecipeBtn.textContent = '💾 Save This Recipe';
+        elements.saveRecipeBtn.disabled = false;
+    }
+}
+
+async function saveAsPreferredRecipe() {
+    const supabase = window.getSupabase();
+    const userId = window.auth.getUserId();
+
+    // Create a hash from coffee characteristics
+    const coffeeHash = createCoffeeHash(
+        state.currentCoffeeAnalysis.name,
+        state.currentCoffeeAnalysis.roaster,
+        state.currentCoffeeAnalysis.roast_level,
+        state.currentCoffeeAnalysis.origin
+    );
+
+    const preferredRecipe = {
+        user_id: userId,
+        coffee_hash: coffeeHash,
+        coffee_name: state.currentCoffeeAnalysis.name || 'Unknown',
+        roaster: state.currentCoffeeAnalysis.roaster || 'Unknown',
+        brew_method: state.currentBrewMethod,
+        recipe: state.currentRecipe,
+        last_brewed: new Date().toISOString()
+    };
+
+    try {
+        // Check if recipe already exists
+        const { data: existing } = await supabase
+            .from('saved_recipes')
+            .select('id, times_brewed')
+            .eq('user_id', userId)
+            .eq('coffee_hash', coffeeHash)
+            .eq('brew_method', state.currentBrewMethod)
+            .single();
+
+        if (existing) {
+            // Update existing recipe
+            const { error } = await supabase
+                .from('saved_recipes')
+                .update({
+                    recipe: state.currentRecipe,
+                    times_brewed: existing.times_brewed + 1,
+                    last_brewed: new Date().toISOString()
+                })
+                .eq('id', existing.id);
+
+            if (error) throw error;
+        } else {
+            // Insert new preferred recipe
+            const { error } = await supabase
+                .from('saved_recipes')
+                .insert([preferredRecipe]);
+
+            if (error) throw error;
+        }
+
+        console.log('Saved as preferred recipe');
+    } catch (error) {
+        console.error('Failed to save preferred recipe:', error);
+    }
+}
+
+function createCoffeeHash(name, roaster, roastLevel, origin) {
+    // Simple hash function - concatenate and create a simple hash
+    const str = `${name || ''}_${roaster || ''}_${roastLevel || ''}_${origin || ''}`.toLowerCase();
+    return str.replace(/\s+/g, '_');
 }
 
 // Rating Slider Functions

@@ -240,9 +240,14 @@
                             </div>
                         </div>
 
-                        <button id="adjust-recipe-btn" class="btn btn-primary" style="margin-top: 20px; width: 100%;" disabled>
-                            Adjust Recipe Based on Rating
-                        </button>
+                        <div style="display: flex; gap: 10px; margin-top: 20px;">
+                            <button id="adjust-recipe-btn" class="btn btn-primary" style="flex: 1;" disabled>
+                                Adjust Recipe Based on Rating
+                            </button>
+                            <button id="save-recipe-btn" class="btn btn-secondary hidden" style="flex: 1;">
+                                💾 Save This Recipe
+                            </button>
+                        </div>
 
                         <div id="adjustment-feedback" class="hidden" style="margin-top: 15px; padding: 15px; background: rgba(107, 68, 35, 0.1); border-radius: 6px;">
                             <p style="margin: 0; color: var(--secondary-color);"></p>
