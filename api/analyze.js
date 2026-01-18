@@ -140,8 +140,8 @@ Read the image carefully and extract all visible information accurately. Provide
                 'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
-                model: 'claude-3-5-sonnet-20240620',
-                max_tokens: 3072,
+                model: 'claude-3-haiku-20240307',
+                max_tokens: 2048,
                 messages: [{
                     role: 'user',
                     content: [
