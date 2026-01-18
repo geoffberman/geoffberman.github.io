@@ -31,7 +31,26 @@ module.exports = async function handler(req, res) {
 - Flavor notes or tasting notes
 - Any other relevant details
 
-Then provide expert-level brewing recommendations. Assume the user is an experienced home barista who understands brewing parameters and techniques. Consider all brewing methods including espresso, pour over, immersion methods, and milk-based drinks like lattes.
+Then provide expert-level brewing recommendations using MODERN specialty coffee methodologies and thinking from experts like Lance Hedrick and James Hoffmann. Favor contemporary approaches:
+
+For Espresso:
+- Consider turbo/blooming shots for lighter roasts (higher ratios like 1:2.5-3.5, shorter times 20-25s)
+- Lower temperatures (88-92°C) for light roasts to reduce astringency
+- Pre-infusion and pressure profiling when available
+- Even extraction over traditional "perfect" ratios
+
+For Pour Over (V60, etc):
+- Emphasize bloom phase (2-3x coffee weight, 30-45s)
+- Higher water temperatures (95-100°C) for light roasts
+- Focus on even extraction and drawdown times
+- Modern pour patterns (center pours, swirling)
+
+General Modern Principles:
+- Grind quality matters more than exact settings
+- Water quality and temperature control are critical
+- Even extraction is the primary goal
+- Ratios and times are starting points, adjust by taste
+- Lighter roasts benefit from hotter water and longer contact times
 
 IMPORTANT: Only include information you can actually see or confidently infer from the image. If information is not visible, use "Unknown" or make educated guesses based on visible roast level and any other clues.`;
 
