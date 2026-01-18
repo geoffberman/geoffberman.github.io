@@ -472,6 +472,28 @@ h1 {
     accent-color: var(--primary-color);
 }
 
+/* Brew Method Select */
+.brew-method-select {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: inherit;
+    background-color: var(--card-bg);
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+}
+
+.brew-method-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.brew-method-select:hover {
+    border-color: var(--accent-color);
+}
+
 /* Brew Parameters Table */
 .brew-parameters-table {
     width: 100%;

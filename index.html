@@ -159,6 +159,31 @@
                         <div id="method-content"></div>
                     </div>
 
+                    <div class="card" style="background: linear-gradient(135deg, #FFFCF7 0%, #FFF8ED 100%); border: 2px solid var(--accent-color);">
+                        <h3>Try a Different Method</h3>
+                        <p style="margin-bottom: 15px; color: var(--secondary-color);">Want to see how this coffee would work with a different brewing method?</p>
+
+                        <div class="form-group">
+                            <label for="alt-brew-method">Select Brew Method:</label>
+                            <select id="alt-brew-method" class="brew-method-select">
+                                <option value="">-- Choose Method --</option>
+                                <option value="V60 Pour Over">V60 Pour Over</option>
+                                <option value="Espresso (Traditional)">Espresso (Traditional)</option>
+                                <option value="Espresso Lungo">Espresso Lungo</option>
+                                <option value="Turbo Shot Espresso">Turbo Shot Espresso</option>
+                                <option value="Oxo Rapid Brew Cup">Oxo Rapid Brew Cup</option>
+                                <option value="French Press">French Press</option>
+                                <option value="Aeropress">Aeropress</option>
+                                <option value="Chemex">Chemex</option>
+                                <option value="Moka Pot">Moka Pot</option>
+                            </select>
+                        </div>
+
+                        <button id="alt-brew-btn" class="btn btn-primary" disabled>
+                            Get Recipe for Selected Method
+                        </button>
+                    </div>
+
                     <button id="try-again-btn" class="btn btn-secondary">
                         Analyze Another Coffee
                     </button>

@@ -32,6 +32,10 @@ const elements = {
     retryBtn: document.getElementById('retry-btn'),
     errorMessage: document.getElementById('error-message'),
 
+    // Alternative brew method elements
+    altBrewMethodSelect: document.getElementById('alt-brew-method'),
+    altBrewBtn: document.getElementById('alt-brew-btn'),
+
     // Settings elements
     settingsToggleBtn: document.getElementById('settings-toggle-btn'),
     equipmentForm: document.getElementById('equipment-form'),
@@ -135,6 +139,20 @@ function setupEventListeners() {
     elements.clearEquipmentBtn.addEventListener('click', () => {
         clearEquipment();
     });
+
+    // Alternative brew method dropdown
+    elements.altBrewMethodSelect.addEventListener('change', () => {
+        const method = elements.altBrewMethodSelect.value;
+        elements.altBrewBtn.disabled = !method;
+    });
+
+    // Alternative brew method button
+    elements.altBrewBtn.addEventListener('click', () => {
+        const method = elements.altBrewMethodSelect.value;
+        if (method) {
+            analyzeWithSpecificMethod(method);
+        }
+    });
 }
 
 // Handle image upload
@@ -197,7 +215,7 @@ async function getBase64Image(file) {
 }
 
 // Analyze image using backend serverless function
-async function analyzeImage() {
+async function analyzeImage(specificMethod = null) {
     if (!state.imageFile) {
         showError('Please upload an image first.');
         return;
@@ -211,16 +229,23 @@ async function analyzeImage() {
 
         const equipmentDescription = getEquipmentDescription();
 
+        const requestBody = {
+            image: base64Image,
+            mediaType: mediaType,
+            equipment: equipmentDescription
+        };
+
+        // Add specific method if provided
+        if (specificMethod) {
+            requestBody.specificMethod = specificMethod;
+        }
+
         const response = await fetch('/api/analyze', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                image: base64Image,
-                mediaType: mediaType,
-                equipment: equipmentDescription
-            })
+            body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {
@@ -253,6 +278,11 @@ async function analyzeImage() {
         console.error('Analysis error:', error);
         showError(`Failed to analyze image: ${error.message}`);
     }
+}
+
+// Analyze with a specific brew method
+async function analyzeWithSpecificMethod(method) {
+    await analyzeImage(method);
 }
 
 // Parse fallback response if JSON parsing fails
