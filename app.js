@@ -319,6 +319,33 @@ function parseFallbackResponse(text) {
     };
 }
 
+// Get image URL for brew method
+function getBrewMethodImage(techniqueName) {
+    const technique = techniqueName.toLowerCase();
+
+    // Map technique names to Unsplash image search terms
+    if (technique.includes('espresso') || technique.includes('turbo')) {
+        return 'https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=400&h=300&fit=crop&q=80';
+    } else if (technique.includes('latte')) {
+        return 'https://images.unsplash.com/photo-1561882468-9110e03e0f78?w=400&h=300&fit=crop&q=80';
+    } else if (technique.includes('v60') || technique.includes('pour over')) {
+        return 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=300&fit=crop&q=80';
+    } else if (technique.includes('chemex')) {
+        return 'https://images.unsplash.com/photo-1517487881594-2787fef5ebf7?w=400&h=300&fit=crop&q=80';
+    } else if (technique.includes('french press')) {
+        return 'https://images.unsplash.com/photo-1572286258217-a1dc32fe6c9f?w=400&h=300&fit=crop&q=80';
+    } else if (technique.includes('aeropress')) {
+        return 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=400&h=300&fit=crop&q=80';
+    } else if (technique.includes('moka')) {
+        return 'https://images.unsplash.com/photo-1517487881594-2787fef5ebf7?w=400&h=300&fit=crop&q=80';
+    } else if (technique.includes('oxo') || technique.includes('soup')) {
+        return 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&h=300&fit=crop&q=80';
+    } else {
+        // Default coffee cup image
+        return 'https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=400&h=300&fit=crop&q=80';
+    }
+}
+
 // Display results
 function displayResults(data) {
     const analysis = data.coffee_analysis;
@@ -354,15 +381,18 @@ function displayResults(data) {
 
     techniques.forEach((technique, index) => {
         const params = technique.parameters;
+        const imageUrl = getBrewMethodImage(technique.technique_name);
 
         techniquesHTML += `
-            <div class="technique-header">
-                <h4><span class="technique-number">#${index + 1}</span>${technique.technique_name}</h4>
-            </div>
+            <div class="technique-container">
+                <div class="technique-content">
+                    <div class="technique-header">
+                        <h4><span class="technique-number">#${index + 1}</span>${technique.technique_name}</h4>
+                    </div>
 
-            <p style="margin-bottom: 15px; line-height: 1.6;">${technique.reasoning}</p>
+                    <p style="margin-bottom: 15px; line-height: 1.6;">${technique.reasoning}</p>
 
-            <table class="brew-parameters-table">
+                    <table class="brew-parameters-table">
                 <thead>
                     <tr>
                         <th>Parameter</th>
@@ -408,6 +438,12 @@ function displayResults(data) {
             ${technique.technique_notes ? `<div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 3px solid var(--accent-color); border-radius: 4px;">
                 <p style="margin: 0; line-height: 1.6; color: var(--secondary-color);">${technique.technique_notes}</p>
             </div>` : ''}
+                </div>
+
+                <div class="technique-image">
+                    <img src="${imageUrl}" alt="${technique.technique_name}" loading="lazy" />
+                </div>
+            </div>
         `;
     });
 
