@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate PWA Icons - Better Coffee</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #FAF7F2;
+        }
+        h1 {
+            color: #6B4423;
+        }
+        .step {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #6B4423;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #8B6F47;
+        }
+        canvas {
+            border: 2px solid #ddd;
+            margin: 10px;
+            display: block;
+        }
+        .preview {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+        code {
+            background: #eee;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>☕ Generate PWA Icons for Better Coffee</h1>
+
+    <div class="step">
+        <h2>Step 1: Generate Icons</h2>
+        <p>Click the buttons below to generate and download your PWA icons:</p>
+
+        <button onclick="generateAndDownload(192)">📥 Download icon-192.png</button>
+        <button onclick="generateAndDownload(512)">📥 Download icon-512.png</button>
+
+        <div class="preview">
+            <h3>Preview:</h3>
+            <canvas id="preview" width="192" height="192"></canvas>
+        </div>
+    </div>
+
+    <div class="step">
+        <h2>Step 2: Add to Your Repo</h2>
+        <ol>
+            <li>Download both icons using the buttons above</li>
+            <li>Place both <code>icon-192.png</code> and <code>icon-512.png</code> in your repo root</li>
+            <li>Commit and push to your repo</li>
+            <li>Your PWA will automatically use them!</li>
+        </ol>
+    </div>
+
+    <script>
+        // The SVG icon for Better Coffee
+        const svgContent = `<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="256" fill="#6B4423"/>
+
+  <!-- Coffee cup -->
+  <path d="M 160 180 L 180 380 Q 180 400 200 400 L 312 400 Q 332 400 332 380 L 352 180 Z"
+        fill="#FAF7F2" stroke="#D4A574" stroke-width="8"/>
+
+  <!-- Coffee liquid -->
+  <path d="M 170 240 L 185 360 Q 185 370 195 370 L 317 370 Q 327 370 327 360 L 342 240 Z"
+        fill="#8B6F47"/>
+
+  <!-- Steam lines -->
+  <path d="M 200 140 Q 210 120 200 100"
+        stroke="#FAF7F2" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.8"/>
+  <path d="M 256 130 Q 266 110 256 90"
+        stroke="#FAF7F2" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.8"/>
+  <path d="M 312 140 Q 322 120 312 100"
+        stroke="#FAF7F2" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.8"/>
+
+  <!-- Cup handle -->
+  <path d="M 352 220 Q 390 220 390 280 Q 390 340 352 340"
+        stroke="#FAF7F2" stroke-width="12" fill="none" stroke-linecap="round"/>
+</svg>`;
+
+        // Generate preview on load
+        window.onload = function() {
+            renderPreview();
+        };
+
+        function renderPreview() {
+            const canvas = document.getElementById('preview');
+            const ctx = canvas.getContext('2d');
+
+            const img = new Image();
+            const svg = new Blob([svgContent], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(svg);
+
+            img.onload = function() {
+                ctx.drawImage(img, 0, 0, 192, 192);
+                URL.revokeObjectURL(url);
+            };
+
+            img.src = url;
+        }
+
+        function generateAndDownload(size) {
+            // Create a canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+
+            // Create an image from SVG
+            const img = new Image();
+            const svg = new Blob([svgContent], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(svg);
+
+            img.onload = function() {
+                // Draw to canvas
+                ctx.drawImage(img, 0, 0, size, size);
+
+                // Convert to PNG and download
+                canvas.toBlob(function(blob) {
+                    const link = document.createElement('a');
+                    link.download = `icon-${size}.png`;
+                    link.href = URL.createObjectURL(blob);
+                    link.click();
+
+                    URL.revokeObjectURL(url);
+                    URL.revokeObjectURL(link.href);
+                });
+            };
+
+            img.src = url;
+        }
+    </script>
+</body>
+</html>

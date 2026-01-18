@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create PNG Icons</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .icon-preview {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+        }
+        canvas {
+            border: 1px solid #ddd;
+            margin: 10px;
+        }
+        button {
+            background: #6B4423;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #8B6F47;
+        }
+    </style>
+</head>
+<body>
+    <h1>Create PNG Icons from SVG</h1>
+    <p>This tool will convert icon.svg to icon-192.png and icon-512.png for your PWA.</p>
+
+    <div class="icon-preview">
+        <h3>192x192 Icon</h3>
+        <canvas id="canvas192" width="192" height="192"></canvas>
+        <br>
+        <button onclick="downloadIcon(192)">Download icon-192.png</button>
+    </div>
+
+    <div class="icon-preview">
+        <h3>512x512 Icon</h3>
+        <canvas id="canvas512" width="512" height="512"></canvas>
+        <br>
+        <button onclick="downloadIcon(512)">Download icon-512.png</button>
+    </div>
+
+    <script>
+        // SVG content from icon.svg
+        const svgContent = `<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="256" fill="#6B4423"/>
+
+  <!-- Coffee cup -->
+  <path d="M 160 180 L 180 380 Q 180 400 200 400 L 312 400 Q 332 400 332 380 L 352 180 Z"
+        fill="#FAF7F2" stroke="#D4A574" stroke-width="8"/>
+
+  <!-- Coffee liquid -->
+  <path d="M 170 240 L 185 360 Q 185 370 195 370 L 317 370 Q 327 370 327 360 L 342 240 Z"
+        fill="#8B6F47"/>
+
+  <!-- Steam lines -->
+  <path d="M 200 140 Q 210 120 200 100"
+        stroke="#FAF7F2" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.8"/>
+  <path d="M 256 130 Q 266 110 256 90"
+        stroke="#FAF7F2" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.8"/>
+  <path d="M 312 140 Q 322 120 312 100"
+        stroke="#FAF7F2" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.8"/>
+
+  <!-- Cup handle -->
+  <path d="M 352 220 Q 390 220 390 280 Q 390 340 352 340"
+        stroke="#FAF7F2" stroke-width="12" fill="none" stroke-linecap="round"/>
+</svg>`;
+
+        function renderIcon(size) {
+            const canvas = document.getElementById(`canvas${size}`);
+            const ctx = canvas.getContext('2d');
+
+            // Create an image from SVG
+            const img = new Image();
+            const svg = new Blob([svgContent], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(svg);
+
+            img.onload = function() {
+                ctx.drawImage(img, 0, 0, size, size);
+                URL.revokeObjectURL(url);
+            };
+
+            img.src = url;
+        }
+
+        function downloadIcon(size) {
+            const canvas = document.getElementById(`canvas${size}`);
+            const link = document.createElement('a');
+            link.download = `icon-${size}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        // Render icons on page load
+        window.onload = function() {
+            renderIcon(192);
+            renderIcon(512);
+        };
+    </script>
+</body>
+</html>

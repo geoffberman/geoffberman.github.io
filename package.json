@@ -1,0 +1,12 @@
+{
+  "name": "coffee-brew-recommender",
+  "version": "1.0.0",
+  "description": "Coffee brew recommendation app",
+  "main": "index.html",
+  "scripts": {
+    "start": "node api/analyze.js"
+  },
+  "keywords": ["coffee", "brew", "recommendation"],
+  "author": "",
+  "license": "MIT"
+}

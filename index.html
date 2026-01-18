@@ -3,15 +3,169 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Coffee Brew Recommender</title>
+    <title>Better Coffee</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+
+    <!-- iOS Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Better Coffee">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#6B4423">
+
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>☕ Coffee Brew Recommender</h1>
+            <h1>☕ Better Coffee</h1>
             <p class="subtitle">Upload a photo of your coffee bag for personalized brew recommendations</p>
+            <button id="settings-toggle-btn" class="btn btn-secondary" style="margin-top: 15px;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 20px; height: 20px;">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                My Equipment
+            </button>
         </header>
+
+        <!-- Authentication Modal -->
+        <div id="auth-modal" class="auth-modal hidden">
+            <div class="auth-modal-content">
+                <h2 id="auth-title">Welcome to Better Coffee</h2>
+                <p id="auth-subtitle">Sign in to save your equipment and brew recipes across devices</p>
+
+                <div id="auth-tabs" class="auth-tabs">
+                    <button id="tab-signin" class="auth-tab active">Sign In</button>
+                    <button id="tab-signup" class="auth-tab">Sign Up</button>
+                </div>
+
+                <form id="auth-form">
+                    <div class="form-group" id="username-group" style="display: none;">
+                        <label for="auth-username">Username</label>
+                        <input type="text" id="auth-username" placeholder="coffeemaster" minlength="3" maxlength="20" pattern="[a-zA-Z0-9_]+">
+                        <small style="color: var(--secondary-color); font-size: 0.85rem;">Letters, numbers, and underscores only</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="auth-email">Email</label>
+                        <input type="email" id="auth-email" required placeholder="your@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="auth-password">Password</label>
+                        <input type="password" id="auth-password" required placeholder="••••••••" minlength="6">
+                    </div>
+                    <div id="auth-error" class="auth-error hidden"></div>
+                    <button type="submit" id="auth-submit-btn" class="btn btn-primary" style="width: 100%;">
+                        Sign In
+                    </button>
+                </form>
+
+                <button id="auth-skip-btn" class="btn btn-secondary" style="width: 100%; margin-top: 10px;">
+                    Skip for now
+                </button>
+
+                <p style="font-size: 0.85rem; color: var(--secondary-color); margin-top: 15px; text-align: center;">
+                    By signing up, your equipment and brew history will sync across all your devices.
+                </p>
+            </div>
+        </div>
+
+        <!-- User Profile Button (shown when logged in) -->
+        <div id="user-profile" class="hidden" style="position: absolute; top: 20px; right: 20px;">
+            <button id="user-menu-btn" class="btn btn-secondary" style="padding: 8px 16px;">
+                <span id="user-email-display"></span>
+            </button>
+            <div id="user-dropdown" class="hidden" style="position: absolute; right: 0; top: 45px; background: white; border-radius: 8px; box-shadow: var(--shadow); min-width: 150px; z-index: 1000;">
+                <button id="logout-btn" class="btn btn-secondary" style="width: 100%; text-align: left;">Sign Out</button>
+            </div>
+        </div>
+
+        <div id="settings-section" class="section hidden">
+            <div class="card">
+                <h3>Your Coffee Equipment</h3>
+
+                <div id="equipment-summary" class="equipment-summary hidden">
+                    <p style="margin-bottom: 15px; color: var(--secondary-color);"><strong>Currently Saved:</strong></p>
+                    <div id="equipment-summary-content"></div>
+                    <button type="button" id="edit-equipment-btn" class="btn btn-secondary" style="margin-top: 15px;">Edit Equipment</button>
+                </div>
+
+                <div id="equipment-form-container">
+                    <p style="margin-bottom: 20px; color: var(--secondary-color);">Tell us what equipment you have, and we'll recommend brew methods that work with your gear!</p>
+
+                    <form id="equipment-form">
+                    <div class="form-group">
+                        <label>Espresso Machine</label>
+                        <input type="text" id="espresso-machine" placeholder="e.g., Breville Barista Express, Gaggia Classic" />
+                        <label class="checkbox-label" style="margin-top: 10px;">
+                            <input type="checkbox" id="flow-control" /> Has flow control device
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Pour Over Devices</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="pour-over" value="V60" /> Hario V60
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="pour-over" value="Chemex" /> Chemex
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="pour-over" value="Kalita Wave" /> Kalita Wave
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="pour-over" value="Bee House" /> Bee House
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Grinder</label>
+                        <input type="text" id="grinder" placeholder="e.g., Baratza Encore, Hand grinder, Blade grinder" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Other Brewing Methods</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="other-methods" value="French Press" /> French Press
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="other-methods" value="Aeropress" /> Aeropress
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="other-methods" value="Moka Pot" /> Moka Pot
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="other-methods" value="Cold Brew" /> Cold Brew
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="other-methods" value="Drip Coffee Maker" /> Drip Coffee Maker
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="other-methods" value="Siphon" /> Siphon
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Additional Equipment or Notes</label>
+                        <textarea id="additional-equipment" rows="3" placeholder="e.g., Gooseneck kettle, Scale, Temperature-controlled kettle"></textarea>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="submit" class="btn btn-primary">Save Equipment</button>
+                        <button type="button" id="clear-equipment-btn" class="btn btn-secondary">Clear All</button>
+                    </div>
+                </form>
+                </div>
+            </div>
+        </div>
 
         <main>
             <div id="upload-section" class="section">
@@ -48,24 +202,6 @@
                     <button id="remove-image" class="btn-close">✕</button>
                 </div>
 
-                <div class="api-key-section">
-                    <label for="api-key-input">Anthropic API Key:</label>
-                    <div class="api-key-input-group">
-                        <input
-                            type="password"
-                            id="api-key-input"
-                            placeholder="sk-ant-..."
-                            autocomplete="off">
-                        <button id="toggle-key-visibility" class="btn-icon" type="button">
-                            <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                        </button>
-                    </div>
-                    <p class="api-key-note">Get your API key from <a href="https://console.anthropic.com/" target="_blank">Anthropic Console</a>. Your key is stored locally and never sent to our servers.</p>
-                </div>
-
                 <button id="analyze-btn" class="btn btn-primary btn-large">
                     Analyze & Get Recommendations
                 </button>
@@ -85,14 +221,68 @@
                         <div id="analysis-content"></div>
                     </div>
 
-                    <div id="brew-method" class="card highlight">
-                        <h3>Recommended Brew Method</h3>
+                    <div id="brew-method" class="card">
+                        <h3>Recommended Techniques</h3>
                         <div id="method-content"></div>
                     </div>
 
-                    <div id="brew-recipe" class="card">
-                        <h3>Brew Recipe</h3>
-                        <div id="recipe-content"></div>
+                    <!-- Rating Slider -->
+                    <div id="rating-section" class="card" style="background: linear-gradient(135deg, #FFF8ED 0%, #FFEDDA 100%); border: 2px solid #D4A574;">
+                        <h3>How Did It Taste?</h3>
+                        <p style="margin-bottom: 20px; color: var(--secondary-color);">Rate your brew to get recipe adjustments</p>
+
+                        <div class="rating-slider-container">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.9rem; color: var(--secondary-color);">
+                                <span>Too Sour</span>
+                                <span>Perfect</span>
+                                <span>Too Bitter</span>
+                            </div>
+
+                            <input type="range" id="taste-rating" class="taste-slider" min="-2" max="2" step="0.5" value="0">
+
+                            <div style="text-align: center; margin-top: 15px;">
+                                <p id="rating-label" style="font-weight: bold; color: var(--primary-color); font-size: 1.1rem;">Perfect!</p>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; margin-top: 20px;">
+                            <button id="adjust-recipe-btn" class="btn btn-primary" style="flex: 1;" disabled>
+                                Adjust Recipe Based on Rating
+                            </button>
+                            <button id="save-recipe-btn" class="btn btn-secondary hidden" style="flex: 1;">
+                                💾 Save This Recipe
+                            </button>
+                        </div>
+
+                        <div id="adjustment-feedback" class="hidden" style="margin-top: 15px; padding: 15px; background: rgba(107, 68, 35, 0.1); border-radius: 6px;">
+                            <p style="margin: 0; color: var(--secondary-color);"></p>
+                        </div>
+                    </div>
+
+                    <div class="card" style="background: linear-gradient(135deg, #FFFCF7 0%, #FFF8ED 100%); border: 2px solid var(--accent-color);">
+                        <h3>Try a Different Method</h3>
+                        <p style="margin-bottom: 15px; color: var(--secondary-color);">Want to see how this coffee would work with a different brewing method?</p>
+
+                        <div class="form-group">
+                            <label for="alt-brew-method">Select Brew Method:</label>
+                            <select id="alt-brew-method" class="brew-method-select">
+                                <option value="">-- Choose Method --</option>
+                                <option value="V60 Pour Over">V60 Pour Over</option>
+                                <option value="Espresso (Traditional)">Espresso (Traditional)</option>
+                                <option value="Espresso Lungo">Espresso Lungo</option>
+                                <option value="Turbo Shot Espresso">Turbo Shot Espresso</option>
+                                <option value="Latte">Latte</option>
+                                <option value="Oxo Rapid Brew Cup (Soup)">Oxo Rapid Brew Cup (Soup)</option>
+                                <option value="French Press">French Press</option>
+                                <option value="Aeropress">Aeropress</option>
+                                <option value="Chemex">Chemex</option>
+                                <option value="Moka Pot">Moka Pot</option>
+                            </select>
+                        </div>
+
+                        <button id="alt-brew-btn" class="btn btn-primary" disabled>
+                            Get Recipe for Selected Method
+                        </button>
                     </div>
 
                     <button id="try-again-btn" class="btn btn-secondary">
@@ -111,10 +301,16 @@
         </main>
 
         <footer>
-            <p>Powered by Claude AI • Your API key is stored locally in your browser</p>
+            <p>Powered by Claude AI • Secure serverless backend</p>
         </footer>
     </div>
 
+    <!-- Supabase Client Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- App Scripts -->
+    <script src="supabase-client.js"></script>
+    <script src="auth.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
