@@ -997,10 +997,36 @@ async function handleAuthSubmit() {
 
         // Success - modal will be hidden by auth state change handler
     } catch (error) {
-        elements.authError.textContent = error.message;
-        elements.authError.classList.remove('hidden');
-        elements.authSubmitBtn.disabled = false;
-        elements.authSubmitBtn.textContent = isSignup ? 'Sign Up' : 'Sign In';
+        // Handle email confirmation required
+        if (error.message === 'CONFIRMATION_REQUIRED') {
+            elements.authError.innerHTML = `
+                <strong>✓ Account created!</strong><br>
+                Please check your email (${email}) and click the confirmation link to complete signup.
+                <br><br>
+                <small>Once confirmed, you can sign in with your credentials.</small>
+            `;
+            elements.authError.style.backgroundColor = '#d4edda';
+            elements.authError.style.color = '#155724';
+            elements.authError.classList.remove('hidden');
+            elements.authSubmitBtn.disabled = false;
+            elements.authSubmitBtn.textContent = 'Sign Up';
+
+            // Clear form
+            elements.authForm.reset();
+
+            // Switch to sign-in tab after a delay
+            setTimeout(() => {
+                switchAuthTab('signin');
+                elements.authError.classList.add('hidden');
+                elements.authError.style.backgroundColor = '';
+                elements.authError.style.color = '';
+            }, 8000);
+        } else {
+            elements.authError.textContent = error.message;
+            elements.authError.classList.remove('hidden');
+            elements.authSubmitBtn.disabled = false;
+            elements.authSubmitBtn.textContent = isSignup ? 'Sign Up' : 'Sign In';
+        }
     }
 }
 

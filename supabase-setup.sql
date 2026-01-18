@@ -162,3 +162,34 @@ CREATE INDEX idx_brew_sessions_user_id ON brew_sessions(user_id);
 CREATE INDEX idx_brew_sessions_created_at ON brew_sessions(created_at DESC);
 CREATE INDEX idx_saved_recipes_user_id ON saved_recipes(user_id);
 CREATE INDEX idx_saved_recipes_lookup ON saved_recipes(user_id, coffee_hash, brew_method);
+
+-- Function to automatically create profile when user signs up
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO public.profiles (id, username)
+    VALUES (
+        NEW.id,
+        COALESCE(NEW.raw_user_meta_data->>'username', 'user_' || substr(NEW.id::text, 1, 8))
+    )
+    ON CONFLICT (id) DO NOTHING;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger to create profile after email confirmation
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW
+    WHEN (NEW.email_confirmed_at IS NOT NULL OR NEW.phone_confirmed_at IS NOT NULL)
+    EXECUTE FUNCTION public.handle_new_user();
+
+-- Also handle updates (when user confirms email)
+CREATE TRIGGER on_auth_user_confirmed
+    AFTER UPDATE ON auth.users
+    FOR EACH ROW
+    WHEN (
+        (OLD.email_confirmed_at IS NULL AND NEW.email_confirmed_at IS NOT NULL) OR
+        (OLD.phone_confirmed_at IS NULL AND NEW.phone_confirmed_at IS NOT NULL)
+    )
+    EXECUTE FUNCTION public.handle_new_user();

@@ -37,10 +37,22 @@ class Auth {
         // First, sign up with email and password
         const { data, error } = await supabase.auth.signUp({
             email,
-            password
+            password,
+            options: {
+                data: {
+                    username: username
+                }
+            }
         });
 
         if (error) throw error;
+
+        // Check if email confirmation is required
+        if (data.user && !data.session) {
+            // Email confirmation required
+            console.log('Signup successful - email confirmation required');
+            throw new Error('CONFIRMATION_REQUIRED');
+        }
 
         this.user = data.user;
         this.session = data.session;
@@ -55,10 +67,8 @@ class Auth {
             if (sessionError) {
                 console.error('Failed to set session:', sessionError);
             }
-        }
 
-        // Then create the user profile with username
-        if (data.user && data.session) {
+            // Create the user profile with username
             try {
                 const { error: profileError } = await supabase
                     .from('profiles')
@@ -78,8 +88,6 @@ class Auth {
                     throw new Error('Failed to create profile: ' + profileError.message);
                 }
             } catch (profileError) {
-                // If profile creation fails, we should ideally delete the auth user
-                // but for now just throw the error
                 throw profileError;
             }
         }
