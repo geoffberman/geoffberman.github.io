@@ -1077,8 +1077,14 @@ async function showUserProfile() {
     if (user) {
         elements.userProfile.classList.remove('hidden');
 
-        // Try to load username from profile
-        const username = await loadUsername();
+        // Try to get username from metadata first (immediate), then from database
+        let username = user.user_metadata?.username;
+
+        if (!username) {
+            // Fallback to loading from profiles table
+            username = await loadUsername();
+        }
+
         elements.userEmailDisplay.textContent = username || user.email;
     }
 }
