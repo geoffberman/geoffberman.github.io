@@ -586,6 +586,7 @@ function hasEquipment() {
 }
 
 function showEquipmentSummary() {
+    console.log('showEquipmentSummary called with state.equipment:', state.equipment);
     elements.equipmentSummary.classList.remove('hidden');
     elements.equipmentFormContainer.classList.add('hidden');
 
@@ -593,6 +594,7 @@ function showEquipmentSummary() {
 
     // Safety check
     if (!state.equipment) {
+        console.log('No equipment in state, showing empty message');
         elements.equipmentSummaryContent.innerHTML = '<p style="color: var(--secondary-color);">No equipment saved yet.</p>';
         return;
     }
@@ -647,7 +649,9 @@ function showEquipmentSummary() {
         summaryHTML = '<p style="color: var(--secondary-color);">No equipment saved yet.</p>';
     }
 
+    console.log('Setting equipmentSummaryContent innerHTML to:', summaryHTML);
     elements.equipmentSummaryContent.innerHTML = summaryHTML;
+    console.log('Equipment summary display updated');
 }
 
 function showEquipmentForm() {
