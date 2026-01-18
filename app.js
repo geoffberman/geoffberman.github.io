@@ -992,6 +992,18 @@ function showEquipmentSummary() {
 
     let summaryHTML = '';
 
+    // Check for poor equipment and show warning at the top
+    const poorEquipmentWarning = checkForPoorEquipment();
+    if (poorEquipmentWarning) {
+        summaryHTML += `
+            <div style="background: linear-gradient(135deg, #FFE5E5 0%, #FFD4D4 100%); border: 2px solid #C74B50; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                <p style="margin: 0; color: #8B0000; font-weight: bold; font-size: 0.9rem;">
+                    ⚠️ ${poorEquipmentWarning}
+                </p>
+            </div>
+        `;
+    }
+
     // Safety check
     if (!state.equipment) {
         console.log('No equipment in state, showing empty message');
