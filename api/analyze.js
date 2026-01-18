@@ -19,7 +19,50 @@ module.exports = async function handler(req, res) {
     }
 
     try {
-        const { image, mediaType, equipment, specificMethod } = req.body;
+        const { image, mediaType, equipment, specificMethod, adjustmentRequest, previousAnalysis } = req.body;
+
+        // Handle recipe adjustment requests
+        if (adjustmentRequest && previousAnalysis) {
+            const adjustmentPrompt = `The user brewed this coffee and provided taste feedback:
+
+${adjustmentRequest}
+
+Previous coffee details:
+- Name: ${previousAnalysis.name || 'Unknown'}
+- Roaster: ${previousAnalysis.roaster || 'Unknown'}
+- Roast Level: ${previousAnalysis.roast_level || 'Unknown'}
+- Origin: ${previousAnalysis.origin || 'Unknown'}
+- Processing: ${previousAnalysis.processing || 'Unknown'}
+
+Equipment: ${equipment}
+
+Provide adjusted brewing parameters in the SAME JSON format as before. Focus on specific, actionable changes to fix the taste issue. Be precise with numbers and explain the reasoning for each adjustment.`;
+
+            const adjustmentResponse = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': process.env.ANTHROPIC_API_KEY,
+                    'anthropic-version': '2023-06-01'
+                },
+                body: JSON.stringify({
+                    model: 'claude-3-haiku-20240307',
+                    max_tokens: 2000,
+                    messages: [{
+                        role: 'user',
+                        content: adjustmentPrompt
+                    }]
+                })
+            });
+
+            if (!adjustmentResponse.ok) {
+                throw new Error(`Anthropic API error: ${adjustmentResponse.status}`);
+            }
+
+            const adjustmentData = await adjustmentResponse.json();
+            res.status(200).json(adjustmentData);
+            return;
+        }
 
         // Build the prompt with equipment info if available
         let promptText = `Carefully analyze this coffee bag image and extract ALL visible information. Look for:

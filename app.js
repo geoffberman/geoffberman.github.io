@@ -2,7 +2,10 @@
 const state = {
     imageData: null,
     imageFile: null,
-    equipment: null
+    equipment: null,
+    currentCoffeeAnalysis: null,
+    currentBrewMethod: null,
+    currentRecipe: null
 };
 
 // DOM elements
@@ -58,7 +61,14 @@ const elements = {
     userEmailDisplay: document.getElementById('user-email-display'),
     userMenuBtn: document.getElementById('user-menu-btn'),
     userDropdown: document.getElementById('user-dropdown'),
-    logoutBtn: document.getElementById('logout-btn')
+    logoutBtn: document.getElementById('logout-btn'),
+
+    // Rating slider elements
+    ratingSection: document.getElementById('rating-section'),
+    tasteRating: document.getElementById('taste-rating'),
+    ratingLabel: document.getElementById('rating-label'),
+    adjustRecipeBtn: document.getElementById('adjust-recipe-btn'),
+    adjustmentFeedback: document.getElementById('adjustment-feedback')
 };
 
 // Initialize app
@@ -263,6 +273,18 @@ function setupEventListeners() {
         if (method) {
             analyzeWithSpecificMethod(method);
         }
+    });
+
+    // Rating slider
+    elements.tasteRating.addEventListener('input', (e) => {
+        updateRatingLabel(e.target.value);
+        elements.adjustRecipeBtn.disabled = false;
+    });
+
+    // Adjust recipe button
+    elements.adjustRecipeBtn.addEventListener('click', async () => {
+        const rating = parseFloat(elements.tasteRating.value);
+        await adjustRecipeBasedOnRating(rating);
     });
 }
 
@@ -479,6 +501,11 @@ function getBrewMethodImage(techniqueName) {
 function displayResults(data) {
     const analysis = data.coffee_analysis;
     const techniques = data.recommended_techniques || [];
+
+    // Save to state for rating adjustments
+    state.currentCoffeeAnalysis = analysis;
+    state.currentBrewMethod = techniques[0]?.technique_name || 'Unknown';
+    state.currentRecipe = data;
 
     // Coffee Analysis
     let analysisHTML = '<div class="analysis-details">';
@@ -1110,6 +1137,130 @@ async function migrateLocalStorageToDatabase() {
         }
     } catch (error) {
         console.error('Failed to migrate localStorage to database:', error);
+    }
+}
+
+// Rating Slider Functions
+function updateRatingLabel(value) {
+    const rating = parseFloat(value);
+    let label = '';
+
+    if (rating === -2) {
+        label = 'Very Sour 😖';
+    } else if (rating === -1.5) {
+        label = 'Quite Sour 😕';
+    } else if (rating === -1) {
+        label = 'Slightly Sour 🙁';
+    } else if (rating === -0.5) {
+        label = 'A Bit Sour 😐';
+    } else if (rating === 0) {
+        label = 'Perfect! 😊';
+    } else if (rating === 0.5) {
+        label = 'A Bit Bitter 😐';
+    } else if (rating === 1) {
+        label = 'Slightly Bitter 🙁';
+    } else if (rating === 1.5) {
+        label = 'Quite Bitter 😕';
+    } else if (rating === 2) {
+        label = 'Very Bitter 😖';
+    }
+
+    elements.ratingLabel.textContent = label;
+}
+
+async function adjustRecipeBasedOnRating(rating) {
+    if (!state.currentCoffeeAnalysis || !state.currentBrewMethod) {
+        console.error('No current coffee analysis or brew method available');
+        return;
+    }
+
+    // Show loading state
+    elements.adjustRecipeBtn.disabled = true;
+    elements.adjustRecipeBtn.textContent = 'Adjusting Recipe...';
+
+    try {
+        // Prepare adjustment guidance based on rating
+        let adjustmentGuidance = '';
+        if (rating < 0) {
+            // Too sour - need to increase extraction
+            adjustmentGuidance = `The coffee was ${rating === -2 ? 'very' : rating === -1 ? 'slightly' : 'somewhat'} sour.
+                To fix this, we need to INCREASE extraction. Provide specific numbered adjustments for:
+                - Finer grind size (if applicable)
+                - Higher water temperature (2-4°F increase)
+                - Longer brew time
+                - Higher pressure or different flow profile (for espresso)`;
+        } else if (rating > 0) {
+            // Too bitter - need to decrease extraction
+            adjustmentGuidance = `The coffee was ${rating === 2 ? 'very' : rating === 1 ? 'slightly' : 'somewhat'} bitter.
+                To fix this, we need to DECREASE extraction. Provide specific numbered adjustments for:
+                - Coarser grind size (if applicable)
+                - Lower water temperature (2-4°F decrease)
+                - Shorter brew time
+                - Lower pressure or different flow profile (for espresso)`;
+        } else {
+            elements.adjustmentFeedback.classList.remove('hidden');
+            elements.adjustmentFeedback.querySelector('p').textContent = '✓ Perfect! No adjustments needed. Save this recipe!';
+            elements.adjustRecipeBtn.textContent = 'Adjust Recipe Based on Rating';
+            elements.adjustRecipeBtn.disabled = false;
+            return;
+        }
+
+        // Make API call to get adjusted recipe
+        const equipmentDescription = getEquipmentDescription();
+
+        const response = await fetch('/api/analyze', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                equipment: equipmentDescription,
+                adjustmentRequest: adjustmentGuidance,
+                previousAnalysis: state.currentCoffeeAnalysis
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        // Extract the text from the API response
+        const adjustmentText = result.content[0].text;
+
+        // Update the method content with adjusted recipe
+        elements.methodContent.innerHTML = `
+            <div class="adjustment-notice" style="background: #FFF3CD; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
+                <strong>📊 Recipe Adjusted Based on Your Feedback</strong>
+            </div>
+            ${marked.parse(adjustmentText)}
+        `;
+
+        // Show feedback
+        elements.adjustmentFeedback.classList.remove('hidden');
+        const feedbackText = rating < 0
+            ? '✓ Recipe adjusted to increase extraction (reduce sourness)'
+            : '✓ Recipe adjusted to decrease extraction (reduce bitterness)';
+        elements.adjustmentFeedback.querySelector('p').textContent = feedbackText;
+
+        // Update state
+        state.currentRecipe = adjustmentText;
+
+        // Reset button
+        elements.adjustRecipeBtn.textContent = 'Adjust Recipe Based on Rating';
+        elements.adjustRecipeBtn.disabled = true;
+
+        // Reset slider to center
+        elements.tasteRating.value = 0;
+        updateRatingLabel(0);
+
+    } catch (error) {
+        console.error('Failed to adjust recipe:', error);
+        showError(`Failed to adjust recipe: ${error.message}`);
+        elements.adjustRecipeBtn.textContent = 'Adjust Recipe Based on Rating';
+        elements.adjustRecipeBtn.disabled = false;
     }
 }
 
