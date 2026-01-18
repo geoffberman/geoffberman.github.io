@@ -1456,19 +1456,101 @@ async function adjustRecipeBasedOnRating(rating) {
         // Extract the text from the API response
         const adjustmentText = result.content[0].text;
 
-        // Convert markdown-style text to HTML (simple conversion for line breaks and bold)
-        const htmlText = adjustmentText
+        // Try to parse JSON from the response
+        let adjustedData;
+        try {
+            // Remove markdown code blocks if present
+            const jsonMatch = adjustmentText.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                adjustedData = JSON.parse(jsonMatch[0]);
+            } else {
+                throw new Error('No JSON found');
+            }
+        } catch (parseError) {
+            console.error('Failed to parse JSON adjustment:', parseError);
+            // Fallback to plain text display
+            const htmlText = adjustmentText
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+            elements.methodContent.innerHTML = `
+                <div class="adjustment-notice" style="background: #FFF3CD; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
+                    <strong>📊 Recipe Adjusted Based on Your Feedback</strong>
+                </div>
+                <div style="line-height: 1.6;"><p>${htmlText}</p></div>
+            `;
+            elements.adjustmentFeedback.classList.remove('hidden');
+            elements.adjustmentFeedback.querySelector('p').textContent = rating < 0
+                ? '✓ Recipe adjusted to increase extraction (reduce sourness)'
+                : '✓ Recipe adjusted to decrease extraction (reduce bitterness)';
+            elements.adjustRecipeBtn.textContent = 'Adjust Recipe Based on Rating';
+            elements.adjustRecipeBtn.disabled = true;
+            elements.tasteRating.value = 0;
+            updateRatingLabel(0);
+            return;
+        }
+
+        // Display adjusted recipe with parameters table
+        const params = adjustedData.adjusted_parameters;
+        const explanations = adjustedData.adjustments_explained
             .replace(/\n\n/g, '</p><p>')
             .replace(/\n/g, '<br>')
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/\*(.*?)\*/g, '<em>$1</em>');
 
-        // Update the method content with adjusted recipe
         elements.methodContent.innerHTML = `
             <div class="adjustment-notice" style="background: #FFF3CD; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
                 <strong>📊 Recipe Adjusted Based on Your Feedback</strong>
             </div>
-            <div style="line-height: 1.6;"><p>${htmlText}</p></div>
+
+            <h4 style="margin-top: 20px; margin-bottom: 15px;">Adjusted Recipe Parameters</h4>
+            <table class="brew-parameters-table">
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Adjusted Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Dose</td>
+                        <td>${params.dose}</td>
+                    </tr>
+                    <tr>
+                        <td>Yield</td>
+                        <td>${params.yield}</td>
+                    </tr>
+                    <tr>
+                        <td>Ratio</td>
+                        <td>${params.ratio}</td>
+                    </tr>
+                    <tr>
+                        <td>Water Temp</td>
+                        <td>${params.water_temp}</td>
+                    </tr>
+                    <tr>
+                        <td>Grind Size</td>
+                        <td>${params.grind_size}</td>
+                    </tr>
+                    <tr>
+                        <td>Brew Time</td>
+                        <td>${params.brew_time}</td>
+                    </tr>
+                    <tr>
+                        <td>Pressure</td>
+                        <td>${params.pressure}</td>
+                    </tr>
+                    <tr>
+                        <td>Flow Control</td>
+                        <td>${params.flow_control}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h4 style="margin-top: 25px; margin-bottom: 15px;">What Changed and Why</h4>
+            <div style="line-height: 1.6;"><p>${explanations}</p></div>
         `;
 
         // Show feedback

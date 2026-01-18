@@ -36,24 +36,23 @@ Previous coffee details:
 
 Equipment: ${equipment}
 
-Provide specific, numbered recipe adjustments in a clear, human-readable format. Do NOT use JSON or code blocks.
+Provide your response in this EXACT JSON format (no markdown, no code blocks, just pure JSON):
 
-Format your response like this:
+{
+  "adjusted_parameters": {
+    "dose": "exact value with units (e.g., '18g')",
+    "yield": "exact value with units (e.g., '36g' or '250ml')",
+    "ratio": "exact ratio (e.g., '1:2' or '1:16')",
+    "water_temp": "exact temperature (e.g., '202°F' or '94°C')",
+    "grind_size": "specific description (e.g., 'Fine, setting 15 on Baratza Encore')",
+    "brew_time": "exact time (e.g., '28-30 seconds' or '3:00')",
+    "pressure": "exact pressure (e.g., '9 bars' or 'N/A')",
+    "flow_control": "specific flow profile (e.g., '6 bar pre-infusion for 8s, ramp to 9 bar' or 'N/A')"
+  },
+  "adjustments_explained": "**What Changed and Why:**\n\n1. **Grind Size** - Specific change and reason\n2. **Temperature** - Specific change and reason\n3. **Brew Time** - Specific change and reason\n[etc.]\n\nUse markdown formatting with **bold** for parameter names."
+}
 
-**Adjustments to Reduce Sourness:**
-
-**Espresso:**
-1. **Grind finer** - Move 1-2 clicks finer (currently at X, adjust to Y)
-2. **Increase temperature** - Raise from 200°F to 202-204°F
-3. **Extend brew time** - Target 28-32 seconds instead of 25 seconds
-4. **Adjust pressure/flow** - [Specific profile adjustments]
-
-**Pour Over (if applicable):**
-1. **Grind finer** - [Specific adjustment]
-2. **Water temperature** - [Specific number]
-[etc.]
-
-Focus on specific, actionable changes with exact numbers. Explain WHY each adjustment helps fix the issue.`;
+Make the adjusted_parameters complete and ready to display in a table. The adjustments_explained should explain what changed from the original and WHY.`;
 
             const adjustmentResponse = await fetch('https://api.anthropic.com/v1/messages', {
                 method: 'POST',
