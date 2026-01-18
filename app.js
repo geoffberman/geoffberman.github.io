@@ -475,9 +475,12 @@ function saveEquipment() {
 function loadEquipment() {
     try {
         const savedEquipment = localStorage.getItem('coffee_equipment');
+        console.log('Loading equipment from localStorage:', savedEquipment);
+
         if (savedEquipment) {
             const equipment = JSON.parse(savedEquipment);
             state.equipment = equipment;
+            console.log('Parsed equipment:', equipment);
 
             // Populate form fields
             if (equipment.espressoMachine) {
@@ -506,6 +509,8 @@ function loadEquipment() {
 
             // Show summary view if equipment is loaded
             showEquipmentSummary();
+        } else {
+            console.log('No saved equipment found in localStorage');
         }
     } catch (e) {
         console.error('Failed to load equipment:', e);
@@ -586,6 +591,12 @@ function showEquipmentSummary() {
 
     let summaryHTML = '';
 
+    // Safety check
+    if (!state.equipment) {
+        elements.equipmentSummaryContent.innerHTML = '<p style="color: var(--secondary-color);">No equipment saved yet.</p>';
+        return;
+    }
+
     if (state.equipment.espressoMachine) {
         summaryHTML += `
             <div class="equipment-summary-item">
@@ -629,6 +640,11 @@ function showEquipmentSummary() {
                 <span>${state.equipment.additionalEquipment}</span>
             </div>
         `;
+    }
+
+    // If no equipment was added to summary, show a message
+    if (!summaryHTML) {
+        summaryHTML = '<p style="color: var(--secondary-color);">No equipment saved yet.</p>';
     }
 
     elements.equipmentSummaryContent.innerHTML = summaryHTML;
