@@ -960,6 +960,8 @@ function updateEquipmentButton() {
 
 function showAuthModal() {
     elements.authModal.classList.remove('hidden');
+    // Ensure we're on the signin tab by default
+    switchAuthTab('signin');
 }
 
 function hideAuthModal() {
