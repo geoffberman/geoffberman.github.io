@@ -65,12 +65,16 @@ const elements = {
 async function init() {
     setupEventListeners();
 
+    console.log('=== App Initialization Started ===');
+
     // Initialize Supabase and Auth
     const supabaseConfigured = await window.initSupabase();
+    console.log('Supabase configured:', supabaseConfigured);
 
     if (supabaseConfigured) {
         // Initialize auth
         const isAuthenticated = await window.auth.init();
+        console.log('User authenticated:', isAuthenticated);
 
         if (isAuthenticated) {
             // User is logged in - load from database
@@ -82,8 +86,13 @@ async function init() {
 
             // Show auth modal on first visit (unless user has skipped before)
             const hasSkipped = localStorage.getItem('auth_skipped');
+            console.log('Auth previously skipped:', hasSkipped);
+
             if (!hasSkipped) {
+                console.log('Showing auth modal for first-time user');
                 showAuthModal();
+            } else {
+                console.log('User previously skipped auth - using localStorage only');
             }
         }
 
@@ -91,9 +100,21 @@ async function init() {
         window.auth.onAuthStateChange(handleAuthStateChange);
     } else {
         // Supabase not configured - use localStorage only
+        console.log('⚠️ Running in DEMO MODE - Supabase not configured');
+        console.log('Equipment will only be saved in browser localStorage (not synced across devices)');
+
         loadEquipment();
-        console.log('Running in demo mode without authentication');
+
+        // Check if equipment was loaded
+        if (!state.equipment || !hasEquipment()) {
+            console.log('No equipment found - user needs to add equipment via settings');
+        }
     }
+
+    console.log('=== App Initialization Complete ===');
+
+    // Update equipment button to show correct state
+    updateEquipmentButton();
 }
 
 // Handle auth state changes
@@ -177,6 +198,7 @@ function setupEventListeners() {
 
         if (isHidden) {
             // Opening settings - show summary if equipment exists, otherwise show form
+            console.log('Opening equipment settings...');
             updateEquipmentDisplay();
         }
     });
@@ -613,6 +635,7 @@ async function saveEquipment() {
             saveBtn.textContent = originalText;
             saveBtn.style.backgroundColor = '';
             showEquipmentSummary();
+            updateEquipmentButton();
         }, 1500);
     } catch (e) {
         console.error('Failed to save equipment:', e);
@@ -628,7 +651,7 @@ function loadEquipment() {
         if (savedEquipment) {
             const equipment = JSON.parse(savedEquipment);
             state.equipment = equipment;
-            console.log('Parsed equipment:', equipment);
+            console.log('✓ Equipment loaded successfully:', equipment);
 
             // Populate form fields
             if (equipment.espressoMachine) {
@@ -658,11 +681,17 @@ function loadEquipment() {
             // Show summary view if equipment is loaded
             showEquipmentSummary();
         } else {
-            console.log('No saved equipment found in localStorage');
+            console.log('⚠️ No saved equipment found in localStorage');
+            console.log('→ Click "My Equipment" button to add your coffee gear');
+            state.equipment = null;
         }
     } catch (e) {
-        console.error('Failed to load equipment:', e);
+        console.error('❌ Failed to load equipment:', e);
+        state.equipment = null;
     }
+
+    // Update the equipment button text
+    updateEquipmentButton();
 }
 
 function clearEquipment() {
@@ -681,6 +710,7 @@ function clearEquipment() {
 
         setTimeout(() => {
             clearBtn.textContent = originalText;
+            updateEquipmentButton();
         }, 1500);
     }
 }
@@ -805,6 +835,20 @@ function showEquipmentSummary() {
 function showEquipmentForm() {
     elements.equipmentSummary.classList.add('hidden');
     elements.equipmentFormContainer.classList.remove('hidden');
+}
+
+function updateEquipmentButton() {
+    const hasEquipmentSaved = state.equipment && hasEquipment();
+
+    // Get the SVG element and preserve it
+    const svg = elements.settingsToggleBtn.querySelector('svg');
+    const svgHTML = svg ? svg.outerHTML : '';
+
+    if (hasEquipmentSaved) {
+        elements.settingsToggleBtn.innerHTML = svgHTML + ' My Equipment';
+    } else {
+        elements.settingsToggleBtn.innerHTML = svgHTML + ' Set Up Equipment ⚠️';
+    }
 }
 
 // ========================================
@@ -961,6 +1005,9 @@ async function loadEquipmentFromDatabase() {
     } catch (error) {
         console.error('Failed to load equipment from database:', error);
     }
+
+    // Update the equipment button text
+    updateEquipmentButton();
 }
 
 async function saveEquipmentToDatabase(equipment) {
