@@ -612,6 +612,12 @@ function displayResults(data) {
             ${technique.technique_notes ? `<div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 3px solid var(--accent-color); border-radius: 4px;">
                 <p style="margin: 0; line-height: 1.6; color: var(--secondary-color);">${technique.technique_notes}</p>
             </div>` : ''}
+
+                    <div style="margin-top: 20px; text-align: center;">
+                        <button class="btn btn-primary perfect-recipe-btn" data-technique-index="${index}" style="background: #28a745; min-width: 200px;">
+                            ✓ Perfect As-Is
+                        </button>
+                    </div>
                 </div>
 
                 <div class="technique-image">
@@ -622,6 +628,15 @@ function displayResults(data) {
     });
 
     elements.methodContent.innerHTML = techniquesHTML;
+
+    // Add event listeners for "Perfect As-Is" buttons
+    document.querySelectorAll('.perfect-recipe-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const techniqueIndex = parseInt(this.getAttribute('data-technique-index'));
+            const technique = data.recommended_techniques[techniqueIndex];
+            await savePerfectRecipe(technique, techniqueIndex);
+        });
+    });
 
     // If there's a raw response (fallback), show it
     if (data.raw_response) {
@@ -1506,48 +1521,75 @@ async function adjustRecipeBasedOnRating(rating) {
             </div>
 
             <h4 style="margin-top: 20px; margin-bottom: 15px;">Adjusted Recipe Parameters</h4>
-            <table class="brew-parameters-table">
+            <p style="margin-bottom: 15px; color: var(--secondary-color); font-size: 0.9rem;">
+                Review the adjusted parameters below. You can edit any value or check "✓" to use it as-is.
+            </p>
+            <table class="brew-parameters-table editable-parameters">
                 <thead>
                     <tr>
                         <th>Parameter</th>
                         <th>Adjusted Value</th>
+                        <th style="width: 180px;">Your Actual Value</th>
+                        <th style="width: 60px; text-align: center;">✓</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
                         <td>Dose</td>
                         <td>${params.dose}</td>
+                        <td><input type="text" class="param-input" data-param="dose" placeholder="Your dose" value="${params.dose}"></td>
+                        <td style="text-align: center;"><input type="checkbox" class="param-perfect" data-param="dose" checked></td>
                     </tr>
                     <tr>
                         <td>Yield</td>
                         <td>${params.yield}</td>
+                        <td><input type="text" class="param-input" data-param="yield" placeholder="Your yield" value="${params.yield}"></td>
+                        <td style="text-align: center;"><input type="checkbox" class="param-perfect" data-param="yield" checked></td>
                     </tr>
                     <tr>
                         <td>Ratio</td>
                         <td>${params.ratio}</td>
+                        <td><input type="text" class="param-input" data-param="ratio" placeholder="Your ratio" value="${params.ratio}"></td>
+                        <td style="text-align: center;"><input type="checkbox" class="param-perfect" data-param="ratio" checked></td>
                     </tr>
                     <tr>
                         <td>Water Temp</td>
                         <td>${params.water_temp}</td>
+                        <td><input type="text" class="param-input" data-param="water_temp" placeholder="Your temp" value="${params.water_temp}"></td>
+                        <td style="text-align: center;"><input type="checkbox" class="param-perfect" data-param="water_temp" checked></td>
                     </tr>
                     <tr>
                         <td>Grind Size</td>
                         <td>${params.grind_size}</td>
+                        <td><input type="text" class="param-input" data-param="grind_size" placeholder="Your grind" value="${params.grind_size}"></td>
+                        <td style="text-align: center;"><input type="checkbox" class="param-perfect" data-param="grind_size" checked></td>
                     </tr>
                     <tr>
                         <td>Brew Time</td>
                         <td>${params.brew_time}</td>
+                        <td><input type="text" class="param-input" data-param="brew_time" placeholder="Your time" value="${params.brew_time}"></td>
+                        <td style="text-align: center;"><input type="checkbox" class="param-perfect" data-param="brew_time" checked></td>
                     </tr>
                     <tr>
                         <td>Pressure</td>
                         <td>${params.pressure}</td>
+                        <td><input type="text" class="param-input" data-param="pressure" placeholder="Your pressure" value="${params.pressure}"></td>
+                        <td style="text-align: center;"><input type="checkbox" class="param-perfect" data-param="pressure" checked></td>
                     </tr>
                     <tr>
                         <td>Flow Control</td>
                         <td>${params.flow_control}</td>
+                        <td><input type="text" class="param-input" data-param="flow_control" placeholder="Your profile" value="${params.flow_control}"></td>
+                        <td style="text-align: center;"><input type="checkbox" class="param-perfect" data-param="flow_control" checked></td>
                     </tr>
                 </tbody>
             </table>
+
+            <div style="margin-top: 20px; text-align: center;">
+                <button id="save-adjusted-recipe-btn" class="btn btn-primary" style="background: #28a745; min-width: 250px;">
+                    💾 Save My Brew
+                </button>
+            </div>
 
             <h4 style="margin-top: 25px; margin-bottom: 15px;">What Changed and Why</h4>
             <div style="line-height: 1.6;"><p>${explanations}</p></div>
@@ -1560,8 +1602,18 @@ async function adjustRecipeBasedOnRating(rating) {
             : '✓ Recipe adjusted to decrease extraction (reduce bitterness)';
         elements.adjustmentFeedback.querySelector('p').textContent = feedbackText;
 
-        // Update state
-        state.currentRecipe = adjustmentText;
+        // Update state with structured data
+        state.currentRecipe = params;
+        state.adjustedRecipeData = adjustedData;
+
+        // Add event listeners for checkboxes and inputs
+        setupAdjustedRecipeListeners();
+
+        // Add event listener for save button
+        const saveBtn = document.getElementById('save-adjusted-recipe-btn');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', saveAdjustedBrew);
+        }
 
         // Reset button
         elements.adjustRecipeBtn.textContent = 'Adjust Recipe Based on Rating';
@@ -1576,6 +1628,248 @@ async function adjustRecipeBasedOnRating(rating) {
         showError(`Failed to adjust recipe: ${error.message}`);
         elements.adjustRecipeBtn.textContent = 'Adjust Recipe Based on Rating';
         elements.adjustRecipeBtn.disabled = false;
+    }
+}
+
+// Setup event listeners for adjusted recipe inputs and checkboxes
+function setupAdjustedRecipeListeners() {
+    // Handle checkbox changes - when unchecked, enable input; when checked, disable and reset to suggested value
+    document.querySelectorAll('.param-perfect').forEach(checkbox => {
+        const param = checkbox.getAttribute('data-param');
+        const input = document.querySelector(`.param-input[data-param="${param}"]`);
+
+        checkbox.addEventListener('change', function() {
+            if (this.checked) {
+                input.disabled = true;
+                input.style.opacity = '0.6';
+                // Reset to suggested value
+                const suggestedValue = state.adjustedRecipeData?.adjusted_parameters?.[param] || '';
+                input.value = suggestedValue;
+            } else {
+                input.disabled = false;
+                input.style.opacity = '1';
+                input.focus();
+            }
+        });
+
+        // Initialize state
+        if (checkbox.checked) {
+            input.disabled = true;
+            input.style.opacity = '0.6';
+        }
+    });
+
+    // Handle input changes - uncheck the checkbox when user types
+    document.querySelectorAll('.param-input').forEach(input => {
+        input.addEventListener('input', function() {
+            const param = this.getAttribute('data-param');
+            const checkbox = document.querySelector(`.param-perfect[data-param="${param}"]`);
+            if (checkbox && checkbox.checked) {
+                checkbox.checked = false;
+                this.disabled = false;
+                this.style.opacity = '1';
+            }
+        });
+    });
+}
+
+// Save a perfect recipe from original recommendations
+async function savePerfectRecipe(technique, techniqueIndex) {
+    if (!window.auth || !window.auth.isAuthenticated()) {
+        showAuthModal();
+        return;
+    }
+
+    const btn = document.querySelector(`.perfect-recipe-btn[data-technique-index="${techniqueIndex}"]`);
+    if (!btn) return;
+
+    try {
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        const supabase = window.getSupabase();
+        const userId = window.auth.getUserId();
+
+        // Create brew session
+        const session = {
+            user_id: userId,
+            coffee_name: state.currentCoffeeAnalysis.name || 'Unknown',
+            roaster: state.currentCoffeeAnalysis.roaster || 'Unknown',
+            roast_level: state.currentCoffeeAnalysis.roast_level || 'Unknown',
+            origin: state.currentCoffeeAnalysis.origin || 'Unknown',
+            processing: state.currentCoffeeAnalysis.processing || 'Unknown',
+            flavor_notes: state.currentCoffeeAnalysis.flavor_notes || [],
+            brew_method: technique.technique_name,
+            original_recipe: technique.parameters,
+            actual_brew: technique.parameters, // Used as-is
+            rating: 'perfect'
+        };
+
+        const { error } = await supabase
+            .from('brew_sessions')
+            .insert([session]);
+
+        if (error) throw error;
+
+        // Save as preferred recipe
+        await saveAsPreferredRecipeWithData(
+            technique.technique_name,
+            technique.parameters
+        );
+
+        btn.textContent = '✓ Saved!';
+        btn.style.background = '#218838';
+
+        setTimeout(() => {
+            btn.textContent = '✓ Perfect As-Is';
+            btn.style.background = '#28a745';
+            btn.disabled = false;
+        }, 2000);
+
+    } catch (error) {
+        console.error('Failed to save perfect recipe:', error);
+        btn.textContent = '❌ Failed';
+        setTimeout(() => {
+            btn.textContent = '✓ Perfect As-Is';
+            btn.disabled = false;
+        }, 2000);
+    }
+}
+
+// Save adjusted brew with user's actual parameters
+async function saveAdjustedBrew() {
+    if (!window.auth || !window.auth.isAuthenticated()) {
+        showAuthModal();
+        return;
+    }
+
+    const btn = document.getElementById('save-adjusted-recipe-btn');
+    if (!btn) return;
+
+    try {
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        // Collect actual brew parameters from inputs
+        const actualBrew = {};
+        document.querySelectorAll('.param-input').forEach(input => {
+            const param = input.getAttribute('data-param');
+            actualBrew[param] = input.value.trim();
+        });
+
+        const supabase = window.getSupabase();
+        const userId = window.auth.getUserId();
+
+        // Create brew session with both original and actual brew
+        const session = {
+            user_id: userId,
+            coffee_name: state.currentCoffeeAnalysis.name || 'Unknown',
+            roaster: state.currentCoffeeAnalysis.roaster || 'Unknown',
+            roast_level: state.currentCoffeeAnalysis.roast_level || 'Unknown',
+            origin: state.currentCoffeeAnalysis.origin || 'Unknown',
+            processing: state.currentCoffeeAnalysis.processing || 'Unknown',
+            flavor_notes: state.currentCoffeeAnalysis.flavor_notes || [],
+            brew_method: state.currentBrewMethod,
+            original_recipe: state.adjustedRecipeData?.adjusted_parameters || state.currentRecipe,
+            actual_brew: actualBrew,
+            adjusted_recipe: state.adjustedRecipeData?.adjusted_parameters || null,
+            rating: 'perfect' // Assuming they used it, so it worked
+        };
+
+        const { error } = await supabase
+            .from('brew_sessions')
+            .insert([session]);
+
+        if (error) throw error;
+
+        // Save as preferred recipe using their actual values
+        await saveAsPreferredRecipeWithData(
+            state.currentBrewMethod,
+            actualBrew
+        );
+
+        btn.textContent = '✓ Saved!';
+        btn.style.background = '#218838';
+
+        // Show success message
+        elements.adjustmentFeedback.classList.remove('hidden');
+        elements.adjustmentFeedback.querySelector('p').innerHTML =
+            '✓ Your brew has been saved! These parameters will be used to improve future recommendations for similar coffees.';
+
+        setTimeout(() => {
+            btn.textContent = '💾 Save My Brew';
+            btn.style.background = '#28a745';
+            btn.disabled = false;
+        }, 2000);
+
+    } catch (error) {
+        console.error('Failed to save adjusted brew:', error);
+        elements.adjustmentFeedback.classList.remove('hidden');
+        elements.adjustmentFeedback.querySelector('p').textContent =
+            '❌ Failed to save brew. Please try again.';
+
+        btn.textContent = '💾 Save My Brew';
+        btn.disabled = false;
+    }
+}
+
+// Helper function to save preferred recipe with specific data
+async function saveAsPreferredRecipeWithData(brewMethod, recipeData) {
+    const supabase = window.getSupabase();
+    const userId = window.auth.getUserId();
+
+    // Create a hash from coffee characteristics
+    const coffeeHash = createCoffeeHash(
+        state.currentCoffeeAnalysis.name,
+        state.currentCoffeeAnalysis.roaster,
+        state.currentCoffeeAnalysis.roast_level,
+        state.currentCoffeeAnalysis.origin
+    );
+
+    const preferredRecipe = {
+        user_id: userId,
+        coffee_hash: coffeeHash,
+        coffee_name: state.currentCoffeeAnalysis.name || 'Unknown',
+        roaster: state.currentCoffeeAnalysis.roaster || 'Unknown',
+        brew_method: brewMethod,
+        recipe: recipeData,
+        last_brewed: new Date().toISOString()
+    };
+
+    try {
+        // Check if recipe already exists
+        const { data: existing } = await supabase
+            .from('saved_recipes')
+            .select('id, times_brewed')
+            .eq('user_id', userId)
+            .eq('coffee_hash', coffeeHash)
+            .eq('brew_method', brewMethod)
+            .single();
+
+        if (existing) {
+            // Update existing recipe
+            const { error } = await supabase
+                .from('saved_recipes')
+                .update({
+                    recipe: recipeData,
+                    times_brewed: existing.times_brewed + 1,
+                    last_brewed: new Date().toISOString()
+                })
+                .eq('id', existing.id);
+
+            if (error) throw error;
+        } else {
+            // Insert new preferred recipe
+            const { error } = await supabase
+                .from('saved_recipes')
+                .insert([preferredRecipe]);
+
+            if (error) throw error;
+        }
+
+        console.log('Saved as preferred recipe');
+    } catch (error) {
+        console.error('Failed to save preferred recipe:', error);
     }
 }
 

@@ -531,6 +531,40 @@ h1 {
     width: 30%;
 }
 
+/* Editable Parameters Table */
+.editable-parameters .param-input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    background-color: var(--card-bg);
+    transition: all 0.2s ease;
+}
+
+.editable-parameters .param-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(107, 68, 35, 0.1);
+}
+
+.editable-parameters .param-input:disabled {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+}
+
+.editable-parameters .param-perfect {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: var(--primary-color);
+}
+
+.editable-parameters td {
+    vertical-align: middle;
+}
+
 .technique-header {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
     color: white;
