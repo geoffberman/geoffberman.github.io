@@ -1,0 +1,24 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="256" fill="#6B4423"/>
+
+  <!-- Coffee cup -->
+  <path d="M 160 180 L 180 380 Q 180 400 200 400 L 312 400 Q 332 400 332 380 L 352 180 Z"
+        fill="#FAF7F2" stroke="#D4A574" stroke-width="8"/>
+
+  <!-- Coffee liquid -->
+  <path d="M 170 240 L 185 360 Q 185 370 195 370 L 317 370 Q 327 370 327 360 L 342 240 Z"
+        fill="#8B6F47"/>
+
+  <!-- Steam lines -->
+  <path d="M 200 140 Q 210 120 200 100"
+        stroke="#FAF7F2" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.8"/>
+  <path d="M 256 130 Q 266 110 256 90"
+        stroke="#FAF7F2" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.8"/>
+  <path d="M 312 140 Q 322 120 312 100"
+        stroke="#FAF7F2" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.8"/>
+
+  <!-- Cup handle -->
+  <path d="M 352 220 Q 390 220 390 280 Q 390 340 352 340"
+        stroke="#FAF7F2" stroke-width="12" fill="none" stroke-linecap="round"/>
+</svg>
