@@ -86,8 +86,38 @@
             <button id="user-menu-btn" class="btn btn-secondary" style="padding: 8px 16px;">
                 <span id="user-email-display"></span>
             </button>
-            <div id="user-dropdown" class="hidden" style="position: absolute; right: 0; top: 45px; background: white; border-radius: 8px; box-shadow: var(--shadow); min-width: 150px; z-index: 1000;">
-                <button id="logout-btn" class="btn btn-secondary" style="width: 100%; text-align: left;">Sign Out</button>
+            <div id="user-dropdown" class="hidden" style="position: absolute; right: 0; top: 45px; background: white; border-radius: 8px; box-shadow: var(--shadow); min-width: 180px; z-index: 1000;">
+                <button id="edit-profile-btn" class="btn btn-secondary" style="width: 100%; text-align: left; border-bottom: 1px solid var(--border-color);">
+                    ✏️ Edit Profile
+                </button>
+                <button id="logout-btn" class="btn btn-secondary" style="width: 100%; text-align: left;">
+                    🚪 Sign Out
+                </button>
+            </div>
+        </div>
+
+        <!-- Edit Profile Modal -->
+        <div id="edit-profile-modal" class="auth-modal hidden">
+            <div class="auth-modal-content">
+                <h2>Edit Profile</h2>
+                <p style="color: var(--secondary-color); margin-bottom: 20px;">Update your profile information</p>
+
+                <form id="edit-profile-form">
+                    <div class="form-group">
+                        <label for="edit-username">Username</label>
+                        <input type="text" id="edit-username" placeholder="coffeemaster" minlength="3" maxlength="20" pattern="[a-zA-Z0-9_]+" required>
+                        <small style="color: var(--secondary-color); font-size: 0.85rem;">Letters, numbers, and underscores only</small>
+                    </div>
+                    <div id="edit-profile-error" class="auth-error hidden"></div>
+                    <div style="display: flex; gap: 10px; margin-top: 20px;">
+                        <button type="submit" id="save-profile-btn" class="btn btn-primary" style="flex: 1;">
+                            Save Changes
+                        </button>
+                        <button type="button" id="cancel-edit-profile-btn" class="btn btn-secondary" style="flex: 1;">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
 
