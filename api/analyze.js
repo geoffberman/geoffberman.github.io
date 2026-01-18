@@ -85,7 +85,23 @@ IMPORTANT: Only include information you can actually see or confidently infer fr
         }
 
         if (hasFlowControl) {
-            promptText += `\n\n⚠️ CRITICAL REQUIREMENT: The user has a FLOW CONTROL device on their espresso machine. For ALL espresso-based methods, you MUST provide detailed pressure profiling instructions in the flow_control parameter. DO NOT use "N/A" - provide specific pressure modulation like "Start at 6 bar for 5s pre-infusion, ramp to 9 bar at 10s, hold until 20s, then decline to 7 bar until 30s". Pressure profiling is expected and required.`;
+            promptText += `\n\n⚠️ CRITICAL REQUIREMENT: The user has a FLOW CONTROL device on their espresso machine. For ALL espresso-based methods, you MUST provide TAILORED pressure profiling instructions based on THIS specific coffee's characteristics.
+
+DO NOT use generic profiles. Consider:
+- Roast level: Light roasts often benefit from gentle pre-infusion (4-6 bar) to prevent channeling, then gradual ramp. Dark roasts can handle more aggressive profiles.
+- Origin/Processing:
+  * Ethiopian naturals → gentle pre-infusion, declining pressure to manage sweetness
+  * Washed Central Americans → stable pressure, traditional 9 bar works well
+  * Kenyan → longer pre-infusion, declining pressure in final third
+  * Naturals in general → lower peak pressure (7-8 bar) to prevent over-extraction
+- Flavor goals: If fruity/delicate → lower pressure. If bold/chocolatey → higher pressure acceptable.
+
+Example tailored profiles:
+- "Ethiopian natural light: 5 bar pre-infusion for 8s, ramp to 7 bar at 12s, hold until 25s, decline to 5 bar until finish at 35s"
+- "Colombian washed medium: 6 bar for 5s, ramp to 9 bar at 10s, hold 9 bar until 25s, decline to 7 bar until 30s"
+- "Dark roast blend: 7 bar for 4s, quick ramp to 9 bar, hold until 20s"
+
+Pressure profiling is expected and MUST be specific to this coffee.`;
         }
 
         promptText += '\n\nProvide your response in the following JSON format:';
