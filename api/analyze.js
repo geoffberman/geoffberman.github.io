@@ -36,7 +36,24 @@ Previous coffee details:
 
 Equipment: ${equipment}
 
-Provide adjusted brewing parameters in the SAME JSON format as before. Focus on specific, actionable changes to fix the taste issue. Be precise with numbers and explain the reasoning for each adjustment.`;
+Provide specific, numbered recipe adjustments in a clear, human-readable format. Do NOT use JSON or code blocks.
+
+Format your response like this:
+
+**Adjustments to Reduce Sourness:**
+
+**Espresso:**
+1. **Grind finer** - Move 1-2 clicks finer (currently at X, adjust to Y)
+2. **Increase temperature** - Raise from 200°F to 202-204°F
+3. **Extend brew time** - Target 28-32 seconds instead of 25 seconds
+4. **Adjust pressure/flow** - [Specific profile adjustments]
+
+**Pour Over (if applicable):**
+1. **Grind finer** - [Specific adjustment]
+2. **Water temperature** - [Specific number]
+[etc.]
+
+Focus on specific, actionable changes with exact numbers. Explain WHY each adjustment helps fix the issue.`;
 
             const adjustmentResponse = await fetch('https://api.anthropic.com/v1/messages', {
                 method: 'POST',
