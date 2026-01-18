@@ -1430,12 +1430,19 @@ async function adjustRecipeBasedOnRating(rating) {
         // Extract the text from the API response
         const adjustmentText = result.content[0].text;
 
+        // Convert markdown-style text to HTML (simple conversion for line breaks and bold)
+        const htmlText = adjustmentText
+            .replace(/\n\n/g, '</p><p>')
+            .replace(/\n/g, '<br>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>');
+
         // Update the method content with adjusted recipe
         elements.methodContent.innerHTML = `
             <div class="adjustment-notice" style="background: #FFF3CD; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
                 <strong>📊 Recipe Adjusted Based on Your Feedback</strong>
             </div>
-            ${marked.parse(adjustmentText)}
+            <div style="line-height: 1.6;"><p>${htmlText}</p></div>
         `;
 
         // Show feedback
