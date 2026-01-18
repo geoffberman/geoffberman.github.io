@@ -45,6 +45,12 @@ For Pour Over (V60, etc):
 - Focus on even extraction and drawdown times
 - Modern pour patterns (center pours, swirling)
 
+For Oxo Rapid Brew Cup:
+- Lance Hedrick calls it "soup" - embrace the immersion brewing style
+- Use full immersion approach, not trying to mimic pour over
+- Grind slightly coarser than pour over
+- Longer steep time (3-4 minutes) for full extraction
+
 General Modern Principles:
 - Grind quality matters more than exact settings
 - Water quality and temperature control are critical
