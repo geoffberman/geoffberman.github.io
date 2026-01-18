@@ -1498,55 +1498,94 @@ async function adjustRecipeBasedOnRating(rating) {
 
         // Try to parse JSON from the response
         let adjustedData;
-        try {
-            // Remove markdown code blocks if present
-            const jsonMatch = adjustmentText.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                adjustedData = JSON.parse(jsonMatch[0]);
-            } else {
-                throw new Error('No JSON found');
-            }
-        } catch (parseError) {
-            console.error('Failed to parse JSON adjustment:', parseError);
-            console.log('Raw adjustment text:', adjustmentText);
+        console.log('Raw adjustment text:', adjustmentText);
 
-            // Try more aggressive JSON extraction
+        try {
+            // Try direct JSON parse first
+            adjustedData = JSON.parse(adjustmentText);
+            console.log('✓ Parsed JSON directly');
+        } catch (parseError1) {
+            console.log('Direct parse failed, trying extraction...');
+
             try {
-                // Remove any markdown code blocks
-                let cleanText = adjustmentText.replace(/```json\s*/g, '').replace(/```\s*/g, '');
-                // Find JSON object
+                // Remove markdown code blocks if present
+                let cleanText = adjustmentText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+
+                // Find JSON object - match outermost braces
                 const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
                     adjustedData = JSON.parse(jsonMatch[0]);
-                    console.log('Successfully parsed JSON on second attempt');
-                    // Continue to the table rendering below
+                    console.log('✓ Parsed JSON from extracted text');
                 } else {
-                    throw new Error('Could not extract JSON');
+                    throw new Error('No JSON object found in text');
                 }
-            } catch (secondError) {
-                console.error('Second parse attempt failed:', secondError);
-                // Final fallback - display as plain text
-                const htmlText = adjustmentText
-                    .replace(/\n\n/g, '</p><p>')
-                    .replace(/\n/g, '<br>')
-                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                    .replace(/\*(.*?)\*/g, '<em>$1</em>');
+            } catch (parseError2) {
+                console.error('All JSON parsing attempts failed:', parseError2);
 
-                elements.methodContent.innerHTML = `
-                    <div class="adjustment-notice" style="background: #FFF3CD; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
-                        <strong>📊 Recipe Adjusted Based on Your Feedback</strong>
-                    </div>
-                    <div style="line-height: 1.6;"><p>${htmlText}</p></div>
-                `;
-                elements.adjustmentFeedback.classList.remove('hidden');
-                elements.adjustmentFeedback.querySelector('p').textContent = rating < 0
-                    ? '✓ Recipe adjusted to increase extraction (reduce sourness)'
-                    : '✓ Recipe adjusted to decrease extraction (reduce bitterness)';
-                elements.adjustRecipeBtn.textContent = 'Adjust Recipe Based on Rating';
-                elements.adjustRecipeBtn.disabled = true;
-                elements.tasteRating.value = 0;
-                updateRatingLabel(0);
-                return;
+                // Final fallback - manual extraction from text
+                try {
+                    console.log('Attempting manual parameter extraction...');
+
+                    // Extract parameters using regex
+                    const doseMatch = adjustmentText.match(/"dose":\s*"([^"]+)"/);
+                    const yieldMatch = adjustmentText.match(/"yield":\s*"([^"]+)"/);
+                    const ratioMatch = adjustmentText.match(/"ratio":\s*"([^"]+)"/);
+                    const tempMatch = adjustmentText.match(/"water_temp":\s*"([^"]+)"/);
+                    const grindMatch = adjustmentText.match(/"grind_size":\s*"([^"]+)"/);
+                    const timeMatch = adjustmentText.match(/"brew_time":\s*"([^"]+)"/);
+                    const pressureMatch = adjustmentText.match(/"pressure":\s*"([^"]+)"/);
+                    const flowMatch = adjustmentText.match(/"flow_control":\s*"([^"]+)"/);
+                    const explanationMatch = adjustmentText.match(/"adjustments_explained":\s*"([^"]+(?:\\.[^"]+)*)"/);
+
+                    if (doseMatch && yieldMatch && ratioMatch) {
+                        adjustedData = {
+                            adjusted_parameters: {
+                                dose: doseMatch[1],
+                                yield: yieldMatch[1],
+                                ratio: ratioMatch[1],
+                                water_temp: tempMatch ? tempMatch[1] : 'N/A',
+                                grind_size: grindMatch ? grindMatch[1] : 'N/A',
+                                brew_time: timeMatch ? timeMatch[1] : 'N/A',
+                                pressure: pressureMatch ? pressureMatch[1] : 'N/A',
+                                flow_control: flowMatch ? flowMatch[1] : 'N/A'
+                            },
+                            adjustments_explained: explanationMatch ? explanationMatch[1].replace(/\\n/g, '\n') : adjustmentText.split('"adjustments_explained":')[1] || 'See details below'
+                        };
+                        console.log('✓ Manually extracted parameters from text');
+                    } else {
+                        throw new Error('Could not extract parameters');
+                    }
+                } catch (manualError) {
+                    console.error('Manual extraction failed:', manualError);
+
+                    // Absolute final fallback - display formatted text
+                    const htmlText = adjustmentText
+                        .replace(/\{[\s\S]*?"adjustments_explained":\s*"/g, '')
+                        .replace(/\n\n/g, '</p><p>')
+                        .replace(/\\n/g, '<br>')
+                        .replace(/\n/g, '<br>')
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                        .replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+                    elements.methodContent.innerHTML = `
+                        <div class="adjustment-notice" style="background: #FFF3CD; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
+                            <strong>📊 Recipe Adjusted Based on Your Feedback</strong>
+                        </div>
+                        <p style="color: var(--secondary-color); font-size: 0.9rem; margin-bottom: 15px;">
+                            ⚠️ Could not parse recipe format. Here are the recommendations:
+                        </p>
+                        <div style="line-height: 1.6;"><p>${htmlText}</p></div>
+                    `;
+                    elements.adjustmentFeedback.classList.remove('hidden');
+                    elements.adjustmentFeedback.querySelector('p').textContent = rating < 0
+                        ? '✓ Recipe adjusted to increase extraction (reduce sourness)'
+                        : '✓ Recipe adjusted to decrease extraction (reduce bitterness)';
+                    elements.adjustRecipeBtn.textContent = 'Adjust Recipe Based on Rating';
+                    elements.adjustRecipeBtn.disabled = true;
+                    elements.tasteRating.value = 0;
+                    updateRatingLabel(0);
+                    return;
+                }
             }
         }
 
