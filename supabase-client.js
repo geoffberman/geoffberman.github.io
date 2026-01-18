@@ -8,6 +8,12 @@ let configLoaded = false;
 async function initSupabase() {
     try {
         const response = await fetch('/api/config');
+
+        if (!response.ok) {
+            console.warn('Config endpoint returned', response.status, '- running in demo mode');
+            return false;
+        }
+
         const config = await response.json();
 
         if (config.SUPABASE_URL && config.SUPABASE_ANON_KEY) {
@@ -16,11 +22,11 @@ async function initSupabase() {
             console.log('Supabase initialized successfully');
             return true;
         } else {
-            console.warn('Supabase not configured - running in demo mode');
+            console.warn('Supabase credentials not found - running in demo mode');
             return false;
         }
     } catch (error) {
-        console.error('Failed to initialize Supabase:', error);
+        console.warn('Failed to initialize Supabase - running in demo mode:', error.message);
         return false;
     }
 }
