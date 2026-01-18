@@ -21,7 +21,18 @@ module.exports = async function handler(req, res) {
         const { image, mediaType, equipment, specificMethod } = req.body;
 
         // Build the prompt with equipment info if available
-        let promptText = 'Analyze this coffee bag image and provide expert-level brewing recommendations. Assume the user is an experienced home barista who understands brewing parameters and techniques. Consider all brewing methods including espresso, pour over, immersion methods, and milk-based drinks like lattes.';
+        let promptText = `Carefully analyze this coffee bag image and extract ALL visible information. Look for:
+- Coffee name/blend name
+- Roaster name (brand)
+- Roast level (light/medium/dark) - look for text or visual cues like bean color
+- Origin/region (e.g., Ethiopia, Colombia, blend)
+- Processing method (washed, natural, honey, etc.)
+- Flavor notes or tasting notes
+- Any other relevant details
+
+Then provide expert-level brewing recommendations. Assume the user is an experienced home barista who understands brewing parameters and techniques. Consider all brewing methods including espresso, pour over, immersion methods, and milk-based drinks like lattes.
+
+IMPORTANT: Only include information you can actually see or confidently infer from the image. If information is not visible, use "Unknown" or make educated guesses based on visible roast level and any other clues.`;
 
         const hasFlowControl = equipment && equipment.includes('with flow control');
 
@@ -33,7 +44,7 @@ module.exports = async function handler(req, res) {
         }
 
         if (hasFlowControl) {
-            promptText += `\n\nIMPORTANT: The user has a flow control device on their espresso machine. For any espresso-based methods, provide specific pressure modulation guidance in the flow_control parameter (e.g., "Start at 9 bar, drop to 6 bar at 15s, ramp back to 9 bar at 25s").`;
+            promptText += `\n\n⚠️ CRITICAL REQUIREMENT: The user has a FLOW CONTROL device on their espresso machine. For ALL espresso-based methods, you MUST provide detailed pressure profiling instructions in the flow_control parameter. DO NOT use "N/A" - provide specific pressure modulation like "Start at 6 bar for 5s pre-infusion, ramp to 9 bar at 10s, hold until 20s, then decline to 7 bar until 30s". Pressure profiling is expected and required.`;
         }
 
         promptText += '\n\nProvide your response in the following JSON format:';
@@ -64,14 +75,14 @@ module.exports = async function handler(req, res) {
         "grind_size": "Grind size (e.g., Medium-fine)",
         "brew_time": "Total brew time (e.g., 2:30-3:00)",
         "pressure": "Pressure if applicable (e.g., 9 bar, N/A for pour over)",
-        "flow_control": "Flow control notes if applicable or N/A"
+        "flow_control": "Detailed pressure profiling if espresso with flow control, otherwise N/A"
       },
       "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid."
     }
   ]
 }
 
-Provide expert-level parameters optimized for this coffee. Use technical language. If info isn't visible, make educated estimates based on roast level and origin.`;
+Read the image carefully and extract all visible information accurately. Use technical language. If info isn't visible, make educated estimates based on roast level and other visual clues.`;
         } else {
             jsonFormat = `
 
@@ -96,7 +107,7 @@ Provide expert-level parameters optimized for this coffee. Use technical languag
         "grind_size": "Grind size (e.g., Medium-fine)",
         "brew_time": "Total brew time (e.g., 2:30-3:00)",
         "pressure": "Pressure if applicable (e.g., 9 bar, N/A for pour over)",
-        "flow_control": "Flow control notes if applicable or N/A"
+        "flow_control": "Detailed pressure profiling if espresso with flow control, otherwise N/A"
       },
       "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid."
     },
@@ -111,14 +122,14 @@ Provide expert-level parameters optimized for this coffee. Use technical languag
         "grind_size": "Grind size",
         "brew_time": "Total brew time",
         "pressure": "Pressure if applicable or N/A",
-        "flow_control": "Flow control notes if applicable or N/A"
+        "flow_control": "Detailed pressure profiling if espresso with flow control, otherwise N/A"
       },
       "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid."
     }
   ]
 }
 
-Provide only the top 2 most suitable techniques. Use technical language. If info isn't visible, make educated estimates based on roast level and origin.`;
+Read the image carefully and extract all visible information accurately. Provide only the top 2 most suitable techniques. Use technical language. If info isn't visible, make educated estimates based on roast level and other visual clues.`;
         }
 
         const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -129,8 +140,8 @@ Provide only the top 2 most suitable techniques. Use technical language. If info
                 'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
-                model: 'claude-3-haiku-20240307',
-                max_tokens: 2048,
+                model: 'claude-3-5-sonnet-20241022',
+                max_tokens: 3072,
                 messages: [{
                     role: 'user',
                     content: [
