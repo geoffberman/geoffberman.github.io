@@ -140,7 +140,25 @@ IMPORTANT: Only include information you can actually see or confidently infer fr
             // User wants a specific brew method
             promptText += `\n\nThe user specifically wants a recipe for: ${specificMethod}\n\nProvide ONLY one recommendation using this method. Tailor the parameters to this coffee based on what you can see.`;
         } else if (equipment) {
-            promptText += `\n\nUser's available equipment: ${equipment}\n\nRecommend brew methods compatible with their equipment.`;
+            promptText += `\n\n⚠️ CRITICAL EQUIPMENT REQUIREMENT:
+User's available equipment: ${equipment}
+
+IMPORTANT CONSTRAINTS:
+1. You MUST ONLY recommend brewing methods that the user can perform with their EXISTING equipment listed above
+2. DO NOT suggest methods they don't have equipment for
+3. If the user has an espresso machine, recommend espresso techniques. If they have a V60, recommend V60 techniques. If they have a French Press, recommend French Press. Match recommendations to their actual gear.
+4. If their equipment is NOT IDEAL for this specific coffee (e.g., they only have a French Press but this is a delicate Ethiopian light roast that would shine more with pour over), you MUST include an "equipment_suggestions" field in your JSON response explaining:
+   - Why their current equipment isn't ideal for THIS coffee
+   - What specific additional equipment would unlock better results (be specific: "Hario V60" not just "pour over")
+   - Why that equipment would work better for this coffee's characteristics
+   - Keep it to 2-3 sentences, be helpful not preachy
+
+Examples:
+- User has: "French Press" but coffee is: "Ethiopian light roast natural process" → Suggest V60 or other pour over to better highlight the delicate fruit notes
+- User has: "V60" but coffee is: "Dark roast espresso blend" → Still recommend V60 (they can brew it), but suggest an espresso machine would better suit this blend's body and crema potential
+- User has: "Nespresso" → Gently suggest upgrading to manual methods for better quality
+
+Give recommendations that work with what they have, but don't shy away from mentioning better options IF their current setup is truly limiting for this specific coffee.`;
         }
 
         if (hasFlowControl) {
@@ -195,7 +213,8 @@ Pressure profiling is expected and MUST be specific to this coffee.`;
       },
       "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid."
     }
-  ]
+  ],
+  "equipment_suggestions": "ONLY include if user's equipment isn't ideal for this specific coffee. Explain why and what would work better (2-3 sentences). Omit this field entirely if their equipment is fine."
 }
 
 Read the image carefully and extract all visible information accurately. Use technical language. If info isn't visible, make educated estimates based on roast level and other visual clues.`;
@@ -213,7 +232,7 @@ Read the image carefully and extract all visible information accurately. Use tec
   },
   "recommended_techniques": [
     {
-      "technique_name": "First recommended brew method",
+      "technique_name": "First recommended brew method (MUST match user's equipment)",
       "reasoning": "Brief technical reason (1-2 sentences)",
       "parameters": {
         "dose": "Coffee dose in grams",
@@ -228,7 +247,7 @@ Read the image carefully and extract all visible information accurately. Use tec
       "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid."
     },
     {
-      "technique_name": "Second recommended brew method",
+      "technique_name": "Second recommended brew method (MUST match user's equipment)",
       "reasoning": "Brief technical reason (1-2 sentences)",
       "parameters": {
         "dose": "Coffee dose in grams",
@@ -242,10 +261,11 @@ Read the image carefully and extract all visible information accurately. Use tec
       },
       "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid."
     }
-  ]
+  ],
+  "equipment_suggestions": "ONLY include if user's equipment isn't ideal for this specific coffee. Explain why and what would work better (2-3 sentences). Omit this field entirely if their equipment is fine."
 }
 
-Read the image carefully and extract all visible information accurately. Provide only the top 2 most suitable techniques. Use technical language. If info isn't visible, make educated estimates based on roast level and other visual clues.`;
+Read the image carefully and extract all visible information accurately. Provide only the top 2 most suitable techniques THAT MATCH THE USER'S EQUIPMENT. Use technical language. If info isn't visible, make educated estimates based on roast level and other visual clues.`;
         }
 
         const response = await fetch('https://api.anthropic.com/v1/messages', {

@@ -82,7 +82,13 @@ const elements = {
     ratingLabel: document.getElementById('rating-label'),
     adjustRecipeBtn: document.getElementById('adjust-recipe-btn'),
     adjustmentFeedback: document.getElementById('adjustment-feedback'),
-    saveRecipeBtn: document.getElementById('save-recipe-btn')
+    saveRecipeBtn: document.getElementById('save-recipe-btn'),
+
+    // Equipment validation elements
+    noGrinder: document.getElementById('no-grinder'),
+    otherEquipment: document.getElementById('other-equipment'),
+    equipmentRequiredOverlay: document.getElementById('equipment-required-overlay'),
+    goToEquipmentBtn: document.getElementById('go-to-equipment-btn')
 };
 
 // Initialize app
@@ -141,6 +147,9 @@ async function init() {
 
     // Update equipment button to show correct state
     updateEquipmentButton();
+
+    // Check if equipment meets requirements and show/hide overlay
+    updateEquipmentRequiredOverlay();
 }
 
 // Handle auth state changes
@@ -341,6 +350,15 @@ function setupEventListeners() {
         const rating = parseFloat(elements.tasteRating.value);
         await saveBrewSession(rating);
     });
+
+    // Go to equipment button (from equipment-required overlay)
+    elements.goToEquipmentBtn.addEventListener('click', () => {
+        // Hide the overlay
+        elements.equipmentRequiredOverlay.classList.add('hidden');
+        // Open equipment settings
+        elements.settingsSection.classList.remove('hidden');
+        showEquipmentForm();
+    });
 }
 
 // Handle image upload
@@ -406,6 +424,12 @@ async function getBase64Image(file) {
 async function analyzeImage(specificMethod = null) {
     if (!state.imageFile) {
         showError('Please upload an image first.');
+        return;
+    }
+
+    // Check if equipment is properly configured
+    if (!state.equipment || !hasEquipment()) {
+        showError('Please set up your equipment first before analyzing coffee. Click "Set Up Equipment" below to get started.');
         return;
     }
 
@@ -563,7 +587,35 @@ function displayResults(data) {
     state.currentRecipe = data;
 
     // Coffee Analysis
-    let analysisHTML = '<div class="analysis-details">';
+    let analysisHTML = '';
+
+    // Check for poor equipment and show warning
+    const poorEquipmentWarning = checkForPoorEquipment();
+    if (poorEquipmentWarning) {
+        analysisHTML += `
+            <div style="background: linear-gradient(135deg, #FFE5E5 0%, #FFD4D4 100%); border: 2px solid #C74B50; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                <p style="margin: 0; color: #8B0000; font-weight: bold; font-size: 0.95rem;">
+                    ⚠️ ${poorEquipmentWarning}
+                </p>
+            </div>
+        `;
+    }
+
+    // Show equipment upgrade suggestions if provided by AI
+    if (data.equipment_suggestions) {
+        analysisHTML += `
+            <div style="background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%); border: 2px solid #2196F3; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                <p style="margin: 0 0 10px 0; color: #0D47A1; font-weight: bold;">
+                    💡 Equipment Recommendations
+                </p>
+                <p style="margin: 0; color: #1565C0; font-size: 0.9rem; line-height: 1.5;">
+                    ${data.equipment_suggestions}
+                </p>
+            </div>
+        `;
+    }
+
+    analysisHTML += '<div class="analysis-details">';
 
     if (analysis.name) {
         analysisHTML += `<p><strong>Coffee:</strong> ${analysis.name}</p>`;
@@ -707,8 +759,10 @@ async function saveEquipment() {
         espressoMachine: document.getElementById('espresso-machine').value.trim(),
         flowControl: document.getElementById('flow-control').checked,
         grinder: document.getElementById('grinder').value.trim(),
+        noGrinder: document.getElementById('no-grinder').checked,
         pourOver: Array.from(document.querySelectorAll('input[name="pour-over"]:checked')).map(cb => cb.value),
         otherMethods: Array.from(document.querySelectorAll('input[name="other-methods"]:checked')).map(cb => cb.value),
+        otherEquipment: document.getElementById('other-equipment').value.trim(),
         additionalEquipment: document.getElementById('additional-equipment').value.trim()
     };
 
@@ -733,6 +787,7 @@ async function saveEquipment() {
             saveBtn.style.backgroundColor = '';
             showEquipmentSummary();
             updateEquipmentButton();
+            updateEquipmentRequiredOverlay();
         }, 1500);
     } catch (e) {
         console.error('Failed to save equipment:', e);
@@ -754,8 +809,10 @@ function loadEquipment() {
             const actuallyHasEquipment = !!(
                 (equipment.espressoMachine && equipment.espressoMachine.trim()) ||
                 (equipment.grinder && equipment.grinder.trim()) ||
+                equipment.noGrinder ||
                 (equipment.pourOver && equipment.pourOver.length > 0) ||
                 (equipment.otherMethods && equipment.otherMethods.length > 0) ||
+                (equipment.otherEquipment && equipment.otherEquipment.trim()) ||
                 (equipment.additionalEquipment && equipment.additionalEquipment.trim())
             );
 
@@ -775,6 +832,12 @@ function loadEquipment() {
                 }
                 if (equipment.grinder) {
                     document.getElementById('grinder').value = equipment.grinder;
+                }
+                if (equipment.noGrinder) {
+                    document.getElementById('no-grinder').checked = true;
+                }
+                if (equipment.otherEquipment) {
+                    document.getElementById('other-equipment').value = equipment.otherEquipment;
                 }
                 if (equipment.additionalEquipment) {
                     document.getElementById('additional-equipment').value = equipment.additionalEquipment;
@@ -844,10 +907,16 @@ function getEquipmentDescription() {
 
     if (state.equipment.grinder) {
         parts.push(`Grinder: ${state.equipment.grinder}`);
+    } else if (state.equipment.noGrinder) {
+        parts.push(`Grinder: Pre-ground coffee (no grinder)`);
     }
 
     if (state.equipment.otherMethods && state.equipment.otherMethods.length > 0) {
         parts.push(`Other Methods: ${state.equipment.otherMethods.join(', ')}`);
+    }
+
+    if (state.equipment.otherEquipment) {
+        parts.push(`Other Equipment: ${state.equipment.otherEquipment}`);
     }
 
     if (state.equipment.additionalEquipment) {
@@ -855,6 +924,26 @@ function getEquipmentDescription() {
     }
 
     return parts.length > 0 ? parts.join('; ') : null;
+}
+
+function checkForPoorEquipment() {
+    if (!state.equipment) return null;
+
+    // Check all equipment fields for nespresso or k-cup mentions
+    const allEquipmentText = [
+        state.equipment.espressoMachine,
+        state.equipment.otherEquipment,
+        state.equipment.additionalEquipment,
+        ...(state.equipment.otherMethods || [])
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    if (allEquipmentText.includes('nespresso') || allEquipmentText.includes('k-cup') ||
+        allEquipmentText.includes('kcup') || allEquipmentText.includes('k cup') ||
+        allEquipmentText.includes('keurig')) {
+        return 'Warning: Not an ideal brewing setup for specialty coffee. Consider upgrading to manual brewing methods for better results!';
+    }
+
+    return null;
 }
 
 function updateEquipmentDisplay() {
@@ -876,16 +965,24 @@ function hasEquipment() {
         return false;
     }
 
-    const hasAny = !!(
+    // Check if at least one brewing method is specified
+    const hasBrewingMethod = !!(
         (state.equipment.espressoMachine && state.equipment.espressoMachine.trim()) ||
-        (state.equipment.grinder && state.equipment.grinder.trim()) ||
         (state.equipment.pourOver && state.equipment.pourOver.length > 0) ||
         (state.equipment.otherMethods && state.equipment.otherMethods.length > 0) ||
-        (state.equipment.additionalEquipment && state.equipment.additionalEquipment.trim())
+        (state.equipment.otherEquipment && state.equipment.otherEquipment.trim())
     );
 
-    console.log('hasEquipment check:', hasAny, 'Equipment:', state.equipment);
-    return hasAny;
+    // Check if grinder requirement is met (either has grinder OR no-grinder checkbox is checked)
+    const hasGrinderOrNoGrinder = !!(
+        (state.equipment.grinder && state.equipment.grinder.trim()) ||
+        state.equipment.noGrinder
+    );
+
+    console.log('hasEquipment check - brewing method:', hasBrewingMethod, 'grinder/no-grinder:', hasGrinderOrNoGrinder);
+    console.log('Equipment:', state.equipment);
+
+    return hasBrewingMethod && hasGrinderOrNoGrinder;
 }
 
 function showEquipmentSummary() {
@@ -927,6 +1024,13 @@ function showEquipmentSummary() {
                 <span>${state.equipment.grinder}</span>
             </div>
         `;
+    } else if (state.equipment.noGrinder) {
+        summaryHTML += `
+            <div class="equipment-summary-item">
+                <strong>Grinder</strong>
+                <span>Using pre-ground coffee</span>
+            </div>
+        `;
     }
 
     if (state.equipment.otherMethods && state.equipment.otherMethods.length > 0) {
@@ -938,10 +1042,19 @@ function showEquipmentSummary() {
         `;
     }
 
+    if (state.equipment.otherEquipment) {
+        summaryHTML += `
+            <div class="equipment-summary-item">
+                <strong>Other Brewing Equipment</strong>
+                <span>${state.equipment.otherEquipment}</span>
+            </div>
+        `;
+    }
+
     if (state.equipment.additionalEquipment) {
         summaryHTML += `
             <div class="equipment-summary-item">
-                <strong>Additional Equipment</strong>
+                <strong>Additional Notes</strong>
                 <span>${state.equipment.additionalEquipment}</span>
             </div>
         `;
@@ -977,6 +1090,16 @@ function updateEquipmentButton() {
     } else {
         console.log('Setting button to "Set Up Equipment ⚠️"');
         elements.settingsToggleBtn.innerHTML = svgHTML + ' Set Up Equipment ⚠️';
+    }
+}
+
+function updateEquipmentRequiredOverlay() {
+    const hasRequiredEquipment = state.equipment && hasEquipment();
+
+    if (hasRequiredEquipment) {
+        elements.equipmentRequiredOverlay.classList.add('hidden');
+    } else {
+        elements.equipmentRequiredOverlay.classList.remove('hidden');
     }
 }
 
@@ -1291,8 +1414,10 @@ async function loadEquipmentFromDatabase() {
                 espressoMachine: data.espresso_machine || '',
                 flowControl: data.flow_control || false,
                 grinder: data.grinder || '',
+                noGrinder: data.no_grinder || false,
                 pourOver: data.pour_over || [],
                 otherMethods: data.other_methods || [],
+                otherEquipment: data.other_equipment || '',
                 additionalEquipment: data.additional_equipment || ''
             };
 
@@ -1305,6 +1430,12 @@ async function loadEquipmentFromDatabase() {
             }
             if (state.equipment.grinder) {
                 document.getElementById('grinder').value = state.equipment.grinder;
+            }
+            if (state.equipment.noGrinder) {
+                document.getElementById('no-grinder').checked = true;
+            }
+            if (state.equipment.otherEquipment) {
+                document.getElementById('other-equipment').value = state.equipment.otherEquipment;
             }
             if (state.equipment.additionalEquipment) {
                 document.getElementById('additional-equipment').value = state.equipment.additionalEquipment;
@@ -1347,8 +1478,10 @@ async function saveEquipmentToDatabase(equipment) {
             espresso_machine: equipment.espressoMachine,
             flow_control: equipment.flowControl,
             grinder: equipment.grinder,
+            no_grinder: equipment.noGrinder,
             pour_over: equipment.pourOver,
             other_methods: equipment.otherMethods,
+            other_equipment: equipment.otherEquipment,
             additional_equipment: equipment.additionalEquipment,
             updated_at: new Date().toISOString()
         };

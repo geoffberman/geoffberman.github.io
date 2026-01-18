@@ -162,8 +162,11 @@
                     </div>
 
                     <div class="form-group">
-                        <label>Grinder</label>
+                        <label>Grinder <span style="color: #C74B50;">*</span></label>
                         <input type="text" id="grinder" placeholder="e.g., Baratza Encore, Hand grinder, Blade grinder" />
+                        <label class="checkbox-label" style="margin-top: 10px;">
+                            <input type="checkbox" id="no-grinder" /> I don't have a grinder (using pre-ground coffee)
+                        </label>
                     </div>
 
                     <div class="form-group">
@@ -191,9 +194,18 @@
                     </div>
 
                     <div class="form-group">
-                        <label>Additional Equipment or Notes</label>
-                        <textarea id="additional-equipment" rows="3" placeholder="e.g., Gooseneck kettle, Scale, Temperature-controlled kettle"></textarea>
+                        <label>Other Brewing Equipment</label>
+                        <input type="text" id="other-equipment" placeholder="e.g., Turkish cezve, Clever dripper, Vietnamese phin" />
                     </div>
+
+                    <div class="form-group">
+                        <label>Additional Notes</label>
+                        <textarea id="additional-equipment" rows="2" placeholder="e.g., Gooseneck kettle, Scale, Temperature-controlled kettle"></textarea>
+                    </div>
+
+                    <p style="font-size: 0.85rem; color: var(--secondary-color); margin-bottom: 15px;">
+                        <span style="color: #C74B50;">*</span> Required: Enter at least one brewing method and specify your grinder (or check "no grinder")
+                    </p>
 
                     <div class="button-group">
                         <button type="submit" class="btn btn-primary">Save Equipment</button>
@@ -206,6 +218,19 @@
 
         <main>
             <div id="upload-section" class="section">
+                <!-- Equipment Required Overlay -->
+                <div id="equipment-required-overlay" class="hidden" style="position: relative;">
+                    <div style="background: linear-gradient(135deg, #FFF3CD 0%, #FFE5B4 100%); border: 2px solid #D4A574; border-radius: 12px; padding: 30px; text-align: center; margin-bottom: 20px;">
+                        <h3 style="color: var(--primary-color); margin-bottom: 15px;">⚙️ Equipment Setup Required</h3>
+                        <p style="color: var(--secondary-color); margin-bottom: 20px; line-height: 1.6;">
+                            To get personalized brew recommendations, please set up your coffee equipment first. This helps us recommend methods that work with what you have!
+                        </p>
+                        <button id="go-to-equipment-btn" class="btn btn-primary" style="min-width: 200px;">
+                            Set Up My Equipment
+                        </button>
+                    </div>
+                </div>
+
                 <div class="upload-area" id="upload-area">
                     <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
