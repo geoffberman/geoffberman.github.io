@@ -1,7 +1,7 @@
 // Supabase client configuration
 // Fetches credentials from API endpoint
 
-let supabase = null;
+let supabaseClient = null;
 let configLoaded = false;
 
 // Initialize Supabase client
@@ -17,7 +17,7 @@ async function initSupabase() {
         const config = await response.json();
 
         if (config.SUPABASE_URL && config.SUPABASE_ANON_KEY) {
-            supabase = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+            supabaseClient = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
             configLoaded = true;
             console.log('Supabase initialized successfully');
             return true;
@@ -33,12 +33,12 @@ async function initSupabase() {
 
 // Check if Supabase is configured
 function isSupabaseConfigured() {
-    return configLoaded && supabase !== null;
+    return configLoaded && supabaseClient !== null;
 }
 
 // Get the Supabase client
 function getSupabase() {
-    return supabase;
+    return supabaseClient;
 }
 
 // Export for use in other files
