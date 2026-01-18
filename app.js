@@ -42,13 +42,71 @@ const elements = {
     equipmentSummary: document.getElementById('equipment-summary'),
     equipmentSummaryContent: document.getElementById('equipment-summary-content'),
     equipmentFormContainer: document.getElementById('equipment-form-container'),
-    editEquipmentBtn: document.getElementById('edit-equipment-btn')
+    editEquipmentBtn: document.getElementById('edit-equipment-btn'),
+
+    // Auth elements
+    authModal: document.getElementById('auth-modal'),
+    authForm: document.getElementById('auth-form'),
+    authEmail: document.getElementById('auth-email'),
+    authPassword: document.getElementById('auth-password'),
+    authSubmitBtn: document.getElementById('auth-submit-btn'),
+    authError: document.getElementById('auth-error'),
+    authSkipBtn: document.getElementById('auth-skip-btn'),
+    tabSignin: document.getElementById('tab-signin'),
+    tabSignup: document.getElementById('tab-signup'),
+    userProfile: document.getElementById('user-profile'),
+    userEmailDisplay: document.getElementById('user-email-display'),
+    userMenuBtn: document.getElementById('user-menu-btn'),
+    userDropdown: document.getElementById('user-dropdown'),
+    logoutBtn: document.getElementById('logout-btn')
 };
 
 // Initialize app
-function init() {
+async function init() {
     setupEventListeners();
-    loadEquipment();
+
+    // Initialize Supabase and Auth
+    const supabaseConfigured = await window.initSupabase();
+
+    if (supabaseConfigured) {
+        // Initialize auth
+        const isAuthenticated = await window.auth.init();
+
+        if (isAuthenticated) {
+            // User is logged in - load from database
+            await loadEquipmentFromDatabase();
+            showUserProfile();
+        } else {
+            // Try loading from localStorage first (migration path)
+            loadEquipment();
+
+            // Show auth modal on first visit (unless user has skipped before)
+            const hasSkipped = localStorage.getItem('auth_skipped');
+            if (!hasSkipped) {
+                showAuthModal();
+            }
+        }
+
+        // Listen for auth state changes
+        window.auth.onAuthStateChange(handleAuthStateChange);
+    } else {
+        // Supabase not configured - use localStorage only
+        loadEquipment();
+        console.log('Running in demo mode without authentication');
+    }
+}
+
+// Handle auth state changes
+function handleAuthStateChange(event, session) {
+    if (event === 'SIGNED_IN') {
+        hideAuthModal();
+        showUserProfile();
+        migrateLocalStorageToDatabase();
+        loadEquipmentFromDatabase();
+    } else if (event === 'SIGNED_OUT') {
+        hideUserProfile();
+        // Optionally show auth modal again
+    }
 }
 
 // Setup all event listeners
