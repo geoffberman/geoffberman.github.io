@@ -26,7 +26,6 @@ const elements = {
 
     analysisContent: document.getElementById('analysis-content'),
     methodContent: document.getElementById('method-content'),
-    recipeContent: document.getElementById('recipe-content'),
 
     tryAgainBtn: document.getElementById('try-again-btn'),
     retryBtn: document.getElementById('retry-btn'),
@@ -409,9 +408,6 @@ function displayResults(data) {
     });
 
     elements.methodContent.innerHTML = techniquesHTML;
-
-    // Clear recipe content (not needed with new format)
-    elements.recipeContent.innerHTML = '';
 
     // If there's a raw response (fallback), show it
     if (data.raw_response) {
