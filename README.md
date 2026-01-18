@@ -1,8 +1,18 @@
-# Coffee Brew Recommender
+# Better Coffee ☕
 
 A web app that analyzes photos of coffee bags and recommends optimal brew methods and recipes using Claude AI's vision capabilities.
 
-## Easy Setup Guide (For Beginners)
+## Features
+
+- 📸 **Photo Analysis**: Upload a coffee bag photo and get instant AI analysis
+- 🎯 **Personalized Recommendations**: Get brew methods tailored to your specific coffee
+- ⚖️ **Precise Recipes**: Exact measurements for dose, yield, temperature, and timing
+- 👤 **User Profiles**: Create an account to save equipment and brew history
+- ⚙️ **Equipment Tracking**: Save your coffee gear for better recommendations
+- 📊 **Taste Feedback**: Rate your brews and get recipe adjustments
+- 💾 **Brew History**: Track your favorite recipes and techniques
+
+## Quick Start
 
 ### Step 1: Get Your Anthropic API Key
 
