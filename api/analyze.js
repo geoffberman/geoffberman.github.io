@@ -130,6 +130,19 @@ For Pour Over (V60, etc):
 - Focus on even extraction and drawdown times
 - Modern pour patterns (center pours, swirling)
 
+GRINDER-SPECIFIC SETTINGS:
+When recommending grind sizes, if you see equipment mentions specific grinders, tailor your advice:
+- **Ceado E37SD / E37S**: Dial goes from 0 (finest) to 9 (coarsest) with micro-adjustments between each number
+  * Espresso: 0.5 - 2.5 (light roasts closer to 2.5, dark roasts closer to 1.0)
+  * V60/Pour Over: 3.5 - 5.5 (light roasts finer around 3.5-4, medium around 4.5-5)
+  * French Press: 6.5 - 8
+- **Baratza Encore**: 1-40 scale
+  * Espresso: Not ideal (limited range)
+  * V60/Pour Over: 12-18
+  * French Press: 28-32
+- **Baratza Virtuoso/Sette**: Mention specific number ranges
+- If no specific grinder mentioned: Use descriptive terms (fine, medium-fine, medium, medium-coarse, coarse)
+
 For Oxo Rapid Brew Cup:
 - Lance Hedrick calls it "soup" - embrace the immersion brewing style
 - Use full immersion approach, not trying to mimic pour over

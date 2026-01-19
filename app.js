@@ -1249,17 +1249,25 @@ async function handleAuthSubmit() {
 
 async function handleLogout() {
     try {
+        if (!window.auth) {
+            throw new Error('Auth not initialized');
+        }
+
         await window.auth.signOut();
         hideUserProfile();
+        showSignInButton();
 
         // Clear state but keep localStorage as backup
         state.equipment = null;
 
-        // Optionally show auth modal again
-        showAuthModal();
+        // Reload equipment from localStorage for demo mode
+        loadEquipment();
+        updateEquipmentDisplay();
+
+        console.log('Logged out successfully');
     } catch (error) {
         console.error('Logout error:', error);
-        showError('Failed to log out');
+        alert('Failed to log out: ' + error.message);
     }
 }
 
