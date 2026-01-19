@@ -1267,10 +1267,21 @@ function showEquipmentSummary() {
     }
 
     if (state.equipment.otherMethods && state.equipment.otherMethods.length > 0) {
+        const allOtherMethods = [...state.equipment.otherMethods];
+        if (state.equipment.customBrewMethods && state.equipment.customBrewMethods.length > 0) {
+            allOtherMethods.push(...state.equipment.customBrewMethods);
+        }
         summaryHTML += `
             <div class="equipment-summary-item">
                 <strong>Other Brewing Methods</strong>
-                <span>${state.equipment.otherMethods.join(', ')}</span>
+                <span>${allOtherMethods.join(', ')}</span>
+            </div>
+        `;
+    } else if (state.equipment.customBrewMethods && state.equipment.customBrewMethods.length > 0) {
+        summaryHTML += `
+            <div class="equipment-summary-item">
+                <strong>Other Brewing Methods</strong>
+                <span>${state.equipment.customBrewMethods.join(', ')}</span>
             </div>
         `;
     }
@@ -2333,6 +2344,20 @@ function showRecipeDetails(techniqueIndex, techniques) {
         btn.textContent = '✓ Using This Recipe';
         btn.disabled = true;
         btn.style.backgroundColor = '#28a745';
+    }
+
+    // Hide all other technique cards and change grid to single column
+    const allCards = document.querySelectorAll('.technique-card');
+    allCards.forEach((card, index) => {
+        if (index !== techniqueIndex) {
+            card.style.display = 'none';
+        }
+    });
+
+    // Change the grid container to full width
+    const gridContainer = elements.methodContent.querySelector('div[style*="grid"]');
+    if (gridContainer) {
+        gridContainer.style.gridTemplateColumns = '1fr';
     }
 }
 
