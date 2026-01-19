@@ -322,15 +322,16 @@
                         <p style="margin-bottom: 20px; color: var(--secondary-color);">Rate your brew to get recipe adjustments</p>
 
                         <div class="rating-slider-container">
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.9rem; color: var(--secondary-color);">
-                                <span>Too Sour</span>
-                                <span>Perfect</span>
-                                <span>Too Bitter</span>
-                            </div>
-
                             <div style="display: flex; gap: 10px; align-items: center;">
-                                <input type="range" id="taste-rating" class="taste-slider" min="-2" max="2" step="0.5" value="0" style="flex: 1;">
-                                <button id="adjust-recipe-btn" class="btn btn-primary" style="padding: 8px 12px; font-size: 0.85rem; white-space: nowrap;" disabled>
+                                <div style="flex: 1;">
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.9rem; color: var(--secondary-color);">
+                                        <span>Too Sour</span>
+                                        <span>Perfect</span>
+                                        <span>Too Bitter</span>
+                                    </div>
+                                    <input type="range" id="taste-rating" class="taste-slider" min="-2" max="2" step="0.5" value="0" style="width: 100%;">
+                                </div>
+                                <button id="adjust-recipe-btn" class="btn btn-primary" style="padding: 8px 12px; font-size: 0.85rem; white-space: nowrap; height: fit-content;" disabled>
                                     Adjust Recipe
                                 </button>
                             </div>
