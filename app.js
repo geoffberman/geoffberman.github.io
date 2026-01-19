@@ -726,110 +726,102 @@ function displayResults(data) {
     elements.analysisContent.innerHTML = analysisHTML;
 
     // Brew Techniques with Tables
-    let techniquesHTML = '';
+    let techniquesHTML = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">';
 
     techniques.forEach((technique, index) => {
         const params = technique.parameters;
         const imageUrl = getBrewMethodImage(technique.technique_name);
 
         techniquesHTML += `
-            <div class="technique-container">
-                <div class="technique-content">
-                    <div class="technique-header" style="display: flex; align-items: center; justify-content: space-between; gap: 15px;">
-                        <h4 style="margin: 0;"><span class="technique-number">#${index + 1}</span>${technique.technique_name}</h4>
-                        <button class="btn btn-secondary use-this-btn" data-technique-index="${index}" style="padding: 6px 12px; font-size: 0.85rem; white-space: nowrap; flex-shrink: 0;">
-                            📌 Use This
-                        </button>
-                    </div>
-                    <div id="active-indicator-${index}" class="hidden" style="margin-top: 8px; text-align: left; color: var(--primary-color); font-weight: bold; font-size: 0.9rem;">
-                        ⭐ Currently Using This Recipe
-                    </div>
-
-                    <p style="margin-bottom: 15px; margin-top: 15px; line-height: 1.6;">${technique.reasoning}</p>
-
-                    <table class="brew-parameters-table">
-                <thead>
-                    <tr>
-                        <th>Parameter</th>
-                        <th style="display: flex; justify-content: space-between; align-items: center;">
-                            <span>Value</span>
-                            <button class="btn btn-secondary input-adjustments-btn" data-technique-index="${index}" style="padding: 4px 10px; font-size: 0.75rem; white-space: nowrap; margin-left: 10px;">
-                                ✏️ Input Adjustments
-                            </button>
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Dose</td>
-                        <td>${params.dose}</td>
-                    </tr>
-                    <tr>
-                        <td>Yield</td>
-                        <td>${params.yield}</td>
-                    </tr>
-                    <tr>
-                        <td>Ratio</td>
-                        <td>${params.ratio}</td>
-                    </tr>
-                    <tr>
-                        <td>Water Temp</td>
-                        <td>${params.water_temp}</td>
-                    </tr>
-                    <tr>
-                        <td>Grind Size</td>
-                        <td>${params.grind_size}</td>
-                    </tr>
-                    <tr>
-                        <td>Brew Time</td>
-                        <td>${params.brew_time}</td>
-                    </tr>
-                    <tr>
-                        <td>Pressure</td>
-                        <td>${params.pressure}</td>
-                    </tr>
-                    <tr>
-                        <td>Flow Control</td>
-                        <td>${params.flow_control}</td>
-                    </tr>
-                </tbody>
-            </table>
-
-            ${technique.technique_notes ? `<div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 3px solid var(--accent-color); border-radius: 4px;">
-                <p style="margin: 0; line-height: 1.6; color: var(--secondary-color);">${technique.technique_notes}</p>
-            </div>` : ''}
+            <div class="technique-card" style="border: 2px solid var(--border-color); border-radius: 8px; padding: 20px; background: white;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 15px;">
+                    <h4 style="margin: 0; font-size: 1rem;"><span style="color: var(--primary-color); font-weight: bold;">#${index + 1}</span> ${technique.technique_name}</h4>
+                </div>
+                <div id="active-indicator-${index}" class="hidden" style="margin-bottom: 10px; text-align: left; color: var(--primary-color); font-weight: bold; font-size: 0.9rem;">
+                    ⭐ Currently Using This Recipe
                 </div>
 
-                <div class="technique-image">
-                    <img src="${imageUrl}" alt="${technique.technique_name}" loading="lazy" />
+                <p style="margin-bottom: 15px; line-height: 1.5; font-size: 0.9rem; color: var(--secondary-color);">${technique.reasoning}</p>
+
+                <button class="btn btn-primary use-this-show-recipe-btn" data-technique-index="${index}" style="width: 100%; padding: 10px; font-size: 0.9rem;">
+                    📌 Use This and Show Recipe
+                </button>
+
+                <div id="recipe-details-${index}" class="hidden" style="margin-top: 20px;">
+                    <table class="brew-parameters-table">
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span>Value</span>
+                                    <button class="btn btn-secondary input-adjustments-btn" data-technique-index="${index}" style="padding: 4px 10px; font-size: 0.75rem; white-space: nowrap; margin-left: 10px;">
+                                        ✏️ Input Adjustments
+                                    </button>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Dose</td>
+                                <td>${params.dose}</td>
+                            </tr>
+                            <tr>
+                                <td>Yield</td>
+                                <td>${params.yield}</td>
+                            </tr>
+                            <tr>
+                                <td>Ratio</td>
+                                <td>${params.ratio}</td>
+                            </tr>
+                            <tr>
+                                <td>Water Temp</td>
+                                <td>${params.water_temp}</td>
+                            </tr>
+                            <tr>
+                                <td>Grind Size</td>
+                                <td>${params.grind_size}</td>
+                            </tr>
+                            <tr>
+                                <td>Brew Time</td>
+                                <td>${params.brew_time}</td>
+                            </tr>
+                            <tr>
+                                <td>Pressure</td>
+                                <td>${params.pressure}</td>
+                            </tr>
+                            <tr>
+                                <td>Flow Control</td>
+                                <td>${params.flow_control}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    ${technique.technique_notes ? `<div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 3px solid var(--accent-color); border-radius: 4px;">
+                        <p style="margin: 0; line-height: 1.6; color: var(--secondary-color); font-size: 0.9rem;">${technique.technique_notes}</p>
+                    </div>` : ''}
+
+                    <div style="text-align: center; margin-top: 10px;">
+                        <img src="${imageUrl}" alt="${technique.technique_name}" style="max-width: 100%; height: auto; border-radius: 8px;" loading="lazy" />
+                    </div>
                 </div>
             </div>
         `;
     });
+
+    techniquesHTML += '</div>';
 
     elements.methodContent.innerHTML = techniquesHTML;
 
     // Track active technique (default to first one)
     if (!state.activeTechniqueIndex && state.activeTechniqueIndex !== 0) {
         state.activeTechniqueIndex = 0;
-        document.getElementById('active-indicator-0')?.classList.remove('hidden');
     }
 
-    // Add event listeners for "Use This" buttons
-    document.querySelectorAll('.use-this-btn').forEach(btn => {
+    // Add event listeners for "Use This and Show Recipe" buttons
+    document.querySelectorAll('.use-this-show-recipe-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             const techniqueIndex = parseInt(this.getAttribute('data-technique-index'));
-            setActiveTechnique(techniqueIndex, data.recommended_techniques);
-        });
-    });
-
-    // Add event listeners for "Perfect As-Is" buttons
-    document.querySelectorAll('.perfect-recipe-btn').forEach(btn => {
-        btn.addEventListener('click', async function() {
-            const techniqueIndex = parseInt(this.getAttribute('data-technique-index'));
-            const technique = data.recommended_techniques[techniqueIndex];
-            setActiveTechnique(techniqueIndex, data.recommended_techniques);
-            await savePerfectRecipe(technique, techniqueIndex);
+            showRecipeDetails(techniqueIndex, data.recommended_techniques);
         });
     });
 
@@ -2322,6 +2314,26 @@ function setActiveTechnique(techniqueIndex, techniques) {
     }
 
     console.log('Active technique set to:', state.currentBrewMethod);
+}
+
+// Show recipe details when "Use This and Show Recipe" is clicked
+function showRecipeDetails(techniqueIndex, techniques) {
+    // Set this as the active technique
+    setActiveTechnique(techniqueIndex, techniques);
+
+    // Show the recipe details for this technique
+    const recipeDetails = document.getElementById(`recipe-details-${techniqueIndex}`);
+    if (recipeDetails) {
+        recipeDetails.classList.remove('hidden');
+    }
+
+    // Change button text to indicate recipe is shown
+    const btn = document.querySelector(`.use-this-show-recipe-btn[data-technique-index="${techniqueIndex}"]`);
+    if (btn) {
+        btn.textContent = '✓ Using This Recipe';
+        btn.disabled = true;
+        btn.style.backgroundColor = '#28a745';
+    }
 }
 
 // Show manual adjustment table for user to input their own values
