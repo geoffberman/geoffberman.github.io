@@ -324,12 +324,10 @@
                     </div>
 
                     <div id="alt-brew-card" class="card" style="background: linear-gradient(135deg, #FFFCF7 0%, #FFF8ED 100%); border: 2px solid var(--accent-color);">
-                        <h3>Try a Different Method</h3>
-                        <p style="margin-bottom: 15px; color: var(--secondary-color);">Want to see how this coffee would work with a different brewing method?</p>
+                        <h3>Try a different brew method?</h3>
 
-                        <div class="form-group">
-                            <label for="alt-brew-method">Select Brew Method:</label>
-                            <select id="alt-brew-method" class="brew-method-select">
+                        <div style="display: flex; gap: 10px; align-items: center; margin-top: 15px;">
+                            <select id="alt-brew-method" class="brew-method-select" style="flex: 1;">
                                 <option value="">-- Choose Method --</option>
                                 <option value="V60 Pour Over">V60 Pour Over</option>
                                 <option value="Espresso (Traditional)">Espresso (Traditional)</option>
@@ -342,11 +340,10 @@
                                 <option value="Chemex">Chemex</option>
                                 <option value="Moka Pot">Moka Pot</option>
                             </select>
+                            <button id="alt-brew-btn" class="btn btn-primary" disabled style="padding: 8px 16px; font-size: 0.9rem; white-space: nowrap;">
+                                Get recipe
+                            </button>
                         </div>
-
-                        <button id="alt-brew-btn" class="btn btn-primary" disabled>
-                            Get Recipe for Selected Method
-                        </button>
                     </div>
 
                     <!-- Rating Slider -->
