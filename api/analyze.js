@@ -39,11 +39,14 @@ Equipment: ${equipment}
 ⚠️ IMPORTANT: Analyze the user's feedback to determine the appropriate response:
 
 1. **If feedback is about taste/extraction** (sour, bitter, timing, temperature): Provide adjusted recipe parameters in JSON format
-2. **If feedback includes corrections about the coffee** (roast level, origin, grinder settings, etc.): Engage in brief dialogue (2-3 sentences), acknowledge the correction, and ask if they want a revised recipe based on the correct information
-3. **If feedback is about technical issues** (equipment problems, can't achieve settings, etc.): Provide brief, helpful troubleshooting advice (2-3 sentences)
-4. **If feedback questions recipe validity** (seems wrong, doesn't make sense): Briefly explain the reasoning and offer to adjust if needed
+2. **If feedback includes corrections or questions**: Respond in 1 SHORT sentence (10-15 words max), acknowledge and suggest next step
 
-For conversational responses (cases 2-4), respond in plain text, not JSON. Keep it brief - 2-3 sentences max.
+⚠️ GRINDER SETTINGS FORMAT:
+- **Ceado E37SD/E37S**: Just the number, no "setting" word (e.g., "1.5" or "3.5", NEVER "setting 15")
+- Scale is 0-9 ONLY (espresso 0.5-2.5, pour over 3.5-5.5)
+- **Baratza Encore**: 1-40 scale (pour over 12-18)
+
+For conversational responses, respond in plain text, not JSON. One sentence only.
 
 For taste/extraction adjustments (case 1), provide your response in this EXACT JSON format (no markdown, no code blocks, just pure JSON):
 
