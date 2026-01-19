@@ -922,6 +922,7 @@ async function saveEquipment() {
             showEquipmentSummary();
             updateEquipmentButton();
             updateEquipmentRequiredOverlay();
+            updateBrewMethodDropdown();
         }, 1500);
     } catch (e) {
         console.error('Failed to save equipment:', e);
@@ -1014,6 +1015,66 @@ function loadEquipment() {
 
     // Update the equipment button text
     updateEquipmentButton();
+
+    // Update brew method dropdown
+    updateBrewMethodDropdown();
+}
+
+// Populate brew method dropdown based on user's equipment
+function updateBrewMethodDropdown() {
+    const dropdown = document.getElementById('brew-method-select');
+    if (!dropdown) return;
+
+    // Keep the "Search All Methods" option
+    dropdown.innerHTML = '<option value="">Search All Methods</option>';
+
+    if (!state.equipment) return;
+
+    const methods = [];
+
+    // Add espresso if they have espresso machine
+    if (state.equipment.espressoMachine && state.equipment.espressoMachine.trim()) {
+        methods.push('Espresso');
+    }
+
+    // Add pour over devices
+    if (state.equipment.pourOver && state.equipment.pourOver.length > 0) {
+        state.equipment.pourOver.forEach(method => {
+            methods.push(method);
+        });
+    }
+
+    // Add other methods
+    if (state.equipment.otherMethods && state.equipment.otherMethods.length > 0) {
+        state.equipment.otherMethods.forEach(method => {
+            methods.push(method);
+        });
+    }
+
+    // Add custom brew methods
+    if (state.equipment.customBrewMethods && state.equipment.customBrewMethods.length > 0) {
+        state.equipment.customBrewMethods.forEach(method => {
+            methods.push(method);
+        });
+    }
+
+    // Add pod machines
+    if (state.equipment.podMachines && state.equipment.podMachines.length > 0) {
+        state.equipment.podMachines.forEach(method => {
+            methods.push(method);
+        });
+    }
+
+    // Remove duplicates and sort
+    const uniqueMethods = [...new Set(methods)].sort();
+
+    // Add options to dropdown
+    uniqueMethods.forEach(method => {
+        const option = document.createElement('option');
+        option.value = method;
+        option.textContent = method;
+        dropdown.appendChild(option);
+    });
 }
 
 function clearEquipment() {
@@ -1039,6 +1100,7 @@ function clearEquipment() {
         setTimeout(() => {
             clearBtn.textContent = originalText;
             updateEquipmentButton();
+            updateBrewMethodDropdown();
         }, 1500);
     }
 }
@@ -1068,6 +1130,9 @@ function addCustomBrewMethod(methodName) {
 
     // Render the updated list
     renderCustomBrewMethods(equipment.customBrewMethods);
+
+    // Update brew method dropdown
+    updateBrewMethodDropdown();
 
     console.log('Added custom brew method:', methodName);
 }
@@ -1123,6 +1188,7 @@ function removeCustomBrewMethod(methodName) {
         localStorage.setItem('coffee_equipment', JSON.stringify(equipment));
         state.equipment = equipment;
         renderCustomBrewMethods(equipment.customBrewMethods);
+        updateBrewMethodDropdown();
         console.log('Removed custom brew method:', methodName);
     }
 }
@@ -1744,6 +1810,9 @@ async function loadEquipmentFromDatabase() {
 
     // Update the equipment button text
     updateEquipmentButton();
+
+    // Update brew method dropdown
+    updateBrewMethodDropdown();
 }
 
 async function saveEquipmentToDatabase(equipment) {
