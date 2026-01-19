@@ -726,14 +726,14 @@ function displayResults(data) {
     elements.analysisContent.innerHTML = analysisHTML;
 
     // Brew Techniques with Tables
-    let techniquesHTML = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">';
+    let techniquesHTML = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; align-items: center;">';
 
     techniques.forEach((technique, index) => {
         const params = technique.parameters;
         const imageUrl = getBrewMethodImage(technique.technique_name);
 
         techniquesHTML += `
-            <div class="technique-card" style="border: 2px solid var(--border-color); border-radius: 8px; padding: 20px; background: white;">
+            <div class="technique-card" style="border: 2px solid var(--border-color); border-radius: 8px; padding: 20px; background: white; display: flex; flex-direction: column; justify-content: center;">
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 15px;">
                     <h4 style="margin: 0; font-size: 1rem;"><span style="color: var(--primary-color); font-weight: bold;">#${index + 1}</span> ${technique.technique_name}</h4>
                 </div>
