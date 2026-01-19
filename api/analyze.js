@@ -195,6 +195,11 @@ IMPORTANT CONSTRAINTS:
    - Why that equipment would work better for this coffee's characteristics
    - Keep it to 2-3 sentences, be helpful not preachy
 
+⚠️ CRITICAL: OMIT "equipment_suggestions" ENTIRELY if their equipment is already good/adequate for this coffee
+   - DO NOT include affirmations like "your equipment is well-suited" or "no upgrades needed"
+   - ONLY include equipment_suggestions when you have an ACTUAL recommendation to add/upgrade equipment
+   - If their gear is fine, simply omit this field from the JSON (don't include it at all)
+
 Examples:
 - User has: "Espresso Machine" and coffee is: "Ethiopian Yirgacheffe light roast natural" → Recommend BOTH "Espresso - Turbo Shot" (popular modern approach for this coffee) AND mention V60 in equipment_suggestions as alternative
 - User has: "French Press" but coffee is: "Ethiopian light roast natural process" → Recommend French Press method BUT suggest V60 in equipment_suggestions for more clarity
@@ -257,7 +262,7 @@ Pressure profiling is expected and MUST be specific to this coffee.`;
       "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid."
     }
   ],
-  "equipment_suggestions": "ONLY include if user's equipment isn't ideal for this specific coffee. Explain why and what would work better (2-3 sentences). Omit this field entirely if their equipment is fine."
+  "equipment_suggestions": "CRITICAL: ONLY include this field if you have an ACTUAL recommendation to upgrade/add equipment. DO NOT include affirmations or 'equipment is fine' messages. If their gear is adequate, completely OMIT this field from the JSON response."
 }
 
 Read the image carefully and extract all visible information accurately. Use technical language. If info isn't visible, make educated estimates based on roast level and other visual clues.`;
@@ -305,7 +310,7 @@ Read the image carefully and extract all visible information accurately. Use tec
       "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid."
     }
   ],
-  "equipment_suggestions": "ONLY include if user's equipment isn't ideal for this specific coffee. Explain why and what would work better (2-3 sentences). Omit this field entirely if their equipment is fine."
+  "equipment_suggestions": "CRITICAL: ONLY include this field if you have an ACTUAL recommendation to upgrade/add equipment. DO NOT include affirmations or 'equipment is fine' messages. If their gear is adequate, completely OMIT this field from the JSON response."
 }
 
 Read the image carefully and extract all visible information accurately. Provide only the top 2 most suitable techniques THAT MATCH THE USER'S EQUIPMENT. Use technical language. If info isn't visible, make educated estimates based on roast level and other visual clues.`;
