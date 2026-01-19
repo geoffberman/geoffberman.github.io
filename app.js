@@ -900,6 +900,8 @@ async function saveEquipment() {
         additionalEquipment: document.getElementById('additional-equipment').value.trim()
     };
 
+    console.log('Saving equipment with customBrewMethods:', equipment.customBrewMethods);
+
     // Save to localStorage (always, as backup)
     try {
         localStorage.setItem('coffee_equipment', JSON.stringify(equipment));
@@ -1345,6 +1347,7 @@ function showEquipmentSummary() {
         if (state.equipment.customBrewMethods && state.equipment.customBrewMethods.length > 0) {
             allOtherMethods.push(...state.equipment.customBrewMethods);
         }
+        console.log('Displaying Other Brewing Methods:', allOtherMethods);
         summaryHTML += `
             <div class="equipment-summary-item">
                 <strong>Other Brewing Methods</strong>
@@ -1352,6 +1355,7 @@ function showEquipmentSummary() {
             </div>
         `;
     } else if (state.equipment.customBrewMethods && state.equipment.customBrewMethods.length > 0) {
+        console.log('Displaying Custom Brewing Methods only:', state.equipment.customBrewMethods);
         summaryHTML += `
             <div class="equipment-summary-item">
                 <strong>Other Brewing Methods</strong>
