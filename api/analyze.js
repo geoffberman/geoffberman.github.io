@@ -90,39 +90,50 @@ Make the adjusted_parameters complete and ready to display in a table. The adjus
 - Flavor notes or tasting notes
 - Any other relevant details
 
-CRITICAL: Think deeply about the brewing recommendations. Consider the coffee's characteristics FIRST, then match to appropriate methods.
+CRITICAL: Research what the coffee community ACTUALLY recommends for this specific coffee or similar ones. Don't apply generic roast-level formulas.
 
-⚠️ IMPORTANT ROAST LEVEL GUIDELINES:
-- **Light Roasts (especially single-origin, fruity, floral)**: STRONGLY prefer pour over methods (V60, Chemex, etc.) over espresso. Light roasts shine with clarity and nuance that pour over provides. Only recommend espresso if user specifically has espresso equipment AND lacks pour over gear.
-- **Light-Medium Roasts**: Pour over is usually best, but espresso can work with proper dialing
-- **Medium Roasts**: Versatile - good for both pour over and espresso
-- **Medium-Dark to Dark Roasts**: Better suited for espresso, French Press, or immersion methods
+⚠️ RESEARCH-BASED RECOMMENDATION PROCESS:
+1. **Identify the coffee**: Look at origin, processing, roast level, roaster, flavor notes
+2. **Search your knowledge**: What do coffee experts recommend for this SPECIFIC coffee or very similar ones?
+   - Check if you know community recipes for this roaster/coffee
+   - Look for similar coffees (same origin + processing + roast level)
+   - Reference known recipes from YouTube, Reddit r/coffee, home-barista.com
+3. **Consider ALL appropriate methods**: Don't exclude methods based on roast level alone
+   - Light roasts: Can be excellent as pour over, filter, OR as turbo/lungo espresso shots
+   - Medium roasts: Very versatile - pour over, espresso, immersion all work
+   - Dark roasts: Great for espresso, but also work well in French Press, Moka Pot
+4. **Match to user's equipment**: Filter your researched recommendations by what they have
+5. **Suggest upgrades if truly limiting**: Only if their gear can't properly execute the best methods for THIS coffee
 
-Brew Method Selection Logic:
-1. Identify roast level and flavor profile FIRST
-2. Match to IDEAL brew method for those characteristics
-3. THEN filter by user's available equipment
-4. If user's equipment isn't ideal, mention better options in equipment_suggestions
+Modern Espresso Techniques for Light Roasts:
+- **Turbo Shots**: 1:2.5-3.5 ratio, 20-25 seconds, coarser grind, popular for fruity light roasts
+- **Lungo/Allongé**: 1:3-4 ratio, 35-45 seconds, highlights acidity and fruit notes
+- **Blooming Espresso**: Pre-infusion with pause, then extraction, reduces channeling
+- **Lower Pressure**: 6-8 bar instead of 9, gentler extraction for delicate flavors
+Don't ignore these! Many light roast single origins are specifically sold as "espresso" with these modern techniques in mind.
 
-Examples of correct thinking:
-- Ethiopian natural light roast + User has V60 → Recommend V60 with higher temps (96-100°C)
-- Ethiopian natural light roast + User has espresso only → Recommend turbo shot BUT suggest V60 in equipment_suggestions
-- Colombian washed medium + User has both → Recommend BOTH pour over AND espresso as equals
-- Dark roast blend + User has V60 → Recommend V60 BUT note espresso would be better in equipment_suggestions
+Examples of correct research-based thinking:
+- "Onyx Coffee Lab Monarch" light roast → Check if you know Onyx's brew guides (they often recommend both espresso turbo shots AND V60)
+- Ethiopian natural light roast → Community loves both V60 (for clarity) AND turbo shots (for intensity + fruit)
+- Colombian washed → Classic all-rounder, good for any method
+- "Counter Culture Big Trouble" → Known espresso blend, but also works as filter
 
-Reference recipes from:
-- James Hoffmann's Ultimate V60 technique and espresso dialing guides
-- Lance Hedrick's pressure profiling recipes and "soup" method
-- Scott Rao's work on even extraction
-- Community-tested recipes for that origin/processing combo
+Reference recipes from experts:
+- James Hoffmann: V60 technique, turbo shot experiments, espresso dialing
+- Lance Hedrick: Pressure profiling, turbo shots, "soup" immersion method
+- Scott Rao: Even extraction principles, blooming espresso
+- Onyx Coffee Lab, George Howell, Tim Wendelboe: Often publish brew guides for their coffees
 
 Then provide expert-level brewing recommendations using MODERN specialty coffee methodologies:
 
 For Espresso:
-- Consider turbo/blooming shots for lighter roasts (higher ratios like 1:2.5-3.5, shorter times 20-25s)
-- Lower temperatures (88-92°C) for light roasts to reduce astringency
-- Pre-infusion and pressure profiling when available
-- Even extraction over traditional "perfect" ratios
+- **Traditional Espresso**: 1:2-2.5 ratio, 25-30 seconds, 92-94°C - works for most medium-dark roasts
+- **Turbo Shots** (popular for light roasts): 1:2.5-3.5 ratio, 20-25 seconds, coarser grind, 92-95°C
+- **Lungo/Allongé** (light roasts): 1:3-4 ratio, 35-45 seconds, highlights brightness
+- **Blooming Espresso**: 6 bar pre-infusion for 5-8s, pause, then 9 bar - reduces channeling in light roasts
+- Lower temps (88-92°C) for very light roasts IF using traditional ratios
+- Pre-infusion and pressure profiling when user has flow control
+- Prioritize even extraction over hitting exact numbers
 
 For Pour Over (V60, etc):
 - Emphasize bloom phase (2-3x coffee weight, 30-45s)
@@ -178,11 +189,12 @@ IMPORTANT CONSTRAINTS:
    - Keep it to 2-3 sentences, be helpful not preachy
 
 Examples:
-- User has: "French Press" but coffee is: "Ethiopian light roast natural process" → Suggest V60 or other pour over to better highlight the delicate fruit notes
-- User has: "V60" but coffee is: "Dark roast espresso blend" → Still recommend V60 (they can brew it), but suggest an espresso machine would better suit this blend's body and crema potential
-- User has: "Nespresso" → Gently suggest upgrading to manual methods for better quality
+- User has: "Espresso Machine" and coffee is: "Ethiopian Yirgacheffe light roast natural" → Recommend BOTH "Espresso - Turbo Shot" (popular modern approach for this coffee) AND mention V60 in equipment_suggestions as alternative
+- User has: "French Press" but coffee is: "Ethiopian light roast natural process" → Recommend French Press method BUT suggest V60 in equipment_suggestions for more clarity
+- User has: "V60" but coffee is: "Dark roast espresso blend" → Recommend V60 (it works), but note in equipment_suggestions that espresso would better suit this blend's body
+- User has: "Espresso Machine, V60" and coffee is: "Light roast single origin" → Recommend BOTH "Espresso - Turbo Shot" AND "V60 Pour Over" as equally valid options
 
-Give recommendations that work with what they have, but don't shy away from mentioning better options IF their current setup is truly limiting for this specific coffee.`;
+Give recommendations based on what the coffee community actually brews with this coffee. Don't exclude espresso for light roasts - turbo/lungo shots are hugely popular for them.`;
         }
 
         if (hasFlowControl) {
@@ -223,8 +235,8 @@ Pressure profiling is expected and MUST be specific to this coffee.`;
   },
   "recommended_techniques": [
     {
-      "technique_name": "${specificMethod}",
-      "reasoning": "Brief technical reason why this method works for this specific coffee (1-2 sentences)",
+      "technique_name": "${specificMethod} (specify style if espresso: 'Espresso - Turbo Shot', 'Espresso - Lungo', 'Espresso - Traditional', etc.)",
+      "reasoning": "Brief technical reason based on what you know about this coffee or similar ones (1-2 sentences)",
       "parameters": {
         "dose": "Coffee dose in grams",
         "yield": "Total brew output in grams or ml",
@@ -256,8 +268,8 @@ Read the image carefully and extract all visible information accurately. Use tec
   },
   "recommended_techniques": [
     {
-      "technique_name": "First recommended brew method (MUST match user's equipment)",
-      "reasoning": "Brief technical reason (1-2 sentences)",
+      "technique_name": "First recommended brew method (MUST match user's equipment). If espresso, specify: 'Espresso - Turbo Shot', 'Espresso - Lungo', 'Espresso - Traditional', etc.",
+      "reasoning": "Brief research-based reason - what does the community recommend for this coffee or similar ones? (1-2 sentences)",
       "parameters": {
         "dose": "Coffee dose in grams",
         "yield": "Total brew output in grams or ml",
@@ -271,8 +283,8 @@ Read the image carefully and extract all visible information accurately. Use tec
       "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid."
     },
     {
-      "technique_name": "Second recommended brew method (MUST match user's equipment)",
-      "reasoning": "Brief technical reason (1-2 sentences)",
+      "technique_name": "Second recommended brew method (MUST match user's equipment). If espresso, specify style.",
+      "reasoning": "Research-based reason (1-2 sentences)",
       "parameters": {
         "dose": "Coffee dose in grams",
         "yield": "Total brew output in grams or ml",
