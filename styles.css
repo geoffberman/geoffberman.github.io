@@ -811,3 +811,10 @@ footer {
 .taste-slider::-moz-range-thumb:hover {
     transform: scale(1.2);
 }
+
+/* Responsive layout for brew recommendations */
+@media (max-width: 768px) {
+    #method-content > div {
+        grid-template-columns: 1fr !important;
+    }
+}
