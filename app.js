@@ -1744,6 +1744,7 @@ async function loadEquipmentFromDatabase() {
                 grinder: data.grinder || '',
                 noGrinder: data.no_grinder || false,
                 otherMethods: data.other_methods || [],
+                customBrewMethods: data.custom_brew_methods || [],
                 otherEquipment: data.other_equipment || '',
                 additionalEquipment: data.additional_equipment || ''
             };
@@ -1784,6 +1785,11 @@ async function loadEquipmentFromDatabase() {
                 if (checkbox) checkbox.checked = true;
             });
 
+            // Render and check custom brew methods
+            if (state.equipment.customBrewMethods && state.equipment.customBrewMethods.length > 0) {
+                renderCustomBrewMethods(state.equipment.customBrewMethods);
+            }
+
             // Show summary
             showEquipmentSummary();
             console.log('Equipment loaded from database');
@@ -1817,6 +1823,7 @@ async function saveEquipmentToDatabase(equipment) {
             grinder: equipment.grinder,
             no_grinder: equipment.noGrinder,
             other_methods: equipment.otherMethods,
+            custom_brew_methods: equipment.customBrewMethods || [],
             other_equipment: equipment.otherEquipment,
             additional_equipment: equipment.additionalEquipment,
             updated_at: new Date().toISOString()

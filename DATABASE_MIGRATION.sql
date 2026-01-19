@@ -13,6 +13,10 @@ ADD COLUMN IF NOT EXISTS no_grinder boolean DEFAULT false;
 ALTER TABLE equipment
 ADD COLUMN IF NOT EXISTS other_equipment text DEFAULT '';
 
+-- Add custom_brew_methods column (array of text)
+ALTER TABLE equipment
+ADD COLUMN IF NOT EXISTS custom_brew_methods text[] DEFAULT '{}';
+
 -- Verify the columns were added
 SELECT column_name, data_type
 FROM information_schema.columns
