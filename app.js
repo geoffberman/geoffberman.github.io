@@ -2342,12 +2342,6 @@ function setActiveTechnique(techniqueIndex, techniques) {
     });
     document.getElementById(`active-indicator-${techniqueIndex}`)?.classList.remove('hidden');
 
-    // Hide the alternate brew method card once user picks a technique
-    const altBrewCard = document.getElementById('alt-brew-card');
-    if (altBrewCard) {
-        altBrewCard.classList.add('hidden');
-    }
-
     console.log('Active technique set to:', state.currentBrewMethod);
 }
 
