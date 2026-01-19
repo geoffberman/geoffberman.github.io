@@ -105,6 +105,13 @@ CRITICAL: Research what the coffee community ACTUALLY recommends for this specif
 4. **Match to user's equipment**: Filter your researched recommendations by what they have
 5. **Suggest upgrades if truly limiting**: Only if their gear can't properly execute the best methods for THIS coffee
 
+⚠️ CRITICAL: DO NOT DEFAULT TO ESPRESSO
+- If user has V60, prioritize V60 recommendations
+- If user has French Press, prioritize French Press
+- If user has multiple methods, recommend what's BEST for THIS specific coffee based on community knowledge
+- Don't assume espresso is best - many light roasts shine more with pour over
+- Match the brew method to the coffee's characteristics, not to assumptions
+
 Modern Espresso Techniques for Light Roasts:
 - **Turbo Shots**: 1:2.5-3.5 ratio, 20-25 seconds, coarser grind, popular for fruity light roasts
 - **Lungo/Allongé**: 1:3-4 ratio, 35-45 seconds, highlights acidity and fruit notes
