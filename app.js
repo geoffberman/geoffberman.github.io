@@ -680,11 +680,17 @@ function displayResults(data) {
         techniquesHTML += `
             <div class="technique-container">
                 <div class="technique-content">
-                    <div class="technique-header">
-                        <h4><span class="technique-number">#${index + 1}</span>${technique.technique_name}</h4>
+                    <div class="technique-header" style="display: flex; align-items: center; justify-content: space-between; gap: 15px;">
+                        <h4 style="margin: 0;"><span class="technique-number">#${index + 1}</span>${technique.technique_name}</h4>
+                        <button class="btn btn-secondary use-this-btn" data-technique-index="${index}" style="padding: 6px 12px; font-size: 0.85rem; white-space: nowrap; flex-shrink: 0;">
+                            📌 Use This
+                        </button>
+                    </div>
+                    <div id="active-indicator-${index}" class="hidden" style="margin-top: 8px; text-align: left; color: var(--primary-color); font-weight: bold; font-size: 0.9rem;">
+                        ⭐ Currently Using This Recipe
                     </div>
 
-                    <p style="margin-bottom: 15px; line-height: 1.6;">${technique.reasoning}</p>
+                    <p style="margin-bottom: 15px; margin-top: 15px; line-height: 1.6;">${technique.reasoning}</p>
 
                     <table class="brew-parameters-table">
                 <thead>
@@ -734,18 +740,12 @@ function displayResults(data) {
             </div>` : ''}
 
                     <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;">
-                        <button class="btn btn-secondary use-this-btn" data-technique-index="${index}" style="flex: 1; max-width: 180px;">
-                            📌 Use This
-                        </button>
-                        <button class="btn btn-primary perfect-recipe-btn" data-technique-index="${index}" style="background: #28a745; flex: 1; max-width: 180px;">
+                        <button class="btn btn-primary perfect-recipe-btn" data-technique-index="${index}" style="background: #28a745; flex: 1; max-width: 200px;">
                             ✓ Perfect As-Is
                         </button>
-                        <button class="btn btn-secondary input-adjustments-btn" data-technique-index="${index}" style="flex: 1; max-width: 180px;">
+                        <button class="btn btn-secondary input-adjustments-btn" data-technique-index="${index}" style="flex: 1; max-width: 200px;">
                             ✏️ Input Adjustments
                         </button>
-                    </div>
-                    <div id="active-indicator-${index}" class="hidden" style="margin-top: 10px; text-align: center; color: var(--primary-color); font-weight: bold;">
-                        ⭐ Currently Using This Recipe
                     </div>
                 </div>
 
@@ -2162,6 +2162,12 @@ function setActiveTechnique(techniqueIndex, techniques) {
         indicator.classList.add('hidden');
     });
     document.getElementById(`active-indicator-${techniqueIndex}`)?.classList.remove('hidden');
+
+    // Hide the alternate brew method card once user picks a technique
+    const altBrewCard = document.getElementById('alt-brew-card');
+    if (altBrewCard) {
+        altBrewCard.classList.add('hidden');
+    }
 
     console.log('Active technique set to:', state.currentBrewMethod);
 }
