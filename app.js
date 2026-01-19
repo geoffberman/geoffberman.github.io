@@ -86,6 +86,7 @@ const elements = {
     adjustRecipeBtn: document.getElementById('adjust-recipe-btn'),
     adjustmentFeedback: document.getElementById('adjustment-feedback'),
     saveRecipeBtn: document.getElementById('save-recipe-btn'),
+    perfectRecipeBtn: document.getElementById('perfect-recipe-btn'),
 
     // Equipment validation elements
     noGrinder: document.getElementById('no-grinder'),
@@ -382,6 +383,22 @@ function setupEventListeners() {
         await saveBrewSession(rating);
     });
 
+    // Perfect recipe button
+    elements.perfectRecipeBtn.addEventListener('click', async () => {
+        if (!state.currentCoffeeAnalysis || state.activeTechniqueIndex === undefined) {
+            console.error('No active technique to save');
+            return;
+        }
+        // Get the currently active technique from the displayed recommendations
+        const techniques = state.currentCoffeeAnalysis.recommended_techniques;
+        if (!techniques || !techniques[state.activeTechniqueIndex]) {
+            console.error('Active technique not found');
+            return;
+        }
+        const technique = techniques[state.activeTechniqueIndex];
+        await savePerfectRecipe(technique, state.activeTechniqueIndex);
+    });
+
     // Go to equipment button (from equipment-required overlay)
     elements.goToEquipmentBtn.addEventListener('click', () => {
         // Hide the overlay
@@ -614,6 +631,7 @@ function displayResults(data) {
 
     // Save to state for rating adjustments
     state.currentCoffeeAnalysis = analysis;
+    state.currentCoffeeAnalysis.recommended_techniques = techniques; // Store techniques for later access
     state.currentBrewMethod = techniques[0]?.technique_name || 'Unknown';
     state.currentRecipe = data;
 
@@ -696,7 +714,12 @@ function displayResults(data) {
                 <thead>
                     <tr>
                         <th>Parameter</th>
-                        <th>Value</th>
+                        <th style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>Value</span>
+                            <button class="btn btn-secondary input-adjustments-btn" data-technique-index="${index}" style="padding: 4px 10px; font-size: 0.75rem; white-space: nowrap; margin-left: 10px;">
+                                ✏️ Input Adjustments
+                            </button>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -738,15 +761,6 @@ function displayResults(data) {
             ${technique.technique_notes ? `<div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 3px solid var(--accent-color); border-radius: 4px;">
                 <p style="margin: 0; line-height: 1.6; color: var(--secondary-color);">${technique.technique_notes}</p>
             </div>` : ''}
-
-                    <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;">
-                        <button class="btn btn-primary perfect-recipe-btn" data-technique-index="${index}" style="background: #28a745; flex: 1; max-width: 200px;">
-                            ✓ Perfect As-Is
-                        </button>
-                        <button class="btn btn-secondary input-adjustments-btn" data-technique-index="${index}" style="flex: 1; max-width: 200px;">
-                            ✏️ Input Adjustments
-                        </button>
-                    </div>
                 </div>
 
                 <div class="technique-image">
