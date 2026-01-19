@@ -279,9 +279,22 @@
                     <button id="remove-image" class="btn-close">✕</button>
                 </div>
 
-                <button id="analyze-btn" class="btn btn-primary btn-large">
-                    Analyze & Get Recommendations
-                </button>
+                <div style="display: flex; gap: 10px; align-items: center; max-width: 600px; margin: 0 auto;">
+                    <select id="brew-method-select" class="btn" style="flex: 1; height: 50px; font-size: 1rem; cursor: pointer;">
+                        <option value="">Search All Methods</option>
+                        <option value="Espresso">Espresso</option>
+                        <option value="V60 Pour Over">V60 Pour Over</option>
+                        <option value="Chemex">Chemex</option>
+                        <option value="French Press">French Press</option>
+                        <option value="Aeropress">Aeropress</option>
+                        <option value="Moka Pot">Moka Pot</option>
+                        <option value="Cold Brew">Cold Brew</option>
+                        <option value="Kalita Wave">Kalita Wave</option>
+                    </select>
+                    <button id="analyze-btn" class="btn btn-primary" style="flex: 1; height: 50px; font-size: 1rem;">
+                        Make Recommendations
+                    </button>
+                </div>
             </div>
 
             <div id="loading-section" class="section hidden">

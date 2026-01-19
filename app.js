@@ -25,6 +25,7 @@ const elements = {
     previewImage: document.getElementById('preview-image'),
     removeImageBtn: document.getElementById('remove-image'),
 
+    brewMethodSelect: document.getElementById('brew-method-select'),
     analyzeBtn: document.getElementById('analyze-btn'),
 
     analysisContent: document.getElementById('analysis-content'),
@@ -218,8 +219,21 @@ function setupEventListeners() {
         resetApp();
     });
 
+    // Brew method select - update button text
+    elements.brewMethodSelect.addEventListener('change', () => {
+        const selectedMethod = elements.brewMethodSelect.value;
+        if (selectedMethod) {
+            elements.analyzeBtn.textContent = 'Get Recipe';
+        } else {
+            elements.analyzeBtn.textContent = 'Make Recommendations';
+        }
+    });
+
     // Analyze button
-    elements.analyzeBtn.addEventListener('click', analyzeImage);
+    elements.analyzeBtn.addEventListener('click', () => {
+        const selectedMethod = elements.brewMethodSelect.value;
+        analyzeImage(selectedMethod || null);
+    });
 
     // Try again / Retry buttons
     elements.tryAgainBtn.addEventListener('click', resetApp);
@@ -602,7 +616,7 @@ function displayResults(data) {
     }
 
     // Show equipment upgrade suggestions if provided by AI
-    if (data.equipment_suggestions) {
+    if (data.equipment_suggestions && data.equipment_suggestions.trim()) {
         analysisHTML += `
             <div style="background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%); border: 2px solid #2196F3; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
                 <p style="margin: 0 0 10px 0; color: #0D47A1; font-weight: bold;">

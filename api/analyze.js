@@ -90,20 +90,31 @@ Make the adjusted_parameters complete and ready to display in a table. The adjus
 - Flavor notes or tasting notes
 - Any other relevant details
 
-CRITICAL: Think deeply about the brewing recommendations. Don't just apply generic formulas based on roast level.
+CRITICAL: Think deeply about the brewing recommendations. Consider the coffee's characteristics FIRST, then match to appropriate methods.
 
-1. If you recognize this specific coffee, roaster, or blend, draw on known recipes from the community (YouTube videos, Reddit r/coffee, home-barista.com forums, etc.)
-2. If not, consider similar coffees with the same characteristics (origin + processing + roast level + flavor notes)
-3. Reference specific recipes from experts like:
-   - James Hoffmann's Ultimate V60 technique and espresso dialing guides
-   - Lance Hedrick's pressure profiling recipes and "soup" method
-   - Scott Rao's work on even extraction
-   - Community-tested recipes for that origin/processing combo
+⚠️ IMPORTANT ROAST LEVEL GUIDELINES:
+- **Light Roasts (especially single-origin, fruity, floral)**: STRONGLY prefer pour over methods (V60, Chemex, etc.) over espresso. Light roasts shine with clarity and nuance that pour over provides. Only recommend espresso if user specifically has espresso equipment AND lacks pour over gear.
+- **Light-Medium Roasts**: Pour over is usually best, but espresso can work with proper dialing
+- **Medium Roasts**: Versatile - good for both pour over and espresso
+- **Medium-Dark to Dark Roasts**: Better suited for espresso, French Press, or immersion methods
 
-Examples of thinking deeply:
-- Ethiopian natural light roast → higher temps (96-100°C), gentle agitation, turbo shots work well
-- Colombian washed medium → classic balanced approach, 1:2-1:2.5 espresso, 92-94°C pour over
-- Kenyan AA → higher extraction, longer ratios, bloom importance
+Brew Method Selection Logic:
+1. Identify roast level and flavor profile FIRST
+2. Match to IDEAL brew method for those characteristics
+3. THEN filter by user's available equipment
+4. If user's equipment isn't ideal, mention better options in equipment_suggestions
+
+Examples of correct thinking:
+- Ethiopian natural light roast + User has V60 → Recommend V60 with higher temps (96-100°C)
+- Ethiopian natural light roast + User has espresso only → Recommend turbo shot BUT suggest V60 in equipment_suggestions
+- Colombian washed medium + User has both → Recommend BOTH pour over AND espresso as equals
+- Dark roast blend + User has V60 → Recommend V60 BUT note espresso would be better in equipment_suggestions
+
+Reference recipes from:
+- James Hoffmann's Ultimate V60 technique and espresso dialing guides
+- Lance Hedrick's pressure profiling recipes and "soup" method
+- Scott Rao's work on even extraction
+- Community-tested recipes for that origin/processing combo
 
 Then provide expert-level brewing recommendations using MODERN specialty coffee methodologies:
 
