@@ -205,6 +205,20 @@
                             <label class="checkbox-label">
                                 <input type="checkbox" name="other-methods" value="Siphon" /> Siphon
                             </label>
+
+                            <!-- Custom brew methods container -->
+                            <div id="custom-brew-methods"></div>
+
+                            <!-- Add custom brew method -->
+                            <div style="display: flex; gap: 8px; align-items: center; margin-top: 10px;">
+                                <label class="checkbox-label" style="margin: 0;">
+                                    <input type="checkbox" id="other-brew-method-toggle" /> Other
+                                </label>
+                                <input type="text" id="custom-brew-method-input" class="hidden" placeholder="Enter method name" style="flex: 1; padding: 6px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.9rem;" />
+                                <button type="button" id="add-custom-brew-method" class="btn btn-secondary hidden" style="padding: 6px 12px; font-size: 0.85rem; white-space: nowrap;">
+                                    + Add
+                                </button>
+                            </div>
                         </div>
                     </div>
 

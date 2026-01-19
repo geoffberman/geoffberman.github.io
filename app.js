@@ -272,6 +272,43 @@ function setupEventListeners() {
         clearEquipment();
     });
 
+    // Custom brew method toggle
+    const otherBrewToggle = document.getElementById('other-brew-method-toggle');
+    const customBrewInput = document.getElementById('custom-brew-method-input');
+    const addCustomBrewBtn = document.getElementById('add-custom-brew-method');
+
+    otherBrewToggle.addEventListener('change', () => {
+        if (otherBrewToggle.checked) {
+            customBrewInput.classList.remove('hidden');
+            addCustomBrewBtn.classList.remove('hidden');
+            customBrewInput.focus();
+        } else {
+            customBrewInput.classList.add('hidden');
+            addCustomBrewBtn.classList.add('hidden');
+            customBrewInput.value = '';
+        }
+    });
+
+    // Add custom brew method
+    addCustomBrewBtn.addEventListener('click', () => {
+        const methodName = customBrewInput.value.trim();
+        if (methodName) {
+            addCustomBrewMethod(methodName);
+            customBrewInput.value = '';
+            otherBrewToggle.checked = false;
+            customBrewInput.classList.add('hidden');
+            addCustomBrewBtn.classList.add('hidden');
+        }
+    });
+
+    // Allow Enter key to add custom brew method
+    customBrewInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addCustomBrewBtn.click();
+        }
+    });
+
     // Auth event listeners
     // Tab switching
     elements.tabSignin.addEventListener('click', () => {
@@ -842,6 +879,7 @@ async function saveEquipment() {
         grinder: document.getElementById('grinder').value.trim(),
         noGrinder: document.getElementById('no-grinder').checked,
         otherMethods: Array.from(document.querySelectorAll('input[name="other-methods"]:checked')).map(cb => cb.value),
+        customBrewMethods: Array.from(document.querySelectorAll('input[name="custom-brew-methods"]:checked')).map(cb => cb.value),
         otherEquipment: document.getElementById('other-equipment').value.trim(),
         additionalEquipment: document.getElementById('additional-equipment').value.trim()
     };
@@ -940,6 +978,11 @@ function loadEquipment() {
                     if (checkbox) checkbox.checked = true;
                 });
 
+                // Render and check custom brew methods
+                if (equipment.customBrewMethods && equipment.customBrewMethods.length > 0) {
+                    renderCustomBrewMethods(equipment.customBrewMethods);
+                }
+
                 // Show summary view if equipment is loaded
                 showEquipmentSummary();
             }
@@ -962,6 +1005,12 @@ function clearEquipment() {
         // Clear form
         document.getElementById('equipment-form').reset();
 
+        // Clear custom brew methods display
+        const customMethodsContainer = document.getElementById('custom-brew-methods');
+        if (customMethodsContainer) {
+            customMethodsContainer.innerHTML = '';
+        }
+
         // Clear localStorage
         localStorage.removeItem('coffee_equipment');
         state.equipment = null;
@@ -975,6 +1024,90 @@ function clearEquipment() {
             clearBtn.textContent = originalText;
             updateEquipmentButton();
         }, 1500);
+    }
+}
+
+// Add a custom brew method
+function addCustomBrewMethod(methodName) {
+    // Get current custom methods from localStorage or initialize empty array
+    const savedEquipment = localStorage.getItem('coffee_equipment');
+    const equipment = savedEquipment ? JSON.parse(savedEquipment) : {};
+
+    if (!equipment.customBrewMethods) {
+        equipment.customBrewMethods = [];
+    }
+
+    // Check if method already exists
+    if (equipment.customBrewMethods.includes(methodName)) {
+        alert('This brew method already exists!');
+        return;
+    }
+
+    // Add the new method
+    equipment.customBrewMethods.push(methodName);
+
+    // Save to localStorage
+    localStorage.setItem('coffee_equipment', JSON.stringify(equipment));
+    state.equipment = equipment;
+
+    // Render the updated list
+    renderCustomBrewMethods(equipment.customBrewMethods);
+
+    console.log('Added custom brew method:', methodName);
+}
+
+// Render custom brew methods as checkboxes
+function renderCustomBrewMethods(customMethods) {
+    const container = document.getElementById('custom-brew-methods');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    customMethods.forEach(method => {
+        const label = document.createElement('label');
+        label.className = 'checkbox-label';
+        label.style.display = 'flex';
+        label.style.alignItems = 'center';
+        label.style.gap = '8px';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.name = 'custom-brew-methods';
+        checkbox.value = method;
+        checkbox.checked = true; // Auto-check newly added methods
+
+        const text = document.createTextNode(method);
+
+        // Add a small remove button
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.textContent = '×';
+        removeBtn.style.cssText = 'margin-left: auto; padding: 2px 6px; font-size: 1.2rem; color: #C74B50; background: none; border: 1px solid #C74B50; border-radius: 3px; cursor: pointer; line-height: 1;';
+        removeBtn.title = 'Remove this method';
+        removeBtn.onclick = () => removeCustomBrewMethod(method);
+
+        label.appendChild(checkbox);
+        label.appendChild(text);
+        label.appendChild(removeBtn);
+        container.appendChild(label);
+    });
+}
+
+// Remove a custom brew method
+function removeCustomBrewMethod(methodName) {
+    if (!confirm(`Remove "${methodName}" from your brew methods?`)) {
+        return;
+    }
+
+    const savedEquipment = localStorage.getItem('coffee_equipment');
+    const equipment = savedEquipment ? JSON.parse(savedEquipment) : {};
+
+    if (equipment.customBrewMethods) {
+        equipment.customBrewMethods = equipment.customBrewMethods.filter(m => m !== methodName);
+        localStorage.setItem('coffee_equipment', JSON.stringify(equipment));
+        state.equipment = equipment;
+        renderCustomBrewMethods(equipment.customBrewMethods);
+        console.log('Removed custom brew method:', methodName);
     }
 }
 
@@ -1003,6 +1136,10 @@ function getEquipmentDescription() {
 
     if (state.equipment.otherMethods && state.equipment.otherMethods.length > 0) {
         parts.push(`Other Methods: ${state.equipment.otherMethods.join(', ')}`);
+    }
+
+    if (state.equipment.customBrewMethods && state.equipment.customBrewMethods.length > 0) {
+        parts.push(`Custom Methods: ${state.equipment.customBrewMethods.join(', ')}`);
     }
 
     if (state.equipment.otherEquipment) {
@@ -1052,6 +1189,7 @@ function hasEquipment() {
         (state.equipment.pourOver && state.equipment.pourOver.length > 0) ||
         (state.equipment.podMachines && state.equipment.podMachines.length > 0) ||
         (state.equipment.otherMethods && state.equipment.otherMethods.length > 0) ||
+        (state.equipment.customBrewMethods && state.equipment.customBrewMethods.length > 0) ||
         (state.equipment.otherEquipment && state.equipment.otherEquipment.trim())
     );
 
