@@ -81,6 +81,7 @@ const elements = {
     ratingSection: document.getElementById('rating-section'),
     tasteRating: document.getElementById('taste-rating'),
     ratingLabel: document.getElementById('rating-label'),
+    userFeedback: document.getElementById('user-feedback'),
     adjustRecipeBtn: document.getElementById('adjust-recipe-btn'),
     adjustmentFeedback: document.getElementById('adjustment-feedback'),
     saveRecipeBtn: document.getElementById('save-recipe-btn'),
@@ -1764,6 +1765,9 @@ async function adjustRecipeBasedOnRating(rating) {
     elements.adjustRecipeBtn.textContent = 'Adjusting Recipe...';
 
     try {
+        // Get user feedback
+        const userFeedback = elements.userFeedback.value.trim();
+
         // Prepare adjustment guidance based on rating
         let adjustmentGuidance = '';
         if (rating < 0) {
@@ -1788,6 +1792,11 @@ async function adjustRecipeBasedOnRating(rating) {
             elements.adjustRecipeBtn.textContent = 'Adjust Recipe Based on Rating';
             elements.adjustRecipeBtn.disabled = false;
             return;
+        }
+
+        // Add user feedback if provided
+        if (userFeedback) {
+            adjustmentGuidance += `\n\n⚠️ IMPORTANT USER FEEDBACK/CORRECTIONS:\n${userFeedback}\n\nPay special attention to this feedback. If the user is correcting information (like roast level, grinder settings, or taste notes), acknowledge and use the corrected information in your response.`;
         }
 
         // Make API call to get adjusted recipe

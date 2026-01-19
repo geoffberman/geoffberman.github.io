@@ -36,6 +36,8 @@ Previous coffee details:
 
 Equipment: ${equipment}
 
+⚠️ IMPORTANT: If the user's feedback includes corrections (like "the roast level is actually light, not dark" or "my grinder setting was 3.5"), ACKNOWLEDGE and USE the corrected information. User corrections should override any previous analysis. Apologize briefly for any misidentification and adjust recommendations based on the correct information.
+
 Provide your response in this EXACT JSON format (no markdown, no code blocks, just pure JSON):
 
 {
