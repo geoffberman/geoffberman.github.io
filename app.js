@@ -748,7 +748,7 @@ function displayResults(data) {
                 </button>
 
                 <div id="recipe-details-${index}" class="hidden" style="margin-top: 20px;">
-                    <table class="brew-parameters-table">
+                    <table class="brew-parameters-table" id="recipe-table-${index}">
                         <thead>
                             <tr>
                                 <th>Parameter</th>
@@ -758,43 +758,58 @@ function displayResults(data) {
                                         ✏️ Input Adjustments
                                     </button>
                                 </th>
+                                <th class="adjustment-column hidden" style="width: 180px;">My Adjustments</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
                                 <td>Dose</td>
                                 <td>${params.dose}</td>
+                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="dose" placeholder="Your dose" value="${params.dose}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
                             </tr>
                             <tr>
                                 <td>Yield</td>
                                 <td>${params.yield}</td>
+                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="yield" placeholder="Your yield" value="${params.yield}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
                             </tr>
                             <tr>
                                 <td>Ratio</td>
                                 <td>${params.ratio}</td>
+                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="ratio" placeholder="Your ratio" value="${params.ratio}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
                             </tr>
                             <tr>
                                 <td>Water Temp</td>
                                 <td>${params.water_temp}</td>
+                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="water_temp" placeholder="Your temp" value="${params.water_temp}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
                             </tr>
                             <tr>
                                 <td>Grind Size</td>
                                 <td>${params.grind_size}</td>
+                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="grind_size" placeholder="Your grind" value="${params.grind_size}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
                             </tr>
                             <tr>
                                 <td>Brew Time</td>
                                 <td>${params.brew_time}</td>
+                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="brew_time" placeholder="Your time" value="${params.brew_time}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
                             </tr>
                             <tr>
                                 <td>Pressure</td>
                                 <td>${params.pressure}</td>
+                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="pressure" placeholder="Your pressure" value="${params.pressure}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
                             </tr>
                             <tr>
                                 <td>Flow Control</td>
                                 <td>${params.flow_control}</td>
+                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="flow_control" placeholder="Your profile" value="${params.flow_control}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
                             </tr>
                         </tbody>
                     </table>
+
+                    <div id="save-adjustments-${index}" class="hidden" style="margin-top: 20px; text-align: center;">
+                        <button class="btn btn-primary save-adjustments-btn" data-technique-index="${index}" style="min-width: 200px;">
+                            💾 Save My Adjustments
+                        </button>
+                    </div>
 
                     ${technique.technique_notes ? `<div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 3px solid var(--accent-color); border-radius: 4px;">
                         <p style="margin: 0; line-height: 1.6; color: var(--secondary-color); font-size: 0.9rem;">${technique.technique_notes}</p>
@@ -831,7 +846,16 @@ function displayResults(data) {
             const techniqueIndex = parseInt(this.getAttribute('data-technique-index'));
             const technique = data.recommended_techniques[techniqueIndex];
             setActiveTechnique(techniqueIndex, data.recommended_techniques);
-            showManualAdjustmentTable(technique);
+            showAdjustmentColumn(techniqueIndex);
+        });
+    });
+
+    // Add event listeners for "Save My Adjustments" buttons
+    document.querySelectorAll('.save-adjustments-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const techniqueIndex = parseInt(this.getAttribute('data-technique-index'));
+            const technique = data.recommended_techniques[techniqueIndex];
+            await saveInlineAdjustments(technique, techniqueIndex);
         });
     });
 
@@ -2358,6 +2382,98 @@ function showRecipeDetails(techniqueIndex, techniques) {
     const gridContainer = elements.methodContent.querySelector('div[style*="grid"]');
     if (gridContainer) {
         gridContainer.style.gridTemplateColumns = '1fr';
+    }
+}
+
+// Show adjustment column in the existing recipe table
+function showAdjustmentColumn(techniqueIndex) {
+    // Find the table for this technique
+    const table = document.getElementById(`recipe-table-${techniqueIndex}`);
+    if (!table) return;
+
+    // Show all adjustment columns
+    const adjustmentColumns = table.querySelectorAll('.adjustment-column');
+    adjustmentColumns.forEach(col => {
+        col.classList.remove('hidden');
+    });
+
+    // Show the save button
+    const saveBtn = document.getElementById(`save-adjustments-${techniqueIndex}`);
+    if (saveBtn) {
+        saveBtn.classList.remove('hidden');
+    }
+
+    // Hide the "Input Adjustments" button (it's been clicked)
+    const inputAdjustmentsBtn = table.querySelector('.input-adjustments-btn');
+    if (inputAdjustmentsBtn) {
+        inputAdjustmentsBtn.style.display = 'none';
+    }
+}
+
+// Save inline adjustments from the recipe table
+async function saveInlineAdjustments(technique, techniqueIndex) {
+    if (!window.auth || !window.auth.isAuthenticated()) {
+        showAuthModal();
+        return;
+    }
+
+    const btn = document.querySelector(`.save-adjustments-btn[data-technique-index="${techniqueIndex}"]`);
+    if (!btn) return;
+
+    try {
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        // Collect adjustments from the table inputs
+        const table = document.getElementById(`recipe-table-${techniqueIndex}`);
+        const adjustedParams = {};
+        table.querySelectorAll('.param-input').forEach(input => {
+            const param = input.getAttribute('data-param');
+            adjustedParams[param] = input.value;
+        });
+
+        const supabase = window.getSupabase();
+        const userId = window.auth.getUserId();
+
+        // Create brew session
+        const session = {
+            user_id: userId,
+            coffee_name: state.currentCoffeeAnalysis.name || 'Unknown',
+            roaster: state.currentCoffeeAnalysis.roaster || 'Unknown',
+            roast_level: state.currentCoffeeAnalysis.roast_level || 'Unknown',
+            origin: state.currentCoffeeAnalysis.origin || 'Unknown',
+            processing: state.currentCoffeeAnalysis.processing || 'Unknown',
+            flavor_notes: state.currentCoffeeAnalysis.flavor_notes || [],
+            brew_method: technique.technique_name,
+            original_recipe: technique.parameters,
+            actual_brew: adjustedParams,
+            rating: 'manual_adjustment'
+        };
+
+        const { error } = await supabase
+            .from('brew_sessions')
+            .insert([session]);
+
+        if (error) throw error;
+
+        btn.textContent = '✓ Saved!';
+        btn.style.backgroundColor = 'var(--success-color)';
+
+        setTimeout(() => {
+            btn.textContent = '💾 Save My Adjustments';
+            btn.style.backgroundColor = '';
+            btn.disabled = false;
+        }, 2000);
+
+        console.log('Inline adjustments saved successfully');
+
+    } catch (error) {
+        console.error('Failed to save inline adjustments:', error);
+        btn.textContent = '❌ Failed';
+        setTimeout(() => {
+            btn.textContent = '💾 Save My Adjustments';
+            btn.disabled = false;
+        }, 2000);
     }
 }
 
