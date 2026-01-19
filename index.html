@@ -328,7 +328,12 @@
                                 <span>Too Bitter</span>
                             </div>
 
-                            <input type="range" id="taste-rating" class="taste-slider" min="-2" max="2" step="0.5" value="0">
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <input type="range" id="taste-rating" class="taste-slider" min="-2" max="2" step="0.5" value="0" style="flex: 1;">
+                                <button id="adjust-recipe-btn" class="btn btn-primary" style="padding: 8px 12px; font-size: 0.85rem; white-space: nowrap;" disabled>
+                                    Adjust Recipe
+                                </button>
+                            </div>
 
                             <div style="text-align: center; margin-top: 15px;">
                                 <p id="rating-label" style="font-weight: bold; color: var(--primary-color); font-size: 1.1rem;">Perfect!</p>
@@ -337,17 +342,16 @@
 
                         <div class="form-group" style="margin-top: 20px;">
                             <label for="user-feedback" style="font-weight: bold; color: var(--primary-color);">Additional Feedback (Optional)</label>
-                            <textarea id="user-feedback" rows="3" placeholder="e.g., 'The roast level looks light, not dark' or 'My Ceado grinder setting was actually 3.5' or 'This was too watery, not bitter'" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-family: inherit; resize: vertical;"></textarea>
-                            <small style="color: var(--secondary-color); font-size: 0.85rem;">Use this to correct any misidentifications or provide specific feedback about the recipe</small>
-                            <button id="submit-feedback-btn" class="btn btn-secondary hidden" style="margin-top: 10px; width: 100%;">
-                                💬 Submit Feedback
-                            </button>
+                            <div style="display: flex; gap: 10px; align-items: flex-start;">
+                                <textarea id="user-feedback" rows="3" placeholder="e.g., 'The roast level looks light, not dark' or 'My Ceado grinder setting was actually 3.5' or 'This was too watery, not bitter'" style="flex: 1; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-family: inherit; resize: vertical;"></textarea>
+                                <button id="submit-feedback-btn" class="btn btn-secondary hidden" style="padding: 8px 12px; font-size: 0.85rem; white-space: nowrap; align-self: stretch;">
+                                    Submit
+                                </button>
+                            </div>
+                            <small style="color: var(--secondary-color); font-size: 0.85rem; display: block; margin-top: 5px;">Use this to correct any misidentifications or provide specific feedback about the recipe</small>
                         </div>
 
                         <div style="display: flex; gap: 10px; margin-top: 20px;">
-                            <button id="adjust-recipe-btn" class="btn btn-primary" style="flex: 1;" disabled>
-                                Adjust Recipe Based on Rating
-                            </button>
                             <button id="save-recipe-btn" class="btn btn-secondary hidden" style="flex: 1;">
                                 💾 Save This Recipe
                             </button>

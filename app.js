@@ -733,10 +733,19 @@ function displayResults(data) {
                 <p style="margin: 0; line-height: 1.6; color: var(--secondary-color);">${technique.technique_notes}</p>
             </div>` : ''}
 
-                    <div style="margin-top: 20px; text-align: center;">
-                        <button class="btn btn-primary perfect-recipe-btn" data-technique-index="${index}" style="background: #28a745; min-width: 200px;">
+                    <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;">
+                        <button class="btn btn-secondary use-this-btn" data-technique-index="${index}" style="flex: 1; max-width: 180px;">
+                            📌 Use This
+                        </button>
+                        <button class="btn btn-primary perfect-recipe-btn" data-technique-index="${index}" style="background: #28a745; flex: 1; max-width: 180px;">
                             ✓ Perfect As-Is
                         </button>
+                        <button class="btn btn-secondary input-adjustments-btn" data-technique-index="${index}" style="flex: 1; max-width: 180px;">
+                            ✏️ Input Adjustments
+                        </button>
+                    </div>
+                    <div id="active-indicator-${index}" class="hidden" style="margin-top: 10px; text-align: center; color: var(--primary-color); font-weight: bold;">
+                        ⭐ Currently Using This Recipe
                     </div>
                 </div>
 
@@ -749,12 +758,37 @@ function displayResults(data) {
 
     elements.methodContent.innerHTML = techniquesHTML;
 
+    // Track active technique (default to first one)
+    if (!state.activeTechniqueIndex && state.activeTechniqueIndex !== 0) {
+        state.activeTechniqueIndex = 0;
+        document.getElementById('active-indicator-0')?.classList.remove('hidden');
+    }
+
+    // Add event listeners for "Use This" buttons
+    document.querySelectorAll('.use-this-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const techniqueIndex = parseInt(this.getAttribute('data-technique-index'));
+            setActiveTechnique(techniqueIndex, data.recommended_techniques);
+        });
+    });
+
     // Add event listeners for "Perfect As-Is" buttons
     document.querySelectorAll('.perfect-recipe-btn').forEach(btn => {
         btn.addEventListener('click', async function() {
             const techniqueIndex = parseInt(this.getAttribute('data-technique-index'));
             const technique = data.recommended_techniques[techniqueIndex];
+            setActiveTechnique(techniqueIndex, data.recommended_techniques);
             await savePerfectRecipe(technique, techniqueIndex);
+        });
+    });
+
+    // Add event listeners for "Input Adjustments" buttons
+    document.querySelectorAll('.input-adjustments-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const techniqueIndex = parseInt(this.getAttribute('data-technique-index'));
+            const technique = data.recommended_techniques[techniqueIndex];
+            setActiveTechnique(techniqueIndex, data.recommended_techniques);
+            showManualAdjustmentTable(technique);
         });
     });
 
@@ -2009,15 +2043,14 @@ async function adjustRecipeBasedOnRating(rating) {
 
             <h4 style="margin-top: 20px; margin-bottom: 15px;">Adjusted Recipe Parameters</h4>
             <p style="margin-bottom: 15px; color: var(--secondary-color); font-size: 0.9rem;">
-                Review the adjusted parameters below. You can edit any value or check "✓" to use it as-is.
+                Review the adjusted parameters below and edit any values to match what you actually used.
             </p>
             <table class="brew-parameters-table editable-parameters">
                 <thead>
                     <tr>
                         <th>Parameter</th>
-                        <th>Adjusted Value</th>
-                        <th style="width: 180px;">Your Actual Value</th>
-                        <th style="width: 60px; text-align: center;">✓</th>
+                        <th>Adjusted Recommendation</th>
+                        <th style="width: 180px;">My Adjustments</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -2025,49 +2058,41 @@ async function adjustRecipeBasedOnRating(rating) {
                         <td>Dose</td>
                         <td>${params.dose}</td>
                         <td><input type="text" class="param-input" data-param="dose" placeholder="Your dose" value="${params.dose}"></td>
-                        <td style="text-align: center;"><input type="checkbox" class="param-perfect" data-param="dose" checked></td>
                     </tr>
                     <tr>
                         <td>Yield</td>
                         <td>${params.yield}</td>
                         <td><input type="text" class="param-input" data-param="yield" placeholder="Your yield" value="${params.yield}"></td>
-                        <td style="text-align: center;"><input type="checkbox" class="param-perfect" data-param="yield" checked></td>
                     </tr>
                     <tr>
                         <td>Ratio</td>
                         <td>${params.ratio}</td>
                         <td><input type="text" class="param-input" data-param="ratio" placeholder="Your ratio" value="${params.ratio}"></td>
-                        <td style="text-align: center;"><input type="checkbox" class="param-perfect" data-param="ratio" checked></td>
                     </tr>
                     <tr>
                         <td>Water Temp</td>
                         <td>${params.water_temp}</td>
                         <td><input type="text" class="param-input" data-param="water_temp" placeholder="Your temp" value="${params.water_temp}"></td>
-                        <td style="text-align: center;"><input type="checkbox" class="param-perfect" data-param="water_temp" checked></td>
                     </tr>
                     <tr>
                         <td>Grind Size</td>
                         <td>${params.grind_size}</td>
                         <td><input type="text" class="param-input" data-param="grind_size" placeholder="Your grind" value="${params.grind_size}"></td>
-                        <td style="text-align: center;"><input type="checkbox" class="param-perfect" data-param="grind_size" checked></td>
                     </tr>
                     <tr>
                         <td>Brew Time</td>
                         <td>${params.brew_time}</td>
                         <td><input type="text" class="param-input" data-param="brew_time" placeholder="Your time" value="${params.brew_time}"></td>
-                        <td style="text-align: center;"><input type="checkbox" class="param-perfect" data-param="brew_time" checked></td>
                     </tr>
                     <tr>
                         <td>Pressure</td>
                         <td>${params.pressure}</td>
                         <td><input type="text" class="param-input" data-param="pressure" placeholder="Your pressure" value="${params.pressure}"></td>
-                        <td style="text-align: center;"><input type="checkbox" class="param-perfect" data-param="pressure" checked></td>
                     </tr>
                     <tr>
                         <td>Flow Control</td>
                         <td>${params.flow_control}</td>
                         <td><input type="text" class="param-input" data-param="flow_control" placeholder="Your profile" value="${params.flow_control}"></td>
-                        <td style="text-align: center;"><input type="checkbox" class="param-perfect" data-param="flow_control" checked></td>
                     </tr>
                 </tbody>
             </table>
@@ -2118,46 +2143,173 @@ async function adjustRecipeBasedOnRating(rating) {
     }
 }
 
-// Setup event listeners for adjusted recipe inputs and checkboxes
+// Setup event listeners for adjusted recipe inputs
 function setupAdjustedRecipeListeners() {
-    // Handle checkbox changes - when unchecked, enable input; when checked, disable and reset to suggested value
-    document.querySelectorAll('.param-perfect').forEach(checkbox => {
-        const param = checkbox.getAttribute('data-param');
-        const input = document.querySelector(`.param-input[data-param="${param}"]`);
-
-        checkbox.addEventListener('change', function() {
-            if (this.checked) {
-                input.disabled = true;
-                input.style.opacity = '0.6';
-                // Reset to suggested value
-                const suggestedValue = state.adjustedRecipeData?.adjusted_parameters?.[param] || '';
-                input.value = suggestedValue;
-            } else {
-                input.disabled = false;
-                input.style.opacity = '1';
-                input.focus();
-            }
-        });
-
-        // Initialize state
-        if (checkbox.checked) {
-            input.disabled = true;
-            input.style.opacity = '0.6';
-        }
-    });
-
-    // Handle input changes - uncheck the checkbox when user types
+    // Inputs are always editable, no checkbox logic needed
     document.querySelectorAll('.param-input').forEach(input => {
-        input.addEventListener('input', function() {
-            const param = this.getAttribute('data-param');
-            const checkbox = document.querySelector(`.param-perfect[data-param="${param}"]`);
-            if (checkbox && checkbox.checked) {
-                checkbox.checked = false;
-                this.disabled = false;
-                this.style.opacity = '1';
-            }
-        });
+        input.disabled = false;
+        input.style.opacity = '1';
     });
+}
+
+// Set which technique is actively being used
+function setActiveTechnique(techniqueIndex, techniques) {
+    state.activeTechniqueIndex = techniqueIndex;
+    state.currentBrewMethod = techniques[techniqueIndex].technique_name;
+
+    // Update visual indicators
+    document.querySelectorAll('[id^="active-indicator-"]').forEach(indicator => {
+        indicator.classList.add('hidden');
+    });
+    document.getElementById(`active-indicator-${techniqueIndex}`)?.classList.remove('hidden');
+
+    console.log('Active technique set to:', state.currentBrewMethod);
+}
+
+// Show manual adjustment table for user to input their own values
+function showManualAdjustmentTable(technique) {
+    const params = technique.parameters;
+
+    // Build editable table
+    let tableHTML = `
+        <div style="margin-top: 20px; padding: 20px; background: linear-gradient(135deg, #FFF8ED 0%, #FFEDDA 100%); border: 2px solid #D4A574; border-radius: 8px;">
+            <h4 style="margin-top: 0; color: var(--primary-color);">Manual Recipe Adjustments</h4>
+            <p style="color: var(--secondary-color); margin-bottom: 15px;">Edit the values below to match what you actually used:</p>
+
+            <table class="brew-parameters-table">
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Adjusted Recommendation</th>
+                        <th>My Adjustments</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Dose</td>
+                        <td>${params.dose}</td>
+                        <td><input type="text" class="manual-input" data-param="dose" value="${params.dose}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                    </tr>
+                    <tr>
+                        <td>Yield</td>
+                        <td>${params.yield}</td>
+                        <td><input type="text" class="manual-input" data-param="yield" value="${params.yield}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                    </tr>
+                    <tr>
+                        <td>Ratio</td>
+                        <td>${params.ratio}</td>
+                        <td><input type="text" class="manual-input" data-param="ratio" value="${params.ratio}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                    </tr>
+                    <tr>
+                        <td>Water Temp</td>
+                        <td>${params.water_temp}</td>
+                        <td><input type="text" class="manual-input" data-param="water_temp" value="${params.water_temp}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                    </tr>
+                    <tr>
+                        <td>Grind Size</td>
+                        <td>${params.grind_size}</td>
+                        <td><input type="text" class="manual-input" data-param="grind_size" value="${params.grind_size}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                    </tr>
+                    <tr>
+                        <td>Brew Time</td>
+                        <td>${params.brew_time}</td>
+                        <td><input type="text" class="manual-input" data-param="brew_time" value="${params.brew_time}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                    </tr>
+                    <tr>
+                        <td>Pressure</td>
+                        <td>${params.pressure}</td>
+                        <td><input type="text" class="manual-input" data-param="pressure" value="${params.pressure}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                    </tr>
+                    <tr>
+                        <td>Flow Control</td>
+                        <td>${params.flow_control}</td>
+                        <td><input type="text" class="manual-input" data-param="flow_control" value="${params.flow_control}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div style="margin-top: 20px; text-align: center;">
+                <button id="save-manual-adjustments" class="btn btn-primary" style="min-width: 200px;">
+                    💾 Save My Adjustments
+                </button>
+            </div>
+        </div>
+    `;
+
+    // Display in adjustment feedback area
+    elements.adjustmentFeedback.classList.remove('hidden');
+    elements.adjustmentFeedback.querySelector('p').innerHTML = tableHTML;
+
+    // Add save button listener
+    document.getElementById('save-manual-adjustments')?.addEventListener('click', async () => {
+        await saveManualAdjustments(technique);
+    });
+}
+
+// Save manually adjusted recipe
+async function saveManualAdjustments(technique) {
+    if (!window.auth || !window.auth.isAuthenticated()) {
+        showAuthModal();
+        return;
+    }
+
+    const btn = document.getElementById('save-manual-adjustments');
+    if (!btn) return;
+
+    try {
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        // Collect manual adjustments
+        const adjustedParams = {};
+        document.querySelectorAll('.manual-input').forEach(input => {
+            const param = input.getAttribute('data-param');
+            adjustedParams[param] = input.value;
+        });
+
+        const supabase = window.getSupabase();
+        const userId = window.auth.getUserId();
+
+        // Create brew session
+        const session = {
+            user_id: userId,
+            coffee_name: state.currentCoffeeAnalysis.name || 'Unknown',
+            roaster: state.currentCoffeeAnalysis.roaster || 'Unknown',
+            roast_level: state.currentCoffeeAnalysis.roast_level || 'Unknown',
+            origin: state.currentCoffeeAnalysis.origin || 'Unknown',
+            processing: state.currentCoffeeAnalysis.processing || 'Unknown',
+            flavor_notes: state.currentCoffeeAnalysis.flavor_notes || [],
+            brew_method: technique.technique_name,
+            original_recipe: technique.parameters,
+            actual_brew: adjustedParams,
+            rating: 'manual_adjustment'
+        };
+
+        const { error } = await supabase
+            .from('brew_sessions')
+            .insert([session]);
+
+        if (error) throw error;
+
+        btn.textContent = '✓ Saved!';
+        btn.style.backgroundColor = 'var(--success-color)';
+
+        setTimeout(() => {
+            btn.textContent = '💾 Save My Adjustments';
+            btn.style.backgroundColor = '';
+            btn.disabled = false;
+        }, 2000);
+
+        console.log('Manual adjustments saved successfully');
+
+    } catch (error) {
+        console.error('Failed to save manual adjustments:', error);
+        btn.textContent = '❌ Failed';
+        setTimeout(() => {
+            btn.textContent = '💾 Save My Adjustments';
+            btn.disabled = false;
+        }, 2000);
+    }
 }
 
 // Save a perfect recipe from original recommendations
