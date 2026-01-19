@@ -271,7 +271,7 @@ Pressure profiling is expected and MUST be specific to this coffee.`;
         "pressure": "Pressure if applicable (e.g., 9 bar, N/A for pour over)",
         "flow_control": "Detailed pressure profiling if espresso with flow control, otherwise N/A"
       },
-      "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid."
+      "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid.\n\n⚠️ POUR OVER SPECIFIC REQUIREMENT: If this is a pour over method (V60, Chemex, Kalita Wave, etc.), you MUST include detailed pouring instructions in this field formatted as follows:\n\n**Pouring Schedule:**\n• **Bloom**: [X]g water, wait [Y] seconds\n• **First Pour**: [X]g to [total]g, [timing]\n• **Second Pour**: [X]g to [total]g, [timing]\n• **Third Pour**: [X]g to [total]g, [timing]\n[Continue for all pours until reaching target yield]\n\nExample:\n**Pouring Schedule:**\n• **Bloom**: 50g water, wait 30-45 seconds\n• **First Pour**: 100g to 150g total (0:45-1:15)\n• **Second Pour**: 100g to 250g total (1:15-1:45)\n• **Third Pour**: 50g to 300g total (1:45-2:15)\n• Target finish time: 2:30-3:00"
     }
   ],
   "equipment_suggestions": "CRITICAL: ONLY include this field if you have an ACTUAL recommendation to upgrade/add equipment. DO NOT include affirmations or 'equipment is fine' messages. If their gear is adequate, completely OMIT this field from the JSON response."
@@ -304,7 +304,7 @@ Read the image carefully and extract all visible information accurately. Use tec
         "pressure": "Pressure if applicable (e.g., 9 bar, N/A for pour over)",
         "flow_control": "Detailed pressure profiling if espresso with flow control, otherwise N/A"
       },
-      "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid."
+      "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid.\n\n⚠️ POUR OVER SPECIFIC REQUIREMENT: If this is a pour over method (V60, Chemex, Kalita Wave, etc.), you MUST include detailed pouring instructions in this field formatted as follows:\n\n**Pouring Schedule:**\n• **Bloom**: [X]g water, wait [Y] seconds\n• **First Pour**: [X]g to [total]g, [timing]\n• **Second Pour**: [X]g to [total]g, [timing]\n• **Third Pour**: [X]g to [total]g, [timing]\n[Continue for all pours until reaching target yield]\n\nExample:\n**Pouring Schedule:**\n• **Bloom**: 50g water, wait 30-45 seconds\n• **First Pour**: 100g to 150g total (0:45-1:15)\n• **Second Pour**: 100g to 250g total (1:15-1:45)\n• **Third Pour**: 50g to 300g total (1:45-2:15)\n• Target finish time: 2:30-3:00"
     },
     {
       "technique_name": "Second recommended brew method (MUST match user's equipment). If espresso, specify style.",
@@ -319,7 +319,7 @@ Read the image carefully and extract all visible information accurately. Use tec
         "pressure": "Pressure if applicable or N/A",
         "flow_control": "Detailed pressure profiling if espresso with flow control, otherwise N/A"
       },
-      "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid."
+      "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid.\n\n⚠️ POUR OVER SPECIFIC REQUIREMENT: If this is a pour over method (V60, Chemex, Kalita Wave, etc.), you MUST include detailed pouring instructions in this field formatted as follows:\n\n**Pouring Schedule:**\n• **Bloom**: [X]g water, wait [Y] seconds\n• **First Pour**: [X]g to [total]g, [timing]\n• **Second Pour**: [X]g to [total]g, [timing]\n• **Third Pour**: [X]g to [total]g, [timing]\n[Continue for all pours until reaching target yield]\n\nExample:\n**Pouring Schedule:**\n• **Bloom**: 50g water, wait 30-45 seconds\n• **First Pour**: 100g to 150g total (0:45-1:15)\n• **Second Pour**: 100g to 250g total (1:15-1:45)\n• **Third Pour**: 50g to 300g total (1:45-2:15)\n• Target finish time: 2:30-3:00"
     }
   ],
   "equipment_suggestions": "CRITICAL: ONLY include this field if you have an ACTUAL recommendation to upgrade/add equipment. DO NOT include affirmations or 'equipment is fine' messages. If their gear is adequate, completely OMIT this field from the JSON response."
