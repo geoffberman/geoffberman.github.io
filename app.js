@@ -1020,47 +1020,31 @@ function loadEquipment() {
     updateBrewMethodDropdown();
 }
 
-// Populate brew method dropdown based on user's equipment
+// Populate brew method dropdown with standard options + user's custom equipment
 function updateBrewMethodDropdown() {
     const dropdown = document.getElementById('brew-method-select');
     if (!dropdown) return;
 
+    // Start with all standard brewing methods (same as before)
+    const standardMethods = [
+        'Espresso',
+        'V60 Pour Over',
+        'Chemex',
+        'French Press',
+        'Aeropress',
+        'Moka Pot',
+        'Cold Brew',
+        'Kalita Wave'
+    ];
+
     // Keep the "Search All Methods" option
     dropdown.innerHTML = '<option value="">Search All Methods</option>';
 
-    if (!state.equipment) return;
+    const methods = [...standardMethods];
 
-    const methods = [];
-
-    // Add espresso if they have espresso machine
-    if (state.equipment.espressoMachine && state.equipment.espressoMachine.trim()) {
-        methods.push('Espresso');
-    }
-
-    // Add pour over devices
-    if (state.equipment.pourOver && state.equipment.pourOver.length > 0) {
-        state.equipment.pourOver.forEach(method => {
-            methods.push(method);
-        });
-    }
-
-    // Add other methods
-    if (state.equipment.otherMethods && state.equipment.otherMethods.length > 0) {
-        state.equipment.otherMethods.forEach(method => {
-            methods.push(method);
-        });
-    }
-
-    // Add custom brew methods
-    if (state.equipment.customBrewMethods && state.equipment.customBrewMethods.length > 0) {
+    // Add custom brew methods from user's equipment
+    if (state.equipment && state.equipment.customBrewMethods && state.equipment.customBrewMethods.length > 0) {
         state.equipment.customBrewMethods.forEach(method => {
-            methods.push(method);
-        });
-    }
-
-    // Add pod machines
-    if (state.equipment.podMachines && state.equipment.podMachines.length > 0) {
-        state.equipment.podMachines.forEach(method => {
             methods.push(method);
         });
     }
