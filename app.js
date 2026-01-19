@@ -82,6 +82,7 @@ const elements = {
     tasteRating: document.getElementById('taste-rating'),
     ratingLabel: document.getElementById('rating-label'),
     userFeedback: document.getElementById('user-feedback'),
+    submitFeedbackBtn: document.getElementById('submit-feedback-btn'),
     adjustRecipeBtn: document.getElementById('adjust-recipe-btn'),
     adjustmentFeedback: document.getElementById('adjustment-feedback'),
     saveRecipeBtn: document.getElementById('save-recipe-btn'),
@@ -352,6 +353,21 @@ function setupEventListeners() {
             elements.adjustRecipeBtn.disabled = false;
             elements.saveRecipeBtn.classList.add('hidden');
         }
+    });
+
+    // User feedback textarea - show submit button when text is entered
+    elements.userFeedback.addEventListener('input', (e) => {
+        const hasText = e.target.value.trim().length > 0;
+        if (hasText) {
+            elements.submitFeedbackBtn.classList.remove('hidden');
+        } else {
+            elements.submitFeedbackBtn.classList.add('hidden');
+        }
+    });
+
+    // Submit feedback button (for standalone feedback without rating)
+    elements.submitFeedbackBtn.addEventListener('click', async () => {
+        await submitFeedbackOnly();
     });
 
     // Adjust recipe button
@@ -1752,6 +1768,67 @@ function updateRatingLabel(value) {
     }
 
     elements.ratingLabel.textContent = label;
+}
+
+async function submitFeedbackOnly() {
+    const userFeedback = elements.userFeedback.value.trim();
+
+    if (!userFeedback) {
+        return;
+    }
+
+    if (!state.currentCoffeeAnalysis || !state.currentBrewMethod) {
+        console.error('No current coffee analysis or brew method available');
+        return;
+    }
+
+    // Show loading state
+    elements.submitFeedbackBtn.disabled = true;
+    elements.submitFeedbackBtn.textContent = '...';
+
+    try {
+        const equipmentDescription = getEquipmentDescription();
+
+        const response = await fetch('/api/analyze', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                equipment: equipmentDescription,
+                adjustmentRequest: `User feedback: ${userFeedback}`,
+                previousAnalysis: state.currentCoffeeAnalysis
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`API request failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Display AI response
+        const responseText = data.content?.[0]?.text || 'Thank you for your feedback!';
+
+        elements.adjustmentFeedback.classList.remove('hidden');
+        elements.adjustmentFeedback.querySelector('p').innerHTML = responseText.replace(/\n/g, '<br>');
+
+        // Reset button
+        elements.submitFeedbackBtn.textContent = '💬 Submit Feedback';
+        elements.submitFeedbackBtn.disabled = false;
+
+        // Clear feedback textarea
+        elements.userFeedback.value = '';
+        elements.submitFeedbackBtn.classList.add('hidden');
+
+    } catch (error) {
+        console.error('Failed to submit feedback:', error);
+        elements.adjustmentFeedback.classList.remove('hidden');
+        elements.adjustmentFeedback.querySelector('p').textContent = 'Failed to submit feedback. Please try again.';
+
+        elements.submitFeedbackBtn.textContent = '💬 Submit Feedback';
+        elements.submitFeedbackBtn.disabled = false;
+    }
 }
 
 async function adjustRecipeBasedOnRating(rating) {

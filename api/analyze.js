@@ -36,9 +36,16 @@ Previous coffee details:
 
 Equipment: ${equipment}
 
-⚠️ IMPORTANT: If the user's feedback includes corrections (like "the roast level is actually light, not dark" or "my grinder setting was 3.5"), ACKNOWLEDGE and USE the corrected information. User corrections should override any previous analysis. Apologize briefly for any misidentification and adjust recommendations based on the correct information.
+⚠️ IMPORTANT: Analyze the user's feedback to determine the appropriate response:
 
-Provide your response in this EXACT JSON format (no markdown, no code blocks, just pure JSON):
+1. **If feedback is about taste/extraction** (sour, bitter, timing, temperature): Provide adjusted recipe parameters in JSON format
+2. **If feedback includes corrections about the coffee** (roast level, origin, grinder settings, etc.): Engage in brief dialogue (2-3 sentences), acknowledge the correction, and ask if they want a revised recipe based on the correct information
+3. **If feedback is about technical issues** (equipment problems, can't achieve settings, etc.): Provide brief, helpful troubleshooting advice (2-3 sentences)
+4. **If feedback questions recipe validity** (seems wrong, doesn't make sense): Briefly explain the reasoning and offer to adjust if needed
+
+For conversational responses (cases 2-4), respond in plain text, not JSON. Keep it brief - 2-3 sentences max.
+
+For taste/extraction adjustments (case 1), provide your response in this EXACT JSON format (no markdown, no code blocks, just pure JSON):
 
 {
   "adjusted_parameters": {
