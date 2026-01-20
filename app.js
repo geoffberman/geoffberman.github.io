@@ -883,12 +883,9 @@ function resetApp() {
     state.imageFile = null;
     elements.fileInput.value = '';
     elements.previewImage.src = '';
-    // Hide the rating section and alt brew card when resetting
+    // Hide the rating section when resetting
     if (elements.ratingSection) {
         elements.ratingSection.classList.add('hidden');
-    }
-    if (elements.altBrewCard) {
-        elements.altBrewCard.classList.add('hidden');
     }
     showSection('upload');
 }
@@ -2428,12 +2425,9 @@ function showRecipeDetails(techniqueIndex, techniques) {
         recipeDetails.classList.remove('hidden');
     }
 
-    // Show the "How Did It Taste?" rating section and alt brew card
+    // Show the "How Did It Taste?" rating section
     if (elements.ratingSection) {
         elements.ratingSection.classList.remove('hidden');
-    }
-    if (elements.altBrewCard) {
-        elements.altBrewCard.classList.remove('hidden');
     }
 
     // Change button text to indicate recipe is shown
