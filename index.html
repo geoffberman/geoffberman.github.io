@@ -263,13 +263,13 @@
                         <div id="method-content"></div>
                     </div>
 
-                    <!-- Rating Slider -->
-                    <div id="rating-section" class="card" style="background: linear-gradient(135deg, #FFF8ED 0%, #FFEDDA 100%); border: 2px solid #D4A574;">
-                        <h3>How Did It Taste?</h3>
-                        <p style="margin-bottom: 20px; color: var(--secondary-color);">Rate your brew to get recipe adjustments</p>
+                    <!-- Rating Slider (compact, hidden until recipe selected) -->
+                    <div id="rating-section" class="card hidden" style="background: linear-gradient(135deg, #FFF8ED 0%, #FFEDDA 100%); border: 1px solid #D4A574; padding: 12px 15px;">
+                        <h3 style="font-size: 0.95rem; margin-bottom: 6px;">How Did It Taste?</h3>
+                        <p style="margin-bottom: 8px; color: var(--secondary-color); font-size: 0.8rem;">Rate your brew to get recipe adjustments</p>
 
                         <div class="rating-slider-container">
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.9rem; color: var(--secondary-color);">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.75rem; color: var(--secondary-color);">
                                 <span>Too Sour</span>
                                 <span>Perfect</span>
                                 <span>Too Bitter</span>
@@ -277,22 +277,22 @@
 
                             <input type="range" id="taste-rating" class="taste-slider" min="-2" max="2" step="0.5" value="0">
 
-                            <div style="text-align: center; margin-top: 15px;">
-                                <p id="rating-label" style="font-weight: bold; color: var(--primary-color); font-size: 1.1rem;">Perfect!</p>
+                            <div style="text-align: center; margin-top: 6px;">
+                                <p id="rating-label" style="font-weight: bold; color: var(--primary-color); font-size: 0.9rem; margin: 0;">Perfect!</p>
                             </div>
                         </div>
 
-                        <div style="display: flex; gap: 10px; margin-top: 20px;">
-                            <button id="adjust-recipe-btn" class="btn btn-primary" style="flex: 1;" disabled>
-                                Adjust Recipe Based on Rating
+                        <div style="display: flex; gap: 8px; margin-top: 10px;">
+                            <button id="adjust-recipe-btn" class="btn btn-primary" style="flex: 1; padding: 6px 10px; font-size: 0.8rem;" disabled>
+                                Adjust Recipe
                             </button>
-                            <button id="save-recipe-btn" class="btn btn-secondary hidden" style="flex: 1;">
-                                💾 Save This Recipe
+                            <button id="save-recipe-btn" class="btn btn-secondary hidden" style="flex: 1; padding: 6px 10px; font-size: 0.8rem;">
+                                💾 Save Recipe
                             </button>
                         </div>
 
-                        <div id="adjustment-feedback" class="hidden" style="margin-top: 15px; padding: 15px; background: rgba(107, 68, 35, 0.1); border-radius: 6px;">
-                            <p style="margin: 0; color: var(--secondary-color);"></p>
+                        <div id="adjustment-feedback" class="hidden" style="margin-top: 8px; padding: 10px; background: rgba(107, 68, 35, 0.1); border-radius: 4px;">
+                            <p style="margin: 0; color: var(--secondary-color); font-size: 0.8rem;"></p>
                         </div>
                     </div>
 

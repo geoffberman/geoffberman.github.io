@@ -671,6 +671,12 @@ function displayResults(data) {
         btn.addEventListener('click', async function() {
             const techniqueIndex = parseInt(this.getAttribute('data-technique-index'));
             const technique = data.recommended_techniques[techniqueIndex];
+
+            // Show the "How Did It Taste?" rating section
+            if (elements.ratingSection) {
+                elements.ratingSection.classList.remove('hidden');
+            }
+
             await savePerfectRecipe(technique, techniqueIndex);
         });
     });
@@ -698,6 +704,10 @@ function resetApp() {
     state.imageFile = null;
     elements.fileInput.value = '';
     elements.previewImage.src = '';
+    // Hide the rating section when resetting
+    if (elements.ratingSection) {
+        elements.ratingSection.classList.add('hidden');
+    }
     showSection('upload');
 }
 
