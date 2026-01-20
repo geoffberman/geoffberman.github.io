@@ -568,6 +568,9 @@ async function analyzeImage(specificMethod = null) {
             analysisData = parseFallbackResponse(analysisText);
         }
 
+        // Check for saved recipes and integrate them into recommendations
+        analysisData = await integrateSavedRecipes(analysisData);
+
         displayResults(analysisData);
         showSection('results');
 
@@ -733,9 +736,12 @@ function displayResults(data) {
         const imageUrl = getBrewMethodImage(technique.technique_name);
 
         techniquesHTML += `
-            <div class="technique-card" style="border: 2px solid var(--border-color); border-radius: 8px; padding: 20px; background: white; display: flex; flex-direction: column; justify-content: center;">
+            <div class="technique-card" style="border: 2px solid ${technique.is_saved_recipe ? 'var(--success-color)' : 'var(--border-color)'}; border-radius: 8px; padding: 20px; background: ${technique.is_saved_recipe ? 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)' : 'white'}; display: flex; flex-direction: column; justify-content: center;">
                 <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; margin-bottom: 15px;">
-                    <h4 style="margin: 0; font-size: 1rem; flex: 1;">${technique.technique_name}</h4>
+                    <div style="flex: 1;">
+                        <h4 style="margin: 0 0 5px 0; font-size: 1rem;">${technique.technique_name}</h4>
+                        ${technique.is_saved_recipe ? '<span style="display: inline-block; background: var(--success-color); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;">💾 YOUR SAVED RECIPE</span>' : ''}
+                    </div>
                     <img src="${imageUrl}" alt="${technique.technique_name}" style="width: 80px; height: 60px; object-fit: cover; border-radius: 6px; flex-shrink: 0;" loading="lazy" />
                 </div>
                 <div id="active-indicator-${index}" class="hidden" style="margin-bottom: 10px; text-align: left; color: var(--primary-color); font-weight: bold; font-size: 0.9rem;">
@@ -2002,6 +2008,18 @@ async function saveBrewSession(rating) {
 }
 
 async function saveAsPreferredRecipe() {
+    // Always save to localStorage as backup
+    saveRecipeToLocalStorage(
+        state.currentCoffeeAnalysis,
+        state.currentBrewMethod,
+        state.currentRecipe
+    );
+
+    // If authenticated, also save to database
+    if (!window.auth || !window.auth.isAuthenticated()) {
+        return;
+    }
+
     const supabase = window.getSupabase();
     const userId = window.auth.getUserId();
 
@@ -2517,11 +2535,6 @@ function showAdjustmentColumn(techniqueIndex) {
 
 // Save inline adjustments from the recipe table
 async function saveInlineAdjustments(technique, techniqueIndex) {
-    if (!window.auth || !window.auth.isAuthenticated()) {
-        showAuthModal();
-        return;
-    }
-
     const btn = document.querySelector(`.save-adjustments-btn[data-technique-index="${techniqueIndex}"]`);
     if (!btn) return;
 
@@ -2537,29 +2550,35 @@ async function saveInlineAdjustments(technique, techniqueIndex) {
             adjustedParams[param] = input.value;
         });
 
-        const supabase = window.getSupabase();
-        const userId = window.auth.getUserId();
+        // Save as preferred recipe (handles both localStorage and database)
+        await saveAsPreferredRecipeWithData(technique.technique_name, adjustedParams);
 
-        // Create brew session
-        const session = {
-            user_id: userId,
-            coffee_name: state.currentCoffeeAnalysis.name || 'Unknown',
-            roaster: state.currentCoffeeAnalysis.roaster || 'Unknown',
-            roast_level: state.currentCoffeeAnalysis.roast_level || 'Unknown',
-            origin: state.currentCoffeeAnalysis.origin || 'Unknown',
-            processing: state.currentCoffeeAnalysis.processing || 'Unknown',
-            flavor_notes: state.currentCoffeeAnalysis.flavor_notes || [],
-            brew_method: technique.technique_name,
-            original_recipe: technique.parameters,
-            actual_brew: adjustedParams,
-            rating: 'manual_adjustment'
-        };
+        // If authenticated, also save brew session
+        if (window.auth && window.auth.isAuthenticated()) {
+            const supabase = window.getSupabase();
+            const userId = window.auth.getUserId();
 
-        const { error } = await supabase
-            .from('brew_sessions')
-            .insert([session]);
+            // Create brew session
+            const session = {
+                user_id: userId,
+                coffee_name: state.currentCoffeeAnalysis.name || 'Unknown',
+                roaster: state.currentCoffeeAnalysis.roaster || 'Unknown',
+                roast_level: state.currentCoffeeAnalysis.roast_level || 'Unknown',
+                origin: state.currentCoffeeAnalysis.origin || 'Unknown',
+                processing: state.currentCoffeeAnalysis.processing || 'Unknown',
+                flavor_notes: state.currentCoffeeAnalysis.flavor_notes || [],
+                brew_method: technique.technique_name,
+                original_recipe: technique.parameters,
+                actual_brew: adjustedParams,
+                rating: 'manual_adjustment'
+            };
 
-        if (error) throw error;
+            const { error } = await supabase
+                .from('brew_sessions')
+                .insert([session]);
+
+            if (error) throw error;
+        }
 
         btn.textContent = '✓ Saved!';
         btn.style.backgroundColor = 'var(--success-color)';
@@ -2870,6 +2889,18 @@ async function saveAdjustedBrew() {
 
 // Helper function to save preferred recipe with specific data
 async function saveAsPreferredRecipeWithData(brewMethod, recipeData) {
+    // Always save to localStorage as backup
+    saveRecipeToLocalStorage(
+        state.currentCoffeeAnalysis,
+        brewMethod,
+        recipeData
+    );
+
+    // If authenticated, also save to database
+    if (!window.auth || !window.auth.isAuthenticated()) {
+        return;
+    }
+
     const supabase = window.getSupabase();
     const userId = window.auth.getUserId();
 
@@ -2925,6 +2956,172 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData) {
         console.log('Saved as preferred recipe');
     } catch (error) {
         console.error('Failed to save preferred recipe:', error);
+    }
+}
+
+// Retrieve saved recipes for a coffee
+async function getSavedRecipesForCoffee(coffeeAnalysis) {
+    const coffeeHash = createCoffeeHash(
+        coffeeAnalysis.name,
+        coffeeAnalysis.roaster,
+        coffeeAnalysis.roast_level,
+        coffeeAnalysis.origin
+    );
+
+    const savedRecipes = [];
+
+    // Try to get from Supabase if authenticated
+    if (window.auth && window.auth.isAuthenticated()) {
+        try {
+            const supabase = window.getSupabase();
+            const userId = window.auth.getUserId();
+
+            const { data, error } = await supabase
+                .from('saved_recipes')
+                .select('*')
+                .eq('user_id', userId)
+                .eq('coffee_hash', coffeeHash)
+                .order('times_brewed', { ascending: false });
+
+            if (!error && data) {
+                savedRecipes.push(...data);
+            }
+        } catch (error) {
+            console.error('Failed to fetch saved recipes from database:', error);
+        }
+    }
+
+    // Also check localStorage for saved recipes (fallback or for non-authenticated users)
+    try {
+        const localRecipes = localStorage.getItem('saved_recipes');
+        if (localRecipes) {
+            const recipes = JSON.parse(localRecipes);
+            const matchingRecipes = recipes.filter(r => r.coffee_hash === coffeeHash);
+            savedRecipes.push(...matchingRecipes);
+        }
+    } catch (error) {
+        console.error('Failed to fetch saved recipes from localStorage:', error);
+    }
+
+    return savedRecipes;
+}
+
+// Integrate saved recipes into AI recommendations
+async function integrateSavedRecipes(analysisData) {
+    if (!analysisData || !analysisData.coffee_analysis) {
+        return analysisData;
+    }
+
+    try {
+        const savedRecipes = await getSavedRecipesForCoffee(analysisData.coffee_analysis);
+
+        if (savedRecipes.length === 0) {
+            console.log('No saved recipes found for this coffee');
+            return analysisData;
+        }
+
+        console.log(`Found ${savedRecipes.length} saved recipe(s) for this coffee`);
+
+        // Get the recommended techniques from AI
+        const aiTechniques = analysisData.recommended_techniques || [];
+        const mergedTechniques = [];
+
+        // Create a map of AI techniques by brew method for easy lookup
+        const aiTechniqueMap = {};
+        aiTechniques.forEach(tech => {
+            aiTechniqueMap[tech.technique_name] = tech;
+        });
+
+        // Add saved recipes first (prioritized)
+        savedRecipes.forEach(saved => {
+            const brewMethod = saved.brew_method;
+            const savedRecipe = saved.recipe;
+
+            // Check if AI also recommended this method
+            const aiTechnique = aiTechniqueMap[brewMethod];
+
+            // Create a technique object based on saved recipe
+            const technique = {
+                technique_name: brewMethod,
+                reasoning: aiTechnique?.reasoning ||
+                    `You previously saved this recipe for this coffee (brewed ${saved.times_brewed || 1} time${saved.times_brewed > 1 ? 's' : ''}). Using your preferred parameters.`,
+                parameters: savedRecipe,
+                technique_notes: aiTechnique?.technique_notes || '',
+                is_saved_recipe: true // Flag to indicate this is a saved recipe
+            };
+
+            mergedTechniques.push(technique);
+
+            // Remove from AI map so we don't duplicate
+            delete aiTechniqueMap[brewMethod];
+        });
+
+        // Add remaining AI techniques that weren't in saved recipes
+        Object.values(aiTechniqueMap).forEach(tech => {
+            mergedTechniques.push({
+                ...tech,
+                is_saved_recipe: false
+            });
+        });
+
+        // Update the analysis data with merged techniques
+        analysisData.recommended_techniques = mergedTechniques;
+
+        console.log('Integrated saved recipes into recommendations:', mergedTechniques.length, 'total techniques');
+
+    } catch (error) {
+        console.error('Failed to integrate saved recipes:', error);
+        // Return original data if integration fails
+    }
+
+    return analysisData;
+}
+
+// Save recipe to localStorage for non-authenticated users
+function saveRecipeToLocalStorage(coffeeAnalysis, brewMethod, recipeData) {
+    try {
+        const coffeeHash = createCoffeeHash(
+            coffeeAnalysis.name,
+            coffeeAnalysis.roaster,
+            coffeeAnalysis.roast_level,
+            coffeeAnalysis.origin
+        );
+
+        let savedRecipes = [];
+        const existing = localStorage.getItem('saved_recipes');
+        if (existing) {
+            savedRecipes = JSON.parse(existing);
+        }
+
+        // Find if this recipe already exists
+        const existingIndex = savedRecipes.findIndex(
+            r => r.coffee_hash === coffeeHash && r.brew_method === brewMethod
+        );
+
+        const recipe = {
+            coffee_hash: coffeeHash,
+            coffee_name: coffeeAnalysis.name || 'Unknown',
+            roaster: coffeeAnalysis.roaster || 'Unknown',
+            brew_method: brewMethod,
+            recipe: recipeData,
+            times_brewed: 1,
+            last_brewed: new Date().toISOString()
+        };
+
+        if (existingIndex >= 0) {
+            // Update existing
+            savedRecipes[existingIndex].recipe = recipeData;
+            savedRecipes[existingIndex].times_brewed = (savedRecipes[existingIndex].times_brewed || 0) + 1;
+            savedRecipes[existingIndex].last_brewed = new Date().toISOString();
+        } else {
+            // Add new
+            savedRecipes.push(recipe);
+        }
+
+        localStorage.setItem('saved_recipes', JSON.stringify(savedRecipes));
+        console.log('Recipe saved to localStorage');
+    } catch (error) {
+        console.error('Failed to save recipe to localStorage:', error);
     }
 }
 
