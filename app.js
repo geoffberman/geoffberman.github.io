@@ -646,7 +646,7 @@ function getBrewMethodImage(techniqueName) {
         return 'https://images.unsplash.com/photo-1570968915860-54d5c301fa9f?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('v60')) {
         // V60 pour over setup - Hario cone dripper with gooseneck kettle
-        return 'https://images.unsplash.com/photo-1611564154665-e64f686e0d3d?w=400&h=300&fit=crop&q=80';
+        return '/images/v60.png';
     } else if (technique.includes('pour over')) {
         // Generic pour over
         return 'https://images.unsplash.com/photo-1611564154665-e64f686e0d3d?w=400&h=300&fit=crop&q=80';
