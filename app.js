@@ -624,40 +624,43 @@ function getBrewMethodImage(techniqueName) {
     // Map technique names to specific brew method images
     if (technique.includes('turbo')) {
         // Espresso shot - turbo shot
-        return 'https://images.unsplash.com/photo-1610889556528-9a770e32642f?w=400&h=300&fit=crop&q=80';
+        return 'https://images.unsplash.com/photo-1610889556528-9a770e32642f?w=200&h=200&fit=crop&q=80';
     } else if (technique.includes('lungo')) {
         // Lungo - longer espresso
-        return 'https://images.unsplash.com/photo-1534687920214-dcab4b5da211?w=400&h=300&fit=crop&q=80';
+        return 'https://images.unsplash.com/photo-1534687920214-dcab4b5da211?w=200&h=200&fit=crop&q=80';
     } else if (technique.includes('espresso')) {
         // Traditional espresso shot
-        return 'https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=400&h=300&fit=crop&q=80';
+        return 'https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=200&h=200&fit=crop&q=80';
     } else if (technique.includes('latte')) {
         // Latte with art in cup
-        return 'https://images.unsplash.com/photo-1570968915860-54d5c301fa9f?w=400&h=300&fit=crop&q=80';
+        return 'https://images.unsplash.com/photo-1570968915860-54d5c301fa9f?w=200&h=200&fit=crop&q=80';
     } else if (technique.includes('v60')) {
-        // V60 pour over
-        return 'https://images.unsplash.com/photo-1498804103079-a6351b050096?w=400&h=300&fit=crop&q=80';
-    } else if (technique.includes('pour over')) {
-        // Generic pour over
-        return 'https://images.unsplash.com/photo-1442512595331-e89e73853f31?w=400&h=300&fit=crop&q=80';
+        // V60 pour over dripper
+        return 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=200&h=200&fit=crop&q=80';
+    } else if (technique.includes('kalita')) {
+        // Kalita Wave
+        return 'https://images.unsplash.com/photo-1511537190424-bbbab87ac5eb?w=200&h=200&fit=crop&q=80';
     } else if (technique.includes('chemex')) {
         // Chemex brewer
-        return 'https://images.unsplash.com/photo-1517487881594-2787fef5ebf7?w=400&h=300&fit=crop&q=80';
+        return 'https://images.unsplash.com/photo-1545665225-b23b99e4d45e?w=200&h=200&fit=crop&q=80';
+    } else if (technique.includes('pour over')) {
+        // Generic pour over
+        return 'https://images.unsplash.com/photo-1442512595331-e89e73853f31?w=200&h=200&fit=crop&q=80';
     } else if (technique.includes('french press')) {
         // French press
-        return 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400&h=300&fit=crop&q=80';
+        return 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=200&h=200&fit=crop&q=80';
     } else if (technique.includes('aeropress')) {
         // Aeropress
-        return 'https://images.unsplash.com/photo-1611564154665-e64f686e0d3d?w=400&h=300&fit=crop&q=80';
+        return 'https://images.unsplash.com/photo-1611564154665-e64f686e0d3d?w=200&h=200&fit=crop&q=80';
     } else if (technique.includes('moka')) {
         // Moka pot
-        return 'https://images.unsplash.com/photo-1517487881594-2787fef5ebf7?w=400&h=300&fit=crop&q=80';
+        return 'https://images.unsplash.com/photo-1575484741223-70ef93c6c93b?w=200&h=200&fit=crop&q=80';
     } else if (technique.includes('oxo') || technique.includes('soup')) {
         // Oxo/single cup brewer
-        return 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=400&h=300&fit=crop&q=80';
+        return 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=200&h=200&fit=crop&q=80';
     } else {
         // Default coffee cup image
-        return 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&h=300&fit=crop&q=80';
+        return 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=200&h=200&fit=crop&q=80';
     }
 }
 
@@ -734,13 +737,9 @@ function displayResults(data) {
 
         techniquesHTML += `
             <div class="technique-card" style="border: 2px solid var(--border-color); border-radius: 8px; padding: 20px; background: white; display: flex; flex-direction: column; justify-content: center;">
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 15px;">
-                    <h4 style="margin: 0; font-size: 1rem;">${technique.technique_name}</h4>
-                </div>
-
-                <!-- Thumbnail image - always visible -->
-                <div style="text-align: center; margin-bottom: 15px;">
-                    <img src="${imageUrl}" alt="${technique.technique_name}" style="max-width: 100%; height: auto; max-height: 180px; border-radius: 8px; object-fit: cover;" loading="lazy" />
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <img src="${imageUrl}" alt="${technique.technique_name}" style="width: 60px; height: 60px; border-radius: 8px; object-fit: cover; flex-shrink: 0;" loading="lazy" />
+                    <h4 style="margin: 0; font-size: 1rem; flex: 1;">${technique.technique_name}</h4>
                 </div>
 
                 <div id="active-indicator-${index}" class="hidden" style="margin-bottom: 10px; text-align: left; color: var(--primary-color); font-weight: bold; font-size: 0.9rem;">
