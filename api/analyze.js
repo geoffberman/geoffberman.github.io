@@ -36,7 +36,19 @@ Previous coffee details:
 
 Equipment: ${equipment}
 
-Provide your response in this EXACT JSON format (no markdown, no code blocks, just pure JSON):
+⚠️ IMPORTANT: Analyze the user's feedback to determine the appropriate response:
+
+1. **If feedback is about taste/extraction** (sour, bitter, timing, temperature): Provide adjusted recipe parameters in JSON format
+2. **If feedback includes corrections or questions**: Respond in 1 SHORT sentence (10-15 words max), acknowledge and suggest next step
+
+⚠️ GRINDER SETTINGS FORMAT:
+- **Ceado E37SD/E37S**: Just the number, no "setting" word (e.g., "1.5" or "3.5", NEVER "setting 15")
+- Scale is 0-9 ONLY (espresso 0.5-2.5, pour over 3.5-5.5)
+- **Baratza Encore**: 1-40 scale (pour over 12-18)
+
+For conversational responses, respond in plain text, not JSON. One sentence only.
+
+For taste/extraction adjustments (case 1), provide your response in this EXACT JSON format (no markdown, no code blocks, just pure JSON):
 
 {
   "adjusted_parameters": {
@@ -90,34 +102,76 @@ Make the adjusted_parameters complete and ready to display in a table. The adjus
 - Flavor notes or tasting notes
 - Any other relevant details
 
-CRITICAL: Think deeply about the brewing recommendations. Don't just apply generic formulas based on roast level.
+CRITICAL: Research what the coffee community ACTUALLY recommends for this specific coffee or similar ones. Don't apply generic roast-level formulas.
 
-1. If you recognize this specific coffee, roaster, or blend, draw on known recipes from the community (YouTube videos, Reddit r/coffee, home-barista.com forums, etc.)
-2. If not, consider similar coffees with the same characteristics (origin + processing + roast level + flavor notes)
-3. Reference specific recipes from experts like:
-   - James Hoffmann's Ultimate V60 technique and espresso dialing guides
-   - Lance Hedrick's pressure profiling recipes and "soup" method
-   - Scott Rao's work on even extraction
-   - Community-tested recipes for that origin/processing combo
+⚠️ RESEARCH-BASED RECOMMENDATION PROCESS:
+1. **Identify the coffee**: Look at origin, processing, roast level, roaster, flavor notes
+2. **Search your knowledge**: What do coffee experts recommend for this SPECIFIC coffee or very similar ones?
+   - Check if you know community recipes for this roaster/coffee
+   - Look for similar coffees (same origin + processing + roast level)
+   - Reference known recipes from YouTube, Reddit r/coffee, home-barista.com
+3. **Consider ALL appropriate methods**: Don't exclude methods based on roast level alone
+   - Light roasts: Can be excellent as pour over, filter, OR as turbo/lungo espresso shots
+   - Medium roasts: Very versatile - pour over, espresso, immersion all work
+   - Dark roasts: Great for espresso, but also work well in French Press, Moka Pot
+4. **Match to user's equipment**: Filter your researched recommendations by what they have
+5. **Suggest upgrades if truly limiting**: Only if their gear can't properly execute the best methods for THIS coffee
 
-Examples of thinking deeply:
-- Ethiopian natural light roast → higher temps (96-100°C), gentle agitation, turbo shots work well
-- Colombian washed medium → classic balanced approach, 1:2-1:2.5 espresso, 92-94°C pour over
-- Kenyan AA → higher extraction, longer ratios, bloom importance
+⚠️ CRITICAL: DO NOT DEFAULT TO ESPRESSO
+- If user has V60, prioritize V60 recommendations
+- If user has French Press, prioritize French Press
+- If user has multiple methods, recommend what's BEST for THIS specific coffee based on community knowledge
+- Don't assume espresso is best - many light roasts shine more with pour over
+- Match the brew method to the coffee's characteristics, not to assumptions
+
+Modern Espresso Techniques for Light Roasts:
+- **Turbo Shots**: 1:2.5-3.5 ratio, 20-25 seconds, coarser grind, popular for fruity light roasts
+- **Lungo/Allongé**: 1:3-4 ratio, 35-45 seconds, highlights acidity and fruit notes
+- **Blooming Espresso**: Pre-infusion with pause, then extraction, reduces channeling
+- **Lower Pressure**: 6-8 bar instead of 9, gentler extraction for delicate flavors
+Don't ignore these! Many light roast single origins are specifically sold as "espresso" with these modern techniques in mind.
+
+Examples of correct research-based thinking:
+- "Onyx Coffee Lab Monarch" light roast → Check if you know Onyx's brew guides (they often recommend both espresso turbo shots AND V60)
+- Ethiopian natural light roast → Community loves both V60 (for clarity) AND turbo shots (for intensity + fruit)
+- Colombian washed → Classic all-rounder, good for any method
+- "Counter Culture Big Trouble" → Known espresso blend, but also works as filter
+
+Reference recipes from experts:
+- James Hoffmann: V60 technique, turbo shot experiments, espresso dialing
+- Lance Hedrick: Pressure profiling, turbo shots, "soup" immersion method
+- Scott Rao: Even extraction principles, blooming espresso
+- Onyx Coffee Lab, George Howell, Tim Wendelboe: Often publish brew guides for their coffees
 
 Then provide expert-level brewing recommendations using MODERN specialty coffee methodologies:
 
 For Espresso:
-- Consider turbo/blooming shots for lighter roasts (higher ratios like 1:2.5-3.5, shorter times 20-25s)
-- Lower temperatures (88-92°C) for light roasts to reduce astringency
-- Pre-infusion and pressure profiling when available
-- Even extraction over traditional "perfect" ratios
+- **Traditional Espresso**: 1:2-2.5 ratio, 25-30 seconds, 92-94°C - works for most medium-dark roasts
+- **Turbo Shots** (popular for light roasts): 1:2.5-3.5 ratio, 20-25 seconds, coarser grind, 92-95°C
+- **Lungo/Allongé** (light roasts): 1:3-4 ratio, 35-45 seconds, highlights brightness
+- **Blooming Espresso**: 6 bar pre-infusion for 5-8s, pause, then 9 bar - reduces channeling in light roasts
+- Lower temps (88-92°C) for very light roasts IF using traditional ratios
+- Pre-infusion and pressure profiling when user has flow control
+- Prioritize even extraction over hitting exact numbers
 
 For Pour Over (V60, etc):
 - Emphasize bloom phase (2-3x coffee weight, 30-45s)
 - Higher water temperatures (95-100°C) for light roasts
 - Focus on even extraction and drawdown times
 - Modern pour patterns (center pours, swirling)
+
+GRINDER-SPECIFIC SETTINGS:
+When recommending grind sizes, if you see equipment mentions specific grinders, tailor your advice:
+- **Ceado E37SD / E37S**: Dial goes from 0 (finest) to 9 (coarsest) with micro-adjustments between each number
+  * Espresso: 0.5 - 2.5 (light roasts closer to 2.5, dark roasts closer to 1.0)
+  * V60/Pour Over: 3.5 - 5.5 (light roasts finer around 3.5-4, medium around 4.5-5)
+  * French Press: 6.5 - 8
+- **Baratza Encore**: 1-40 scale
+  * Espresso: Not ideal (limited range)
+  * V60/Pour Over: 12-18
+  * French Press: 28-32
+- **Baratza Virtuoso/Sette**: Mention specific number ranges
+- If no specific grinder mentioned: Use descriptive terms (fine, medium-fine, medium, medium-coarse, coarse)
 
 For Oxo Rapid Brew Cup:
 - Lance Hedrick calls it "soup" - embrace the immersion brewing style
@@ -140,7 +194,31 @@ IMPORTANT: Only include information you can actually see or confidently infer fr
             // User wants a specific brew method
             promptText += `\n\nThe user specifically wants a recipe for: ${specificMethod}\n\nProvide ONLY one recommendation using this method. Tailor the parameters to this coffee based on what you can see.`;
         } else if (equipment) {
-            promptText += `\n\nUser's available equipment: ${equipment}\n\nRecommend brew methods compatible with their equipment.`;
+            promptText += `\n\n⚠️ CRITICAL EQUIPMENT REQUIREMENT:
+User's available equipment: ${equipment}
+
+IMPORTANT CONSTRAINTS:
+1. You MUST ONLY recommend brewing methods that the user can perform with their EXISTING equipment listed above
+2. DO NOT suggest methods they don't have equipment for
+3. If the user has an espresso machine, recommend espresso techniques. If they have a V60, recommend V60 techniques. If they have a French Press, recommend French Press. Match recommendations to their actual gear.
+4. If their equipment is NOT IDEAL for this specific coffee (e.g., they only have a French Press but this is a delicate Ethiopian light roast that would shine more with pour over), you MUST include an "equipment_suggestions" field in your JSON response explaining:
+   - Why their current equipment isn't ideal for THIS coffee
+   - What specific additional equipment would unlock better results (be specific: "Hario V60" not just "pour over")
+   - Why that equipment would work better for this coffee's characteristics
+   - Keep it to 2-3 sentences, be helpful not preachy
+
+⚠️ CRITICAL: OMIT "equipment_suggestions" ENTIRELY if their equipment is already good/adequate for this coffee
+   - DO NOT include affirmations like "your equipment is well-suited" or "no upgrades needed"
+   - ONLY include equipment_suggestions when you have an ACTUAL recommendation to add/upgrade equipment
+   - If their gear is fine, simply omit this field from the JSON (don't include it at all)
+
+Examples:
+- User has: "Espresso Machine" and coffee is: "Ethiopian Yirgacheffe light roast natural" → Recommend BOTH "Espresso - Turbo Shot" (popular modern approach for this coffee) AND mention V60 in equipment_suggestions as alternative
+- User has: "French Press" but coffee is: "Ethiopian light roast natural process" → Recommend French Press method BUT suggest V60 in equipment_suggestions for more clarity
+- User has: "V60" but coffee is: "Dark roast espresso blend" → Recommend V60 (it works), but note in equipment_suggestions that espresso would better suit this blend's body
+- User has: "Espresso Machine, V60" and coffee is: "Light roast single origin" → Recommend BOTH "Espresso - Turbo Shot" AND "V60 Pour Over" as equally valid options
+
+Give recommendations based on what the coffee community actually brews with this coffee. Don't exclude espresso for light roasts - turbo/lungo shots are hugely popular for them.`;
         }
 
         if (hasFlowControl) {
@@ -181,8 +259,8 @@ Pressure profiling is expected and MUST be specific to this coffee.`;
   },
   "recommended_techniques": [
     {
-      "technique_name": "${specificMethod}",
-      "reasoning": "Brief technical reason why this method works for this specific coffee (1-2 sentences)",
+      "technique_name": "${specificMethod} (specify style if espresso: 'Espresso - Turbo Shot', 'Espresso - Lungo', 'Espresso - Traditional', etc.)",
+      "reasoning": "Brief technical reason based on what you know about this coffee or similar ones (1-2 sentences)",
       "parameters": {
         "dose": "Coffee dose in grams",
         "yield": "Total brew output in grams or ml",
@@ -193,9 +271,10 @@ Pressure profiling is expected and MUST be specific to this coffee.`;
         "pressure": "Pressure if applicable (e.g., 9 bar, N/A for pour over)",
         "flow_control": "Detailed pressure profiling if espresso with flow control, otherwise N/A"
       },
-      "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid."
+      "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid.\n\n⚠️ POUR OVER SPECIFIC REQUIREMENT: If this is a pour over method (V60, Chemex, Kalita Wave, etc.), you MUST include detailed pouring instructions in this field formatted as follows:\n\n**Pouring Schedule:**\n• **Bloom**: [X]g water, wait [Y] seconds\n• **First Pour**: [X]g to [total]g, [timing]\n• **Second Pour**: [X]g to [total]g, [timing]\n• **Third Pour**: [X]g to [total]g, [timing]\n[Continue for all pours until reaching target yield]\n\nExample:\n**Pouring Schedule:**\n• **Bloom**: 50g water, wait 30-45 seconds\n• **First Pour**: 100g to 150g total (0:45-1:15)\n• **Second Pour**: 100g to 250g total (1:15-1:45)\n• **Third Pour**: 50g to 300g total (1:45-2:15)\n• Target finish time: 2:30-3:00"
     }
-  ]
+  ],
+  "equipment_suggestions": "CRITICAL: ONLY include this field if you have an ACTUAL recommendation to upgrade/add equipment. DO NOT include affirmations or 'equipment is fine' messages. If their gear is adequate, completely OMIT this field from the JSON response."
 }
 
 Read the image carefully and extract all visible information accurately. Use technical language. If info isn't visible, make educated estimates based on roast level and other visual clues.`;
@@ -213,8 +292,8 @@ Read the image carefully and extract all visible information accurately. Use tec
   },
   "recommended_techniques": [
     {
-      "technique_name": "First recommended brew method",
-      "reasoning": "Brief technical reason (1-2 sentences)",
+      "technique_name": "First recommended brew method (MUST match user's equipment). If espresso, specify: 'Espresso - Turbo Shot', 'Espresso - Lungo', 'Espresso - Traditional', etc.",
+      "reasoning": "Brief research-based reason - what does the community recommend for this coffee or similar ones? (1-2 sentences)",
       "parameters": {
         "dose": "Coffee dose in grams",
         "yield": "Total brew output in grams or ml",
@@ -225,11 +304,11 @@ Read the image carefully and extract all visible information accurately. Use tec
         "pressure": "Pressure if applicable (e.g., 9 bar, N/A for pour over)",
         "flow_control": "Detailed pressure profiling if espresso with flow control, otherwise N/A"
       },
-      "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid."
+      "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid.\n\n⚠️ POUR OVER SPECIFIC REQUIREMENT: If this is a pour over method (V60, Chemex, Kalita Wave, etc.), you MUST include detailed pouring instructions in this field formatted as follows:\n\n**Pouring Schedule:**\n• **Bloom**: [X]g water, wait [Y] seconds\n• **First Pour**: [X]g to [total]g, [timing]\n• **Second Pour**: [X]g to [total]g, [timing]\n• **Third Pour**: [X]g to [total]g, [timing]\n[Continue for all pours until reaching target yield]\n\nExample:\n**Pouring Schedule:**\n• **Bloom**: 50g water, wait 30-45 seconds\n• **First Pour**: 100g to 150g total (0:45-1:15)\n• **Second Pour**: 100g to 250g total (1:15-1:45)\n• **Third Pour**: 50g to 300g total (1:45-2:15)\n• Target finish time: 2:30-3:00"
     },
     {
-      "technique_name": "Second recommended brew method",
-      "reasoning": "Brief technical reason (1-2 sentences)",
+      "technique_name": "Second recommended brew method (MUST match user's equipment). If espresso, specify style.",
+      "reasoning": "Research-based reason (1-2 sentences)",
       "parameters": {
         "dose": "Coffee dose in grams",
         "yield": "Total brew output in grams or ml",
@@ -240,12 +319,13 @@ Read the image carefully and extract all visible information accurately. Use tec
         "pressure": "Pressure if applicable or N/A",
         "flow_control": "Detailed pressure profiling if espresso with flow control, otherwise N/A"
       },
-      "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid."
+      "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid.\n\n⚠️ POUR OVER SPECIFIC REQUIREMENT: If this is a pour over method (V60, Chemex, Kalita Wave, etc.), you MUST include detailed pouring instructions in this field formatted as follows:\n\n**Pouring Schedule:**\n• **Bloom**: [X]g water, wait [Y] seconds\n• **First Pour**: [X]g to [total]g, [timing]\n• **Second Pour**: [X]g to [total]g, [timing]\n• **Third Pour**: [X]g to [total]g, [timing]\n[Continue for all pours until reaching target yield]\n\nExample:\n**Pouring Schedule:**\n• **Bloom**: 50g water, wait 30-45 seconds\n• **First Pour**: 100g to 150g total (0:45-1:15)\n• **Second Pour**: 100g to 250g total (1:15-1:45)\n• **Third Pour**: 50g to 300g total (1:45-2:15)\n• Target finish time: 2:30-3:00"
     }
-  ]
+  ],
+  "equipment_suggestions": "CRITICAL: ONLY include this field if you have an ACTUAL recommendation to upgrade/add equipment. DO NOT include affirmations or 'equipment is fine' messages. If their gear is adequate, completely OMIT this field from the JSON response."
 }
 
-Read the image carefully and extract all visible information accurately. Provide only the top 2 most suitable techniques. Use technical language. If info isn't visible, make educated estimates based on roast level and other visual clues.`;
+Read the image carefully and extract all visible information accurately. Provide only the top 2 most suitable techniques THAT MATCH THE USER'S EQUIPMENT. Use technical language. If info isn't visible, make educated estimates based on roast level and other visual clues.`;
         }
 
         const response = await fetch('https://api.anthropic.com/v1/messages', {

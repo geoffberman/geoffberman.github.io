@@ -79,7 +79,6 @@ const elements = {
 
     // Rating slider elements
     ratingSection: document.getElementById('rating-section'),
-    altBrewCard: document.getElementById('alt-brew-card'),
     tasteRating: document.getElementById('taste-rating'),
     ratingLabel: document.getElementById('rating-label'),
     userFeedback: document.getElementById('user-feedback'),
@@ -527,19 +526,11 @@ async function analyzeImage(specificMethod = null) {
 
         const equipmentDescription = getEquipmentDescription();
 
-        // Fetch user's brewing preferences from their history
-        const userPreferences = await getUserPreferences();
-
         const requestBody = {
             image: base64Image,
             mediaType: mediaType,
             equipment: equipmentDescription
         };
-
-        // Add user preferences if available
-        if (userPreferences && userPreferences.summary) {
-            requestBody.userPreferences = userPreferences.summary;
-        }
 
         // Add specific method if provided
         if (specificMethod) {
@@ -576,6 +567,9 @@ async function analyzeImage(specificMethod = null) {
             // If JSON parsing fails, create a fallback structure
             analysisData = parseFallbackResponse(analysisText);
         }
+
+        // Check for saved recipes and integrate them into recommendations
+        analysisData = await integrateSavedRecipes(analysisData);
 
         displayResults(analysisData);
         showSection('results');
@@ -631,114 +625,43 @@ function getBrewMethodImage(techniqueName) {
     const technique = techniqueName.toLowerCase();
 
     // Map technique names to specific brew method images
-    // Using verified Unsplash images that show actual brewing equipment
     if (technique.includes('turbo')) {
-        // Espresso shot being pulled
+        // Espresso shot - turbo shot
         return 'https://images.unsplash.com/photo-1610889556528-9a770e32642f?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('lungo')) {
-        // Espresso lungo
+        // Lungo - longer espresso
         return 'https://images.unsplash.com/photo-1534687920214-dcab4b5da211?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('espresso')) {
-        // Espresso machine portafilter
+        // Traditional espresso shot
         return 'https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('latte')) {
-        // Latte art
+        // Latte with art in cup
         return 'https://images.unsplash.com/photo-1570968915860-54d5c301fa9f?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('v60')) {
-        // Hario V60 - actual pour over cone dripper with gooseneck kettle
-        return 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=400&h=300&fit=crop&q=80';
+        // V60 pour over setup
+        return 'https://images.unsplash.com/photo-1611564154665-e64f686e0d3d?w=400&h=300&fit=crop&q=80';
+    } else if (technique.includes('pour over')) {
+        // Generic pour over
+        return 'https://images.unsplash.com/photo-1442512595331-e89e73853f31?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('chemex')) {
-        // Chemex - hourglass glass brewer with wood collar
-        return 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=400&h=300&fit=crop&q=80';
-    } else if (technique.includes('kalita') || technique.includes('wave')) {
-        // Kalita Wave - flat bottom dripper pour over
-        return 'https://images.unsplash.com/photo-1545665225-b23b99e4d45e?w=400&h=300&fit=crop&q=80';
-    } else if (technique.includes('clever') || technique.includes('dripper')) {
-        // Pour over dripper
-        return 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=400&h=300&fit=crop&q=80';
-    } else if (technique.includes('pour over') || technique.includes('pour-over')) {
-        // Generic pour over - V60 style cone dripper
-        return 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=400&h=300&fit=crop&q=80';
+        // Chemex brewer
+        return 'https://images.unsplash.com/photo-1517487881594-2787fef5ebf7?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('french press')) {
-        // French press with plunger
-        return 'https://images.unsplash.com/photo-1519082274554-1ca37455e6aa?w=400&h=300&fit=crop&q=80';
+        // French press
+        return 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('aeropress')) {
-        // Aeropress brewing
-        return 'https://images.unsplash.com/photo-1559525839-b184a4d698c7?w=400&h=300&fit=crop&q=80';
+        // Aeropress
+        return 'https://images.unsplash.com/photo-1611564154665-e64f686e0d3d?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('moka')) {
-        // Moka pot on stove
-        return 'https://images.unsplash.com/photo-1621555470436-d36e9683bba0?w=400&h=300&fit=crop&q=80';
-    } else if (technique.includes('siphon') || technique.includes('vacuum')) {
-        // Siphon/vacuum brewer
-        return 'https://images.unsplash.com/photo-1558122105-86b8e8d7f148?w=400&h=300&fit=crop&q=80';
-    } else if (technique.includes('cold brew')) {
-        // Cold brew in jar
-        return 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400&h=300&fit=crop&q=80';
-    } else if (technique.includes('drip') || technique.includes('oxo') || technique.includes('soup')) {
-        // Drip coffee maker
-        return 'https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?w=400&h=300&fit=crop&q=80';
+        // Moka pot
+        return 'https://images.unsplash.com/photo-1517487881594-2787fef5ebf7?w=400&h=300&fit=crop&q=80';
+    } else if (technique.includes('oxo') || technique.includes('soup')) {
+        // Oxo/single cup brewer
+        return 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=400&h=300&fit=crop&q=80';
     } else {
-        // Default - pour over brewing
-        return 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=400&h=300&fit=crop&q=80';
+        // Default coffee cup image
+        return 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&h=300&fit=crop&q=80';
     }
-}
-
-// Format pour over instructions with times/volumes as bullets
-function formatPourInstruction(instruction) {
-    if (!instruction) return instruction;
-
-    let matches = [];
-    let match;
-
-    // Pattern 1: "0:00 - Pour 50g" or "0:00-0:45: Pour 50g" or "At 0:30, pour 100ml"
-    const timeStampPattern1 = /(\d+:\d+(?:\s*[-–]\s*\d+:\d+)?)\s*[-:,]?\s*([^.]*?(?:pour|add|bloom|wait)[^.]*?\d+\s*(?:g|ml|grams?|seconds?|sec|s\b)[^.]*)/gi;
-    while ((match = timeStampPattern1.exec(instruction)) !== null) {
-        matches.push({ time: match[1], action: match[2].trim() });
-    }
-
-    // Pattern 2: Look for numbered steps like "1. Pour 50g" or "1) Bloom with 50g"
-    if (matches.length === 0) {
-        const numberedPattern = /(?:^|\n)\s*(\d+)[.)]\s*([^.\n]*?(?:pour|bloom|add|wait)[^.\n]*?\d+\s*(?:g|ml|grams?|seconds?|sec)[^.\n]*)/gi;
-        while ((match = numberedPattern.exec(instruction)) !== null) {
-            matches.push({ time: `Step ${match[1]}`, action: match[2].trim() });
-        }
-    }
-
-    // Pattern 3: Look for "First pour", "Second pour", "Third pour" etc.
-    if (matches.length === 0) {
-        const ordinalPattern = /(first|second|third|fourth|fifth|final)\s+(pour|bloom)[^.]*?\d+\s*(?:g|ml)[^.]*/gi;
-        while ((match = ordinalPattern.exec(instruction)) !== null) {
-            matches.push({ time: match[1].charAt(0).toUpperCase() + match[1].slice(1), action: match[0].trim() });
-        }
-    }
-
-    // Pattern 4: Look for any "pour Xg" patterns with context
-    if (matches.length === 0) {
-        const pourPattern = /(?:bloom\s+(?:with\s+)?\d+\s*g[^.]*|pour\s+(?:(?:another|additional|remaining|more)\s+)?\d+\s*(?:g|ml)[^.]*)/gi;
-        const pourMatches = instruction.match(pourPattern);
-        if (pourMatches && pourMatches.length > 1) {
-            pourMatches.forEach((p, i) => {
-                matches.push({ time: `Pour ${i + 1}`, action: p.trim() });
-            });
-        }
-    }
-
-    // If we found pour steps, format them as bullets
-    if (matches.length > 0) {
-        let bullets = '<ul style="margin: 8px 0 8px 20px; list-style-type: disc;">';
-        matches.forEach(m => {
-            bullets += `<li style="margin-bottom: 4px;"><strong>${m.time}</strong>: ${m.action}</li>`;
-        });
-        bullets += '</ul>';
-
-        // Get any intro text before the pours
-        const firstPourIndex = instruction.search(/\d+:\d+|(?:first|bloom|pour\s+\d)/i);
-        const header = firstPourIndex > 0 ? instruction.substring(0, firstPourIndex).trim() : '';
-
-        return header ? `${header}${bullets}` : bullets;
-    }
-
-    return instruction;
 }
 
 // Display results
@@ -781,25 +704,25 @@ function displayResults(data) {
         `;
     }
 
-    analysisHTML += '<div class="analysis-details" style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; font-size: 0.9rem;">';
+    analysisHTML += '<div class="analysis-details">';
 
     if (analysis.name) {
-        analysisHTML += `<p style="margin: 2px 0;"><strong>Coffee:</strong> ${analysis.name}</p>`;
+        analysisHTML += `<p><strong>Coffee:</strong> ${analysis.name}</p>`;
     }
     if (analysis.roaster) {
-        analysisHTML += `<p style="margin: 2px 0;"><strong>Roaster:</strong> ${analysis.roaster}</p>`;
+        analysisHTML += `<p><strong>Roaster:</strong> ${analysis.roaster}</p>`;
     }
     if (analysis.roast_level) {
-        analysisHTML += `<p style="margin: 2px 0;"><strong>Roast Level:</strong> ${analysis.roast_level}</p>`;
+        analysisHTML += `<p><strong>Roast Level:</strong> ${analysis.roast_level}</p>`;
     }
     if (analysis.origin) {
-        analysisHTML += `<p style="margin: 2px 0;"><strong>Origin:</strong> ${analysis.origin}</p>`;
+        analysisHTML += `<p><strong>Origin:</strong> ${analysis.origin}</p>`;
     }
     if (analysis.processing) {
-        analysisHTML += `<p style="margin: 2px 0;"><strong>Processing:</strong> ${analysis.processing}</p>`;
+        analysisHTML += `<p><strong>Processing:</strong> ${analysis.processing}</p>`;
     }
     if (analysis.flavor_notes && analysis.flavor_notes.length > 0) {
-        analysisHTML += `<p style="margin: 2px 0; grid-column: 1 / -1;"><strong>Flavor Notes:</strong> ${analysis.flavor_notes.join(', ')}</p>`;
+        analysisHTML += `<p><strong>Flavor Notes:</strong> ${analysis.flavor_notes.join(', ')}</p>`;
     }
 
     analysisHTML += '</div>';
@@ -813,10 +736,13 @@ function displayResults(data) {
         const imageUrl = getBrewMethodImage(technique.technique_name);
 
         techniquesHTML += `
-            <div class="technique-card" style="border: 2px solid var(--border-color); border-radius: 8px; padding: 20px; background: white; display: flex; flex-direction: column; justify-content: center;">
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
-                    <img src="${imageUrl}" alt="${technique.technique_name}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 6px; flex-shrink: 0;" loading="lazy" />
-                    <h4 style="margin: 0; font-size: 1rem;"><span style="color: var(--primary-color); font-weight: bold;">#${index + 1}</span> ${technique.technique_name}</h4>
+            <div class="technique-card" style="border: 2px solid ${technique.is_saved_recipe ? 'var(--success-color)' : 'var(--border-color)'}; border-radius: 8px; padding: 20px; background: ${technique.is_saved_recipe ? 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)' : 'white'}; display: flex; flex-direction: column; justify-content: center;">
+                <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; margin-bottom: 15px;">
+                    <div style="flex: 1;">
+                        <h4 style="margin: 0 0 5px 0; font-size: 1rem;">${technique.technique_name}</h4>
+                        ${technique.is_saved_recipe ? '<span style="display: inline-block; background: var(--success-color); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;">💾 YOUR SAVED RECIPE</span>' : ''}
+                    </div>
+                    <img src="${imageUrl}" alt="${technique.technique_name}" style="width: 80px; height: 60px; object-fit: cover; border-radius: 6px; flex-shrink: 0;" loading="lazy" />
                 </div>
                 <div id="active-indicator-${index}" class="hidden" style="margin-bottom: 10px; text-align: left; color: var(--primary-color); font-weight: bold; font-size: 0.9rem;">
                     ⭐ Currently Using This Recipe
@@ -893,12 +819,14 @@ function displayResults(data) {
                     </div>
 
                     ${technique.technique_notes ? `<div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 3px solid var(--accent-color); border-radius: 4px;">
-                        <div style="margin: 0; line-height: 1.6; color: var(--secondary-color); font-size: 0.9rem;">${formatPourInstruction(technique.technique_notes)}</div>
+                        <div style="margin: 0; line-height: 1.6; color: var(--secondary-color); font-size: 0.9rem;">${technique.technique_notes
+                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                            .replace(/\n\n/g, '</p><p style="margin: 10px 0;">')
+                            .replace(/^• (.*?)$/gm, '<li style="margin-left: 20px; margin-bottom: 0;">$1</li>')
+                            .replace(/(<li.*<\/li>)/s, '<ul style="margin: 0; padding-left: 0;">$1</ul>')
+                            .replace(/\n/g, '<br>')
+                        }</div>
                     </div>` : ''}
-
-                    <div style="text-align: center; margin-top: 10px;">
-                        <img src="${imageUrl}" alt="${technique.technique_name}" style="max-width: 100%; height: auto; border-radius: 8px;" loading="lazy" />
-                    </div>
                 </div>
             </div>
         `;
@@ -963,10 +891,6 @@ function resetApp() {
     state.imageFile = null;
     elements.fileInput.value = '';
     elements.previewImage.src = '';
-    // Hide the rating section when resetting
-    if (elements.ratingSection) {
-        elements.ratingSection.classList.add('hidden');
-    }
     showSection('upload');
 }
 
@@ -1145,6 +1069,50 @@ function updateBrewMethodDropdown() {
         option.value = method;
         option.textContent = method;
         dropdown.appendChild(option);
+    });
+
+    // Also update the alternative brew method dropdown
+    updateAltBrewMethodDropdown();
+}
+
+// Populate alternative brew method dropdown
+function updateAltBrewMethodDropdown() {
+    const altDropdown = document.getElementById('alt-brew-method');
+    if (!altDropdown) return;
+
+    const standardMethods = [
+        'V60 Pour Over',
+        'Espresso (Traditional)',
+        'Espresso Lungo',
+        'Turbo Shot Espresso',
+        'Latte',
+        'French Press',
+        'Aeropress',
+        'Chemex',
+        'Moka Pot'
+    ];
+
+    // Keep the "Choose Method" option
+    altDropdown.innerHTML = '<option value="">-- Choose Method --</option>';
+
+    const methods = [...standardMethods];
+
+    // Add custom brew methods from user's equipment
+    if (state.equipment && state.equipment.customBrewMethods && state.equipment.customBrewMethods.length > 0) {
+        state.equipment.customBrewMethods.forEach(method => {
+            methods.push(method);
+        });
+    }
+
+    // Remove duplicates and sort
+    const uniqueMethods = [...new Set(methods)].sort();
+
+    // Add options to dropdown
+    uniqueMethods.forEach(method => {
+        const option = document.createElement('option');
+        option.value = method;
+        option.textContent = method;
+        altDropdown.appendChild(option);
     });
 }
 
@@ -2040,6 +2008,18 @@ async function saveBrewSession(rating) {
 }
 
 async function saveAsPreferredRecipe() {
+    // Always save to localStorage as backup
+    saveRecipeToLocalStorage(
+        state.currentCoffeeAnalysis,
+        state.currentBrewMethod,
+        state.currentRecipe
+    );
+
+    // If authenticated, also save to database
+    if (!window.auth || !window.auth.isAuthenticated()) {
+        return;
+    }
+
     const supabase = window.getSupabase();
     const userId = window.auth.getUserId();
 
@@ -2102,90 +2082,6 @@ function createCoffeeHash(name, roaster, roastLevel, origin) {
     // Simple hash function - concatenate and create a simple hash
     const str = `${name || ''}_${roaster || ''}_${roastLevel || ''}_${origin || ''}`.toLowerCase();
     return str.replace(/\s+/g, '_');
-}
-
-// Fetch user's preferred recipes for similar coffees
-async function getUserPreferences(roastLevel, origin) {
-    if (!window.auth || !window.auth.isAuthenticated()) {
-        return null;
-    }
-
-    const supabase = window.getSupabase();
-    if (!supabase) return null;
-
-    const userId = window.auth.getUserId();
-    if (!userId) return null;
-
-    try {
-        // First, try to get the user's most recent brews to understand their preferences
-        const { data: recentBrews, error: brewError } = await supabase
-            .from('brew_sessions')
-            .select('brew_method, actual_brew, rating, roast_level, origin')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false })
-            .limit(10);
-
-        if (brewError) {
-            console.error('Error fetching recent brews:', brewError);
-            return null;
-        }
-
-        // Get saved recipes for similar coffees (same roast level or origin)
-        const { data: savedRecipes, error: recipeError } = await supabase
-            .from('saved_recipes')
-            .select('brew_method, recipe, coffee_name, roaster, times_brewed')
-            .eq('user_id', userId)
-            .order('times_brewed', { ascending: false })
-            .limit(5);
-
-        if (recipeError) {
-            console.error('Error fetching saved recipes:', recipeError);
-            return null;
-        }
-
-        // Build preference summary
-        const preferences = {
-            recentBrews: recentBrews || [],
-            savedRecipes: savedRecipes || [],
-            summary: ''
-        };
-
-        // Create a human-readable summary for the AI
-        if (recentBrews && recentBrews.length > 0) {
-            const methods = [...new Set(recentBrews.map(b => b.brew_method))];
-            const perfectBrews = recentBrews.filter(b => b.rating === 'perfect');
-
-            let summaryParts = [];
-            if (methods.length > 0) {
-                summaryParts.push(`User frequently brews with: ${methods.slice(0, 3).join(', ')}`);
-            }
-            if (perfectBrews.length > 0) {
-                const perfectMethods = [...new Set(perfectBrews.map(b => b.brew_method))];
-                summaryParts.push(`Methods rated perfect: ${perfectMethods.join(', ')}`);
-
-                // Include actual parameters from perfect brews
-                const lastPerfect = perfectBrews[0];
-                if (lastPerfect.actual_brew) {
-                    summaryParts.push(`Last successful brew parameters: ${JSON.stringify(lastPerfect.actual_brew)}`);
-                }
-            }
-            preferences.summary = summaryParts.join('. ');
-        }
-
-        if (savedRecipes && savedRecipes.length > 0) {
-            const topRecipe = savedRecipes[0];
-            if (preferences.summary) {
-                preferences.summary += `. Most used recipe: ${topRecipe.brew_method} (brewed ${topRecipe.times_brewed} times)`;
-            } else {
-                preferences.summary = `Most used recipe: ${topRecipe.brew_method} (brewed ${topRecipe.times_brewed} times)`;
-            }
-        }
-
-        return preferences.summary ? preferences : null;
-    } catch (error) {
-        console.error('Error fetching user preferences:', error);
-        return null;
-    }
 }
 
 // Rating Slider Functions
@@ -2589,11 +2485,6 @@ function showRecipeDetails(techniqueIndex, techniques) {
         recipeDetails.classList.remove('hidden');
     }
 
-    // Show the "How Did It Taste?" rating section
-    if (elements.ratingSection) {
-        elements.ratingSection.classList.remove('hidden');
-    }
-
     // Change button text to indicate recipe is shown
     const btn = document.querySelector(`.use-this-show-recipe-btn[data-technique-index="${techniqueIndex}"]`);
     if (btn) {
@@ -2644,11 +2535,6 @@ function showAdjustmentColumn(techniqueIndex) {
 
 // Save inline adjustments from the recipe table
 async function saveInlineAdjustments(technique, techniqueIndex) {
-    if (!window.auth || !window.auth.isAuthenticated()) {
-        showAuthModal();
-        return;
-    }
-
     const btn = document.querySelector(`.save-adjustments-btn[data-technique-index="${techniqueIndex}"]`);
     if (!btn) return;
 
@@ -2664,29 +2550,35 @@ async function saveInlineAdjustments(technique, techniqueIndex) {
             adjustedParams[param] = input.value;
         });
 
-        const supabase = window.getSupabase();
-        const userId = window.auth.getUserId();
+        // Save as preferred recipe (handles both localStorage and database)
+        await saveAsPreferredRecipeWithData(technique.technique_name, adjustedParams);
 
-        // Create brew session
-        const session = {
-            user_id: userId,
-            coffee_name: state.currentCoffeeAnalysis.name || 'Unknown',
-            roaster: state.currentCoffeeAnalysis.roaster || 'Unknown',
-            roast_level: state.currentCoffeeAnalysis.roast_level || 'Unknown',
-            origin: state.currentCoffeeAnalysis.origin || 'Unknown',
-            processing: state.currentCoffeeAnalysis.processing || 'Unknown',
-            flavor_notes: state.currentCoffeeAnalysis.flavor_notes || [],
-            brew_method: technique.technique_name,
-            original_recipe: technique.parameters,
-            actual_brew: adjustedParams,
-            rating: 'manual_adjustment'
-        };
+        // If authenticated, also save brew session
+        if (window.auth && window.auth.isAuthenticated()) {
+            const supabase = window.getSupabase();
+            const userId = window.auth.getUserId();
 
-        const { error } = await supabase
-            .from('brew_sessions')
-            .insert([session]);
+            // Create brew session
+            const session = {
+                user_id: userId,
+                coffee_name: state.currentCoffeeAnalysis.name || 'Unknown',
+                roaster: state.currentCoffeeAnalysis.roaster || 'Unknown',
+                roast_level: state.currentCoffeeAnalysis.roast_level || 'Unknown',
+                origin: state.currentCoffeeAnalysis.origin || 'Unknown',
+                processing: state.currentCoffeeAnalysis.processing || 'Unknown',
+                flavor_notes: state.currentCoffeeAnalysis.flavor_notes || [],
+                brew_method: technique.technique_name,
+                original_recipe: technique.parameters,
+                actual_brew: adjustedParams,
+                rating: 'manual_adjustment'
+            };
 
-        if (error) throw error;
+            const { error } = await supabase
+                .from('brew_sessions')
+                .insert([session]);
+
+            if (error) throw error;
+        }
 
         btn.textContent = '✓ Saved!';
         btn.style.backgroundColor = 'var(--success-color)';
@@ -2997,6 +2889,18 @@ async function saveAdjustedBrew() {
 
 // Helper function to save preferred recipe with specific data
 async function saveAsPreferredRecipeWithData(brewMethod, recipeData) {
+    // Always save to localStorage as backup
+    saveRecipeToLocalStorage(
+        state.currentCoffeeAnalysis,
+        brewMethod,
+        recipeData
+    );
+
+    // If authenticated, also save to database
+    if (!window.auth || !window.auth.isAuthenticated()) {
+        return;
+    }
+
     const supabase = window.getSupabase();
     const userId = window.auth.getUserId();
 
@@ -3052,6 +2956,172 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData) {
         console.log('Saved as preferred recipe');
     } catch (error) {
         console.error('Failed to save preferred recipe:', error);
+    }
+}
+
+// Retrieve saved recipes for a coffee
+async function getSavedRecipesForCoffee(coffeeAnalysis) {
+    const coffeeHash = createCoffeeHash(
+        coffeeAnalysis.name,
+        coffeeAnalysis.roaster,
+        coffeeAnalysis.roast_level,
+        coffeeAnalysis.origin
+    );
+
+    const savedRecipes = [];
+
+    // Try to get from Supabase if authenticated
+    if (window.auth && window.auth.isAuthenticated()) {
+        try {
+            const supabase = window.getSupabase();
+            const userId = window.auth.getUserId();
+
+            const { data, error } = await supabase
+                .from('saved_recipes')
+                .select('*')
+                .eq('user_id', userId)
+                .eq('coffee_hash', coffeeHash)
+                .order('times_brewed', { ascending: false });
+
+            if (!error && data) {
+                savedRecipes.push(...data);
+            }
+        } catch (error) {
+            console.error('Failed to fetch saved recipes from database:', error);
+        }
+    }
+
+    // Also check localStorage for saved recipes (fallback or for non-authenticated users)
+    try {
+        const localRecipes = localStorage.getItem('saved_recipes');
+        if (localRecipes) {
+            const recipes = JSON.parse(localRecipes);
+            const matchingRecipes = recipes.filter(r => r.coffee_hash === coffeeHash);
+            savedRecipes.push(...matchingRecipes);
+        }
+    } catch (error) {
+        console.error('Failed to fetch saved recipes from localStorage:', error);
+    }
+
+    return savedRecipes;
+}
+
+// Integrate saved recipes into AI recommendations
+async function integrateSavedRecipes(analysisData) {
+    if (!analysisData || !analysisData.coffee_analysis) {
+        return analysisData;
+    }
+
+    try {
+        const savedRecipes = await getSavedRecipesForCoffee(analysisData.coffee_analysis);
+
+        if (savedRecipes.length === 0) {
+            console.log('No saved recipes found for this coffee');
+            return analysisData;
+        }
+
+        console.log(`Found ${savedRecipes.length} saved recipe(s) for this coffee`);
+
+        // Get the recommended techniques from AI
+        const aiTechniques = analysisData.recommended_techniques || [];
+        const mergedTechniques = [];
+
+        // Create a map of AI techniques by brew method for easy lookup
+        const aiTechniqueMap = {};
+        aiTechniques.forEach(tech => {
+            aiTechniqueMap[tech.technique_name] = tech;
+        });
+
+        // Add saved recipes first (prioritized)
+        savedRecipes.forEach(saved => {
+            const brewMethod = saved.brew_method;
+            const savedRecipe = saved.recipe;
+
+            // Check if AI also recommended this method
+            const aiTechnique = aiTechniqueMap[brewMethod];
+
+            // Create a technique object based on saved recipe
+            const technique = {
+                technique_name: brewMethod,
+                reasoning: aiTechnique?.reasoning ||
+                    `You previously saved this recipe for this coffee (brewed ${saved.times_brewed || 1} time${saved.times_brewed > 1 ? 's' : ''}). Using your preferred parameters.`,
+                parameters: savedRecipe,
+                technique_notes: aiTechnique?.technique_notes || '',
+                is_saved_recipe: true // Flag to indicate this is a saved recipe
+            };
+
+            mergedTechniques.push(technique);
+
+            // Remove from AI map so we don't duplicate
+            delete aiTechniqueMap[brewMethod];
+        });
+
+        // Add remaining AI techniques that weren't in saved recipes
+        Object.values(aiTechniqueMap).forEach(tech => {
+            mergedTechniques.push({
+                ...tech,
+                is_saved_recipe: false
+            });
+        });
+
+        // Update the analysis data with merged techniques
+        analysisData.recommended_techniques = mergedTechniques;
+
+        console.log('Integrated saved recipes into recommendations:', mergedTechniques.length, 'total techniques');
+
+    } catch (error) {
+        console.error('Failed to integrate saved recipes:', error);
+        // Return original data if integration fails
+    }
+
+    return analysisData;
+}
+
+// Save recipe to localStorage for non-authenticated users
+function saveRecipeToLocalStorage(coffeeAnalysis, brewMethod, recipeData) {
+    try {
+        const coffeeHash = createCoffeeHash(
+            coffeeAnalysis.name,
+            coffeeAnalysis.roaster,
+            coffeeAnalysis.roast_level,
+            coffeeAnalysis.origin
+        );
+
+        let savedRecipes = [];
+        const existing = localStorage.getItem('saved_recipes');
+        if (existing) {
+            savedRecipes = JSON.parse(existing);
+        }
+
+        // Find if this recipe already exists
+        const existingIndex = savedRecipes.findIndex(
+            r => r.coffee_hash === coffeeHash && r.brew_method === brewMethod
+        );
+
+        const recipe = {
+            coffee_hash: coffeeHash,
+            coffee_name: coffeeAnalysis.name || 'Unknown',
+            roaster: coffeeAnalysis.roaster || 'Unknown',
+            brew_method: brewMethod,
+            recipe: recipeData,
+            times_brewed: 1,
+            last_brewed: new Date().toISOString()
+        };
+
+        if (existingIndex >= 0) {
+            // Update existing
+            savedRecipes[existingIndex].recipe = recipeData;
+            savedRecipes[existingIndex].times_brewed = (savedRecipes[existingIndex].times_brewed || 0) + 1;
+            savedRecipes[existingIndex].last_brewed = new Date().toISOString();
+        } else {
+            // Add new
+            savedRecipes.push(recipe);
+        }
+
+        localStorage.setItem('saved_recipes', JSON.stringify(savedRecipes));
+        console.log('Recipe saved to localStorage');
+    } catch (error) {
+        console.error('Failed to save recipe to localStorage:', error);
     }
 }
 
