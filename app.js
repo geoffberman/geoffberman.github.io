@@ -697,8 +697,8 @@ function displayResults(data) {
         `;
     }
 
-    // Show equipment upgrade suggestions if provided by AI
-    if (data.equipment_suggestions && data.equipment_suggestions.trim()) {
+    // Show equipment upgrade suggestions if provided by AI (but not if user has flow control)
+    if (data.equipment_suggestions && data.equipment_suggestions.trim() && !state.equipment?.flowControl) {
         analysisHTML += `
             <div style="background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%); border: 2px solid #2196F3; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
                 <p style="margin: 0 0 10px 0; color: #0D47A1; font-weight: bold;">
