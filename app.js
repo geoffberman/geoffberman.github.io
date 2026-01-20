@@ -735,7 +735,7 @@ function displayResults(data) {
         techniquesHTML += `
             <div class="technique-card" style="border: 2px solid var(--border-color); border-radius: 8px; padding: 20px; background: white; display: flex; flex-direction: column; justify-content: center;">
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 15px;">
-                    <h4 style="margin: 0; font-size: 1rem;"><span style="color: var(--primary-color); font-weight: bold;">#${index + 1}</span> ${technique.technique_name}</h4>
+                    <h4 style="margin: 0; font-size: 1rem;">${technique.technique_name}</h4>
                 </div>
                 <div id="active-indicator-${index}" class="hidden" style="margin-bottom: 10px; text-align: left; color: var(--primary-color); font-weight: bold; font-size: 0.9rem;">
                     ⭐ Currently Using This Recipe
