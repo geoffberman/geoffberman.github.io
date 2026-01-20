@@ -25,6 +25,7 @@ const elements = {
     previewImage: document.getElementById('preview-image'),
     removeImageBtn: document.getElementById('remove-image'),
 
+    brewMethodSelect: document.getElementById('brew-method-select'),
     analyzeBtn: document.getElementById('analyze-btn'),
 
     analysisContent: document.getElementById('analysis-content'),
@@ -80,9 +81,18 @@ const elements = {
     ratingSection: document.getElementById('rating-section'),
     tasteRating: document.getElementById('taste-rating'),
     ratingLabel: document.getElementById('rating-label'),
+    userFeedback: document.getElementById('user-feedback'),
+    submitFeedbackBtn: document.getElementById('submit-feedback-btn'),
     adjustRecipeBtn: document.getElementById('adjust-recipe-btn'),
     adjustmentFeedback: document.getElementById('adjustment-feedback'),
-    saveRecipeBtn: document.getElementById('save-recipe-btn')
+    saveRecipeBtn: document.getElementById('save-recipe-btn'),
+    perfectRecipeBtn: document.getElementById('perfect-recipe-btn'),
+
+    // Equipment validation elements
+    noGrinder: document.getElementById('no-grinder'),
+    otherEquipment: document.getElementById('other-equipment'),
+    equipmentRequiredOverlay: document.getElementById('equipment-required-overlay'),
+    goToEquipmentBtn: document.getElementById('go-to-equipment-btn')
 };
 
 // Initialize app
@@ -141,6 +151,9 @@ async function init() {
 
     // Update equipment button to show correct state
     updateEquipmentButton();
+
+    // Check if equipment meets requirements and show/hide overlay
+    updateEquipmentRequiredOverlay();
 }
 
 // Handle auth state changes
@@ -209,8 +222,21 @@ function setupEventListeners() {
         resetApp();
     });
 
+    // Brew method select - update button text
+    elements.brewMethodSelect.addEventListener('change', () => {
+        const selectedMethod = elements.brewMethodSelect.value;
+        if (selectedMethod) {
+            elements.analyzeBtn.textContent = 'Get Recipe';
+        } else {
+            elements.analyzeBtn.textContent = 'Make Recommendations';
+        }
+    });
+
     // Analyze button
-    elements.analyzeBtn.addEventListener('click', analyzeImage);
+    elements.analyzeBtn.addEventListener('click', () => {
+        const selectedMethod = elements.brewMethodSelect.value;
+        analyzeImage(selectedMethod || null);
+    });
 
     // Try again / Retry buttons
     elements.tryAgainBtn.addEventListener('click', resetApp);
@@ -244,6 +270,43 @@ function setupEventListeners() {
     // Clear equipment
     elements.clearEquipmentBtn.addEventListener('click', () => {
         clearEquipment();
+    });
+
+    // Custom brew method toggle
+    const otherBrewToggle = document.getElementById('other-brew-method-toggle');
+    const customBrewInput = document.getElementById('custom-brew-method-input');
+    const addCustomBrewBtn = document.getElementById('add-custom-brew-method');
+
+    otherBrewToggle.addEventListener('change', () => {
+        if (otherBrewToggle.checked) {
+            customBrewInput.classList.remove('hidden');
+            addCustomBrewBtn.classList.remove('hidden');
+            customBrewInput.focus();
+        } else {
+            customBrewInput.classList.add('hidden');
+            addCustomBrewBtn.classList.add('hidden');
+            customBrewInput.value = '';
+        }
+    });
+
+    // Add custom brew method
+    addCustomBrewBtn.addEventListener('click', () => {
+        const methodName = customBrewInput.value.trim();
+        if (methodName) {
+            addCustomBrewMethod(methodName);
+            customBrewInput.value = '';
+            otherBrewToggle.checked = false;
+            customBrewInput.classList.add('hidden');
+            addCustomBrewBtn.classList.add('hidden');
+        }
+    });
+
+    // Allow Enter key to add custom brew method
+    customBrewInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addCustomBrewBtn.click();
+        }
     });
 
     // Auth event listeners
@@ -330,6 +393,21 @@ function setupEventListeners() {
         }
     });
 
+    // User feedback textarea - show submit button when text is entered
+    elements.userFeedback.addEventListener('input', (e) => {
+        const hasText = e.target.value.trim().length > 0;
+        if (hasText) {
+            elements.submitFeedbackBtn.classList.remove('hidden');
+        } else {
+            elements.submitFeedbackBtn.classList.add('hidden');
+        }
+    });
+
+    // Submit feedback button (for standalone feedback without rating)
+    elements.submitFeedbackBtn.addEventListener('click', async () => {
+        await submitFeedbackOnly();
+    });
+
     // Adjust recipe button
     elements.adjustRecipeBtn.addEventListener('click', async () => {
         const rating = parseFloat(elements.tasteRating.value);
@@ -340,6 +418,31 @@ function setupEventListeners() {
     elements.saveRecipeBtn.addEventListener('click', async () => {
         const rating = parseFloat(elements.tasteRating.value);
         await saveBrewSession(rating);
+    });
+
+    // Perfect recipe button
+    elements.perfectRecipeBtn.addEventListener('click', async () => {
+        if (!state.currentCoffeeAnalysis || state.activeTechniqueIndex === undefined) {
+            console.error('No active technique to save');
+            return;
+        }
+        // Get the currently active technique from the displayed recommendations
+        const techniques = state.currentCoffeeAnalysis.recommended_techniques;
+        if (!techniques || !techniques[state.activeTechniqueIndex]) {
+            console.error('Active technique not found');
+            return;
+        }
+        const technique = techniques[state.activeTechniqueIndex];
+        await savePerfectRecipe(technique, state.activeTechniqueIndex);
+    });
+
+    // Go to equipment button (from equipment-required overlay)
+    elements.goToEquipmentBtn.addEventListener('click', () => {
+        // Hide the overlay
+        elements.equipmentRequiredOverlay.classList.add('hidden');
+        // Open equipment settings
+        elements.settingsSection.classList.remove('hidden');
+        showEquipmentForm();
     });
 }
 
@@ -406,6 +509,12 @@ async function getBase64Image(file) {
 async function analyzeImage(specificMethod = null) {
     if (!state.imageFile) {
         showError('Please upload an image first.');
+        return;
+    }
+
+    // Check if equipment is properly configured
+    if (!state.equipment || !hasEquipment()) {
+        showError('Please set up your equipment first before analyzing coffee. Click "Set Up Equipment" below to get started.');
         return;
     }
 
@@ -559,11 +668,40 @@ function displayResults(data) {
 
     // Save to state for rating adjustments
     state.currentCoffeeAnalysis = analysis;
+    state.currentCoffeeAnalysis.recommended_techniques = techniques; // Store techniques for later access
     state.currentBrewMethod = techniques[0]?.technique_name || 'Unknown';
     state.currentRecipe = data;
 
     // Coffee Analysis
-    let analysisHTML = '<div class="analysis-details">';
+    let analysisHTML = '';
+
+    // Check for poor equipment and show warning
+    const poorEquipmentWarning = checkForPoorEquipment();
+    if (poorEquipmentWarning) {
+        analysisHTML += `
+            <div style="background: linear-gradient(135deg, #FFE5E5 0%, #FFD4D4 100%); border: 2px solid #C74B50; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                <p style="margin: 0; color: #8B0000; font-weight: bold; font-size: 0.95rem;">
+                    ⚠️ ${poorEquipmentWarning}
+                </p>
+            </div>
+        `;
+    }
+
+    // Show equipment upgrade suggestions if provided by AI
+    if (data.equipment_suggestions && data.equipment_suggestions.trim()) {
+        analysisHTML += `
+            <div style="background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%); border: 2px solid #2196F3; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                <p style="margin: 0 0 10px 0; color: #0D47A1; font-weight: bold;">
+                    💡 Equipment Recommendations
+                </p>
+                <p style="margin: 0; color: #1565C0; font-size: 0.9rem; line-height: 1.5;">
+                    ${data.equipment_suggestions}
+                </p>
+            </div>
+        `;
+    }
+
+    analysisHTML += '<div class="analysis-details">';
 
     if (analysis.name) {
         analysisHTML += `<p><strong>Coffee:</strong> ${analysis.name}</p>`;
@@ -588,96 +726,136 @@ function displayResults(data) {
     elements.analysisContent.innerHTML = analysisHTML;
 
     // Brew Techniques with Tables
-    let techniquesHTML = '';
+    let techniquesHTML = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; align-items: center;">';
 
     techniques.forEach((technique, index) => {
         const params = technique.parameters;
         const imageUrl = getBrewMethodImage(technique.technique_name);
 
         techniquesHTML += `
-            <div class="technique-container">
-                <div class="technique-content">
-                    <div class="technique-header">
-                        <h4><span class="technique-number">#${index + 1}</span>${technique.technique_name}</h4>
-                    </div>
-
-                    <p style="margin-bottom: 15px; line-height: 1.6;">${technique.reasoning}</p>
-
-                    <table class="brew-parameters-table">
-                <thead>
-                    <tr>
-                        <th>Parameter</th>
-                        <th>Value</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Dose</td>
-                        <td>${params.dose}</td>
-                    </tr>
-                    <tr>
-                        <td>Yield</td>
-                        <td>${params.yield}</td>
-                    </tr>
-                    <tr>
-                        <td>Ratio</td>
-                        <td>${params.ratio}</td>
-                    </tr>
-                    <tr>
-                        <td>Water Temp</td>
-                        <td>${params.water_temp}</td>
-                    </tr>
-                    <tr>
-                        <td>Grind Size</td>
-                        <td>${params.grind_size}</td>
-                    </tr>
-                    <tr>
-                        <td>Brew Time</td>
-                        <td>${params.brew_time}</td>
-                    </tr>
-                    <tr>
-                        <td>Pressure</td>
-                        <td>${params.pressure}</td>
-                    </tr>
-                    <tr>
-                        <td>Flow Control</td>
-                        <td>${params.flow_control}</td>
-                    </tr>
-                </tbody>
-            </table>
-
-            ${technique.technique_notes ? `<div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 3px solid var(--accent-color); border-radius: 4px;">
-                <p style="margin: 0; line-height: 1.6; color: var(--secondary-color);">${technique.technique_notes}</p>
-            </div>` : ''}
-
-                    <div style="margin-top: 20px; text-align: center;">
-                        <button class="btn btn-primary perfect-recipe-btn" data-technique-index="${index}" style="background: #28a745; min-width: 200px;">
-                            ✓ Perfect As-Is
-                        </button>
-                    </div>
+            <div class="technique-card" style="border: 2px solid var(--border-color); border-radius: 8px; padding: 20px; background: white; display: flex; flex-direction: column; justify-content: center;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 15px;">
+                    <h4 style="margin: 0; font-size: 1rem;"><span style="color: var(--primary-color); font-weight: bold;">#${index + 1}</span> ${technique.technique_name}</h4>
+                </div>
+                <div id="active-indicator-${index}" class="hidden" style="margin-bottom: 10px; text-align: left; color: var(--primary-color); font-weight: bold; font-size: 0.9rem;">
+                    ⭐ Currently Using This Recipe
                 </div>
 
-                <div class="technique-image">
-                    <img src="${imageUrl}" alt="${technique.technique_name}" loading="lazy" />
+                <p style="margin-bottom: 15px; line-height: 1.5; font-size: 0.9rem; color: var(--secondary-color);">${technique.reasoning}</p>
+
+                <button class="btn btn-primary use-this-show-recipe-btn" data-technique-index="${index}" style="width: 100%; padding: 10px; font-size: 0.9rem;">
+                    📌 Use This and Show Recipe
+                </button>
+
+                <div id="recipe-details-${index}" class="hidden" style="margin-top: 20px;">
+                    <table class="brew-parameters-table" id="recipe-table-${index}">
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span>Value</span>
+                                    <button class="btn btn-secondary input-adjustments-btn" data-technique-index="${index}" style="padding: 4px 10px; font-size: 0.75rem; white-space: nowrap; margin-left: 10px;">
+                                        ✏️ Input Adjustments
+                                    </button>
+                                </th>
+                                <th class="adjustment-column hidden" style="width: 180px;">My Adjustments</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Dose</td>
+                                <td>${params.dose}</td>
+                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="dose" placeholder="Your dose" value="${params.dose}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                            </tr>
+                            <tr>
+                                <td>Yield</td>
+                                <td>${params.yield}</td>
+                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="yield" placeholder="Your yield" value="${params.yield}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                            </tr>
+                            <tr>
+                                <td>Ratio</td>
+                                <td>${params.ratio}</td>
+                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="ratio" placeholder="Your ratio" value="${params.ratio}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                            </tr>
+                            <tr>
+                                <td>Water Temp</td>
+                                <td>${params.water_temp}</td>
+                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="water_temp" placeholder="Your temp" value="${params.water_temp}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                            </tr>
+                            <tr>
+                                <td>Grind Size</td>
+                                <td>${params.grind_size}</td>
+                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="grind_size" placeholder="Your grind" value="${params.grind_size}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                            </tr>
+                            <tr>
+                                <td>Brew Time</td>
+                                <td>${params.brew_time}</td>
+                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="brew_time" placeholder="Your time" value="${params.brew_time}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                            </tr>
+                            <tr>
+                                <td>Pressure</td>
+                                <td>${params.pressure}</td>
+                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="pressure" placeholder="Your pressure" value="${params.pressure}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                            </tr>
+                            <tr>
+                                <td>Flow Control</td>
+                                <td>${params.flow_control}</td>
+                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="flow_control" placeholder="Your profile" value="${params.flow_control}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div id="save-adjustments-${index}" class="hidden" style="margin-top: 20px; text-align: center;">
+                        <button class="btn btn-primary save-adjustments-btn" data-technique-index="${index}" style="min-width: 200px;">
+                            💾 Save My Adjustments
+                        </button>
+                    </div>
+
+                    ${technique.technique_notes ? `<div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 3px solid var(--accent-color); border-radius: 4px;">
+                        <p style="margin: 0; line-height: 1.6; color: var(--secondary-color); font-size: 0.9rem;">${technique.technique_notes}</p>
+                    </div>` : ''}
+
+                    <div style="text-align: center; margin-top: 10px;">
+                        <img src="${imageUrl}" alt="${technique.technique_name}" style="max-width: 100%; height: auto; border-radius: 8px;" loading="lazy" />
+                    </div>
                 </div>
             </div>
         `;
     });
 
+    techniquesHTML += '</div>';
+
     elements.methodContent.innerHTML = techniquesHTML;
 
-    // Add event listeners for "Perfect As-Is" buttons
-    document.querySelectorAll('.perfect-recipe-btn').forEach(btn => {
+    // Track active technique (default to first one)
+    if (!state.activeTechniqueIndex && state.activeTechniqueIndex !== 0) {
+        state.activeTechniqueIndex = 0;
+    }
+
+    // Add event listeners for "Use This and Show Recipe" buttons
+    document.querySelectorAll('.use-this-show-recipe-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const techniqueIndex = parseInt(this.getAttribute('data-technique-index'));
+            showRecipeDetails(techniqueIndex, data.recommended_techniques);
+        });
+    });
+
+    // Add event listeners for "Input Adjustments" buttons
+    document.querySelectorAll('.input-adjustments-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const techniqueIndex = parseInt(this.getAttribute('data-technique-index'));
+            const technique = data.recommended_techniques[techniqueIndex];
+            setActiveTechnique(techniqueIndex, data.recommended_techniques);
+            showAdjustmentColumn(techniqueIndex);
+        });
+    });
+
+    // Add event listeners for "Save My Adjustments" buttons
+    document.querySelectorAll('.save-adjustments-btn').forEach(btn => {
         btn.addEventListener('click', async function() {
             const techniqueIndex = parseInt(this.getAttribute('data-technique-index'));
             const technique = data.recommended_techniques[techniqueIndex];
-
-            // Show the "How Did It Taste?" rating section
-            if (elements.ratingSection) {
-                elements.ratingSection.classList.remove('hidden');
-            }
-
-            await savePerfectRecipe(technique, techniqueIndex);
+            await saveInlineAdjustments(technique, techniqueIndex);
         });
     });
 
@@ -716,11 +894,17 @@ async function saveEquipment() {
     const equipment = {
         espressoMachine: document.getElementById('espresso-machine').value.trim(),
         flowControl: document.getElementById('flow-control').checked,
-        grinder: document.getElementById('grinder').value.trim(),
         pourOver: Array.from(document.querySelectorAll('input[name="pour-over"]:checked')).map(cb => cb.value),
+        podMachines: Array.from(document.querySelectorAll('input[name="pod-machines"]:checked')).map(cb => cb.value),
+        grinder: document.getElementById('grinder').value.trim(),
+        noGrinder: document.getElementById('no-grinder').checked,
         otherMethods: Array.from(document.querySelectorAll('input[name="other-methods"]:checked')).map(cb => cb.value),
+        customBrewMethods: Array.from(document.querySelectorAll('input[name="custom-brew-methods"]:checked')).map(cb => cb.value),
+        otherEquipment: document.getElementById('other-equipment').value.trim(),
         additionalEquipment: document.getElementById('additional-equipment').value.trim()
     };
+
+    console.log('Saving equipment with customBrewMethods:', equipment.customBrewMethods);
 
     // Save to localStorage (always, as backup)
     try {
@@ -743,6 +927,8 @@ async function saveEquipment() {
             saveBtn.style.backgroundColor = '';
             showEquipmentSummary();
             updateEquipmentButton();
+            updateEquipmentRequiredOverlay();
+            updateBrewMethodDropdown();
         }, 1500);
     } catch (e) {
         console.error('Failed to save equipment:', e);
@@ -764,8 +950,11 @@ function loadEquipment() {
             const actuallyHasEquipment = !!(
                 (equipment.espressoMachine && equipment.espressoMachine.trim()) ||
                 (equipment.grinder && equipment.grinder.trim()) ||
+                equipment.noGrinder ||
                 (equipment.pourOver && equipment.pourOver.length > 0) ||
+                (equipment.podMachines && equipment.podMachines.length > 0) ||
                 (equipment.otherMethods && equipment.otherMethods.length > 0) ||
+                (equipment.otherEquipment && equipment.otherEquipment.trim()) ||
                 (equipment.additionalEquipment && equipment.additionalEquipment.trim())
             );
 
@@ -786,6 +975,12 @@ function loadEquipment() {
                 if (equipment.grinder) {
                     document.getElementById('grinder').value = equipment.grinder;
                 }
+                if (equipment.noGrinder) {
+                    document.getElementById('no-grinder').checked = true;
+                }
+                if (equipment.otherEquipment) {
+                    document.getElementById('other-equipment').value = equipment.otherEquipment;
+                }
                 if (equipment.additionalEquipment) {
                     document.getElementById('additional-equipment').value = equipment.additionalEquipment;
                 }
@@ -796,10 +991,20 @@ function loadEquipment() {
                     if (checkbox) checkbox.checked = true;
                 });
 
+                equipment.podMachines?.forEach(value => {
+                    const checkbox = document.querySelector(`input[name="pod-machines"][value="${value}"]`);
+                    if (checkbox) checkbox.checked = true;
+                });
+
                 equipment.otherMethods?.forEach(value => {
                     const checkbox = document.querySelector(`input[name="other-methods"][value="${value}"]`);
                     if (checkbox) checkbox.checked = true;
                 });
+
+                // Render and check custom brew methods
+                if (equipment.customBrewMethods && equipment.customBrewMethods.length > 0) {
+                    renderCustomBrewMethods(equipment.customBrewMethods);
+                }
 
                 // Show summary view if equipment is loaded
                 showEquipmentSummary();
@@ -816,12 +1021,62 @@ function loadEquipment() {
 
     // Update the equipment button text
     updateEquipmentButton();
+
+    // Update brew method dropdown
+    updateBrewMethodDropdown();
+}
+
+// Populate brew method dropdown with standard options + user's custom equipment
+function updateBrewMethodDropdown() {
+    const dropdown = document.getElementById('brew-method-select');
+    if (!dropdown) return;
+
+    // Start with all standard brewing methods (same as before)
+    const standardMethods = [
+        'Espresso',
+        'V60 Pour Over',
+        'Chemex',
+        'French Press',
+        'Aeropress',
+        'Moka Pot',
+        'Cold Brew',
+        'Kalita Wave'
+    ];
+
+    // Keep the "Search All Methods" option
+    dropdown.innerHTML = '<option value="">Search All Methods</option>';
+
+    const methods = [...standardMethods];
+
+    // Add custom brew methods from user's equipment
+    if (state.equipment && state.equipment.customBrewMethods && state.equipment.customBrewMethods.length > 0) {
+        state.equipment.customBrewMethods.forEach(method => {
+            methods.push(method);
+        });
+    }
+
+    // Remove duplicates and sort
+    const uniqueMethods = [...new Set(methods)].sort();
+
+    // Add options to dropdown
+    uniqueMethods.forEach(method => {
+        const option = document.createElement('option');
+        option.value = method;
+        option.textContent = method;
+        dropdown.appendChild(option);
+    });
 }
 
 function clearEquipment() {
     if (confirm('Are you sure you want to clear all equipment preferences?')) {
         // Clear form
         document.getElementById('equipment-form').reset();
+
+        // Clear custom brew methods display
+        const customMethodsContainer = document.getElementById('custom-brew-methods');
+        if (customMethodsContainer) {
+            customMethodsContainer.innerHTML = '';
+        }
 
         // Clear localStorage
         localStorage.removeItem('coffee_equipment');
@@ -835,7 +1090,96 @@ function clearEquipment() {
         setTimeout(() => {
             clearBtn.textContent = originalText;
             updateEquipmentButton();
+            updateBrewMethodDropdown();
         }, 1500);
+    }
+}
+
+// Add a custom brew method
+function addCustomBrewMethod(methodName) {
+    // Get current custom methods from localStorage or initialize empty array
+    const savedEquipment = localStorage.getItem('coffee_equipment');
+    const equipment = savedEquipment ? JSON.parse(savedEquipment) : {};
+
+    if (!equipment.customBrewMethods) {
+        equipment.customBrewMethods = [];
+    }
+
+    // Check if method already exists
+    if (equipment.customBrewMethods.includes(methodName)) {
+        alert('This brew method already exists!');
+        return;
+    }
+
+    // Add the new method
+    equipment.customBrewMethods.push(methodName);
+
+    // Save to localStorage
+    localStorage.setItem('coffee_equipment', JSON.stringify(equipment));
+    state.equipment = equipment;
+
+    // Render the updated list
+    renderCustomBrewMethods(equipment.customBrewMethods);
+
+    // Update brew method dropdown
+    updateBrewMethodDropdown();
+
+    console.log('Added custom brew method:', methodName);
+}
+
+// Render custom brew methods as checkboxes
+function renderCustomBrewMethods(customMethods) {
+    const container = document.getElementById('custom-brew-methods');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    customMethods.forEach(method => {
+        const label = document.createElement('label');
+        label.className = 'checkbox-label';
+        label.style.display = 'flex';
+        label.style.alignItems = 'center';
+        label.style.gap = '8px';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.name = 'custom-brew-methods';
+        checkbox.value = method;
+        checkbox.checked = true; // Auto-check newly added methods
+
+        const text = document.createTextNode(method);
+
+        // Add a small remove button
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.textContent = '×';
+        removeBtn.style.cssText = 'margin-left: auto; padding: 2px 6px; font-size: 1.2rem; color: #C74B50; background: none; border: 1px solid #C74B50; border-radius: 3px; cursor: pointer; line-height: 1;';
+        removeBtn.title = 'Remove this method';
+        removeBtn.onclick = () => removeCustomBrewMethod(method);
+
+        label.appendChild(checkbox);
+        label.appendChild(text);
+        label.appendChild(removeBtn);
+        container.appendChild(label);
+    });
+}
+
+// Remove a custom brew method
+function removeCustomBrewMethod(methodName) {
+    if (!confirm(`Remove "${methodName}" from your brew methods?`)) {
+        return;
+    }
+
+    const savedEquipment = localStorage.getItem('coffee_equipment');
+    const equipment = savedEquipment ? JSON.parse(savedEquipment) : {};
+
+    if (equipment.customBrewMethods) {
+        equipment.customBrewMethods = equipment.customBrewMethods.filter(m => m !== methodName);
+        localStorage.setItem('coffee_equipment', JSON.stringify(equipment));
+        state.equipment = equipment;
+        renderCustomBrewMethods(equipment.customBrewMethods);
+        updateBrewMethodDropdown();
+        console.log('Removed custom brew method:', methodName);
     }
 }
 
@@ -852,12 +1196,26 @@ function getEquipmentDescription() {
         parts.push(`Pour Over: ${state.equipment.pourOver.join(', ')}`);
     }
 
+    if (state.equipment.podMachines && state.equipment.podMachines.length > 0) {
+        parts.push(`Pod/Capsule Machines: ${state.equipment.podMachines.join(', ')}`);
+    }
+
     if (state.equipment.grinder) {
         parts.push(`Grinder: ${state.equipment.grinder}`);
+    } else if (state.equipment.noGrinder) {
+        parts.push(`Grinder: Pre-ground coffee (no grinder)`);
     }
 
     if (state.equipment.otherMethods && state.equipment.otherMethods.length > 0) {
         parts.push(`Other Methods: ${state.equipment.otherMethods.join(', ')}`);
+    }
+
+    if (state.equipment.customBrewMethods && state.equipment.customBrewMethods.length > 0) {
+        parts.push(`Custom Methods: ${state.equipment.customBrewMethods.join(', ')}`);
+    }
+
+    if (state.equipment.otherEquipment) {
+        parts.push(`Other Equipment: ${state.equipment.otherEquipment}`);
     }
 
     if (state.equipment.additionalEquipment) {
@@ -865,6 +1223,17 @@ function getEquipmentDescription() {
     }
 
     return parts.length > 0 ? parts.join('; ') : null;
+}
+
+function checkForPoorEquipment() {
+    if (!state.equipment) return null;
+
+    // Check if any pod machines are selected
+    if (state.equipment.podMachines && state.equipment.podMachines.length > 0) {
+        return 'Warning: Not an ideal brewing setup for specialty coffee. Consider upgrading to manual brewing methods for better results!';
+    }
+
+    return null;
 }
 
 function updateEquipmentDisplay() {
@@ -886,16 +1255,26 @@ function hasEquipment() {
         return false;
     }
 
-    const hasAny = !!(
+    // Check if at least one brewing method is specified
+    const hasBrewingMethod = !!(
         (state.equipment.espressoMachine && state.equipment.espressoMachine.trim()) ||
-        (state.equipment.grinder && state.equipment.grinder.trim()) ||
         (state.equipment.pourOver && state.equipment.pourOver.length > 0) ||
+        (state.equipment.podMachines && state.equipment.podMachines.length > 0) ||
         (state.equipment.otherMethods && state.equipment.otherMethods.length > 0) ||
-        (state.equipment.additionalEquipment && state.equipment.additionalEquipment.trim())
+        (state.equipment.customBrewMethods && state.equipment.customBrewMethods.length > 0) ||
+        (state.equipment.otherEquipment && state.equipment.otherEquipment.trim())
     );
 
-    console.log('hasEquipment check:', hasAny, 'Equipment:', state.equipment);
-    return hasAny;
+    // Check if grinder requirement is met (either has grinder OR no-grinder checkbox is checked)
+    const hasGrinderOrNoGrinder = !!(
+        (state.equipment.grinder && state.equipment.grinder.trim()) ||
+        state.equipment.noGrinder
+    );
+
+    console.log('hasEquipment check - brewing method:', hasBrewingMethod, 'grinder/no-grinder:', hasGrinderOrNoGrinder);
+    console.log('Equipment:', state.equipment);
+
+    return hasBrewingMethod && hasGrinderOrNoGrinder;
 }
 
 function showEquipmentSummary() {
@@ -904,6 +1283,18 @@ function showEquipmentSummary() {
     elements.equipmentFormContainer.classList.add('hidden');
 
     let summaryHTML = '';
+
+    // Check for poor equipment and show warning at the top
+    const poorEquipmentWarning = checkForPoorEquipment();
+    if (poorEquipmentWarning) {
+        summaryHTML += `
+            <div style="background: linear-gradient(135deg, #FFE5E5 0%, #FFD4D4 100%); border: 2px solid #C74B50; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                <p style="margin: 0; color: #8B0000; font-weight: bold; font-size: 0.9rem;">
+                    ⚠️ ${poorEquipmentWarning}
+                </p>
+            </div>
+        `;
+    }
 
     // Safety check
     if (!state.equipment) {
@@ -930,6 +1321,15 @@ function showEquipmentSummary() {
         `;
     }
 
+    if (state.equipment.podMachines && state.equipment.podMachines.length > 0) {
+        summaryHTML += `
+            <div class="equipment-summary-item">
+                <strong>Pod/Capsule Machines</strong>
+                <span>${state.equipment.podMachines.join(', ')}</span>
+            </div>
+        `;
+    }
+
     if (state.equipment.grinder) {
         summaryHTML += `
             <div class="equipment-summary-item">
@@ -937,13 +1337,42 @@ function showEquipmentSummary() {
                 <span>${state.equipment.grinder}</span>
             </div>
         `;
+    } else if (state.equipment.noGrinder) {
+        summaryHTML += `
+            <div class="equipment-summary-item">
+                <strong>Grinder</strong>
+                <span>Using pre-ground coffee</span>
+            </div>
+        `;
     }
 
     if (state.equipment.otherMethods && state.equipment.otherMethods.length > 0) {
+        const allOtherMethods = [...state.equipment.otherMethods];
+        if (state.equipment.customBrewMethods && state.equipment.customBrewMethods.length > 0) {
+            allOtherMethods.push(...state.equipment.customBrewMethods);
+        }
+        console.log('Displaying Other Brewing Methods:', allOtherMethods);
         summaryHTML += `
             <div class="equipment-summary-item">
                 <strong>Other Brewing Methods</strong>
-                <span>${state.equipment.otherMethods.join(', ')}</span>
+                <span>${allOtherMethods.join(', ')}</span>
+            </div>
+        `;
+    } else if (state.equipment.customBrewMethods && state.equipment.customBrewMethods.length > 0) {
+        console.log('Displaying Custom Brewing Methods only:', state.equipment.customBrewMethods);
+        summaryHTML += `
+            <div class="equipment-summary-item">
+                <strong>Other Brewing Methods</strong>
+                <span>${state.equipment.customBrewMethods.join(', ')}</span>
+            </div>
+        `;
+    }
+
+    if (state.equipment.otherEquipment) {
+        summaryHTML += `
+            <div class="equipment-summary-item">
+                <strong>Other Brewing Equipment</strong>
+                <span>${state.equipment.otherEquipment}</span>
             </div>
         `;
     }
@@ -951,7 +1380,7 @@ function showEquipmentSummary() {
     if (state.equipment.additionalEquipment) {
         summaryHTML += `
             <div class="equipment-summary-item">
-                <strong>Additional Equipment</strong>
+                <strong>Additional Notes</strong>
                 <span>${state.equipment.additionalEquipment}</span>
             </div>
         `;
@@ -987,6 +1416,16 @@ function updateEquipmentButton() {
     } else {
         console.log('Setting button to "Set Up Equipment ⚠️"');
         elements.settingsToggleBtn.innerHTML = svgHTML + ' Set Up Equipment ⚠️';
+    }
+}
+
+function updateEquipmentRequiredOverlay() {
+    const hasRequiredEquipment = state.equipment && hasEquipment();
+
+    if (hasRequiredEquipment) {
+        elements.equipmentRequiredOverlay.classList.add('hidden');
+    } else {
+        elements.equipmentRequiredOverlay.classList.remove('hidden');
     }
 }
 
@@ -1098,17 +1537,25 @@ async function handleAuthSubmit() {
 
 async function handleLogout() {
     try {
+        if (!window.auth) {
+            throw new Error('Auth not initialized');
+        }
+
         await window.auth.signOut();
         hideUserProfile();
+        showSignInButton();
 
         // Clear state but keep localStorage as backup
         state.equipment = null;
 
-        // Optionally show auth modal again
-        showAuthModal();
+        // Reload equipment from localStorage for demo mode
+        loadEquipment();
+        updateEquipmentDisplay();
+
+        console.log('Logged out successfully');
     } catch (error) {
         console.error('Logout error:', error);
-        showError('Failed to log out');
+        alert('Failed to log out: ' + error.message);
     }
 }
 
@@ -1300,9 +1747,13 @@ async function loadEquipmentFromDatabase() {
             state.equipment = {
                 espressoMachine: data.espresso_machine || '',
                 flowControl: data.flow_control || false,
-                grinder: data.grinder || '',
                 pourOver: data.pour_over || [],
+                podMachines: data.pod_machines || [],
+                grinder: data.grinder || '',
+                noGrinder: data.no_grinder || false,
                 otherMethods: data.other_methods || [],
+                customBrewMethods: data.custom_brew_methods || [],
+                otherEquipment: data.other_equipment || '',
                 additionalEquipment: data.additional_equipment || ''
             };
 
@@ -1316,6 +1767,12 @@ async function loadEquipmentFromDatabase() {
             if (state.equipment.grinder) {
                 document.getElementById('grinder').value = state.equipment.grinder;
             }
+            if (state.equipment.noGrinder) {
+                document.getElementById('no-grinder').checked = true;
+            }
+            if (state.equipment.otherEquipment) {
+                document.getElementById('other-equipment').value = state.equipment.otherEquipment;
+            }
             if (state.equipment.additionalEquipment) {
                 document.getElementById('additional-equipment').value = state.equipment.additionalEquipment;
             }
@@ -1326,10 +1783,20 @@ async function loadEquipmentFromDatabase() {
                 if (checkbox) checkbox.checked = true;
             });
 
+            state.equipment.podMachines.forEach(value => {
+                const checkbox = document.querySelector(`input[name="pod-machines"][value="${value}"]`);
+                if (checkbox) checkbox.checked = true;
+            });
+
             state.equipment.otherMethods.forEach(value => {
                 const checkbox = document.querySelector(`input[name="other-methods"][value="${value}"]`);
                 if (checkbox) checkbox.checked = true;
             });
+
+            // Render and check custom brew methods
+            if (state.equipment.customBrewMethods && state.equipment.customBrewMethods.length > 0) {
+                renderCustomBrewMethods(state.equipment.customBrewMethods);
+            }
 
             // Show summary
             showEquipmentSummary();
@@ -1341,6 +1808,9 @@ async function loadEquipmentFromDatabase() {
 
     // Update the equipment button text
     updateEquipmentButton();
+
+    // Update brew method dropdown
+    updateBrewMethodDropdown();
 }
 
 async function saveEquipmentToDatabase(equipment) {
@@ -1356,9 +1826,13 @@ async function saveEquipmentToDatabase(equipment) {
             user_id: userId,
             espresso_machine: equipment.espressoMachine,
             flow_control: equipment.flowControl,
-            grinder: equipment.grinder,
             pour_over: equipment.pourOver,
+            pod_machines: equipment.podMachines,
+            grinder: equipment.grinder,
+            no_grinder: equipment.noGrinder,
             other_methods: equipment.otherMethods,
+            custom_brew_methods: equipment.customBrewMethods || [],
+            other_equipment: equipment.otherEquipment,
             additional_equipment: equipment.additionalEquipment,
             updated_at: new Date().toISOString()
         };
@@ -1577,6 +2051,67 @@ function updateRatingLabel(value) {
     elements.ratingLabel.textContent = label;
 }
 
+async function submitFeedbackOnly() {
+    const userFeedback = elements.userFeedback.value.trim();
+
+    if (!userFeedback) {
+        return;
+    }
+
+    if (!state.currentCoffeeAnalysis || !state.currentBrewMethod) {
+        console.error('No current coffee analysis or brew method available');
+        return;
+    }
+
+    // Show loading state
+    elements.submitFeedbackBtn.disabled = true;
+    elements.submitFeedbackBtn.textContent = '...';
+
+    try {
+        const equipmentDescription = getEquipmentDescription();
+
+        const response = await fetch('/api/analyze', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                equipment: equipmentDescription,
+                adjustmentRequest: `User feedback: ${userFeedback}`,
+                previousAnalysis: state.currentCoffeeAnalysis
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`API request failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Display AI response
+        const responseText = data.content?.[0]?.text || 'Thank you for your feedback!';
+
+        elements.adjustmentFeedback.classList.remove('hidden');
+        elements.adjustmentFeedback.querySelector('p').innerHTML = responseText.replace(/\n/g, '<br>');
+
+        // Reset button
+        elements.submitFeedbackBtn.textContent = '💬 Submit Feedback';
+        elements.submitFeedbackBtn.disabled = false;
+
+        // Clear feedback textarea
+        elements.userFeedback.value = '';
+        elements.submitFeedbackBtn.classList.add('hidden');
+
+    } catch (error) {
+        console.error('Failed to submit feedback:', error);
+        elements.adjustmentFeedback.classList.remove('hidden');
+        elements.adjustmentFeedback.querySelector('p').textContent = 'Failed to submit feedback. Please try again.';
+
+        elements.submitFeedbackBtn.textContent = '💬 Submit Feedback';
+        elements.submitFeedbackBtn.disabled = false;
+    }
+}
+
 async function adjustRecipeBasedOnRating(rating) {
     if (!state.currentCoffeeAnalysis || !state.currentBrewMethod) {
         console.error('No current coffee analysis or brew method available');
@@ -1588,6 +2123,9 @@ async function adjustRecipeBasedOnRating(rating) {
     elements.adjustRecipeBtn.textContent = 'Adjusting Recipe...';
 
     try {
+        // Get user feedback
+        const userFeedback = elements.userFeedback.value.trim();
+
         // Prepare adjustment guidance based on rating
         let adjustmentGuidance = '';
         if (rating < 0) {
@@ -1612,6 +2150,11 @@ async function adjustRecipeBasedOnRating(rating) {
             elements.adjustRecipeBtn.textContent = 'Adjust Recipe Based on Rating';
             elements.adjustRecipeBtn.disabled = false;
             return;
+        }
+
+        // Add user feedback if provided
+        if (userFeedback) {
+            adjustmentGuidance += `\n\n⚠️ IMPORTANT USER FEEDBACK/CORRECTIONS:\n${userFeedback}\n\nPay special attention to this feedback. If the user is correcting information (like roast level, grinder settings, or taste notes), acknowledge and use the corrected information in your response.`;
         }
 
         // Make API call to get adjusted recipe
@@ -1747,15 +2290,14 @@ async function adjustRecipeBasedOnRating(rating) {
 
             <h4 style="margin-top: 20px; margin-bottom: 15px;">Adjusted Recipe Parameters</h4>
             <p style="margin-bottom: 15px; color: var(--secondary-color); font-size: 0.9rem;">
-                Review the adjusted parameters below. You can edit any value or check "✓" to use it as-is.
+                Review the adjusted parameters below and edit any values to match what you actually used.
             </p>
             <table class="brew-parameters-table editable-parameters">
                 <thead>
                     <tr>
                         <th>Parameter</th>
-                        <th>Adjusted Value</th>
-                        <th style="width: 180px;">Your Actual Value</th>
-                        <th style="width: 60px; text-align: center;">✓</th>
+                        <th>Adjusted Recommendation</th>
+                        <th style="width: 180px;">My Adjustments</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1763,49 +2305,41 @@ async function adjustRecipeBasedOnRating(rating) {
                         <td>Dose</td>
                         <td>${params.dose}</td>
                         <td><input type="text" class="param-input" data-param="dose" placeholder="Your dose" value="${params.dose}"></td>
-                        <td style="text-align: center;"><input type="checkbox" class="param-perfect" data-param="dose" checked></td>
                     </tr>
                     <tr>
                         <td>Yield</td>
                         <td>${params.yield}</td>
                         <td><input type="text" class="param-input" data-param="yield" placeholder="Your yield" value="${params.yield}"></td>
-                        <td style="text-align: center;"><input type="checkbox" class="param-perfect" data-param="yield" checked></td>
                     </tr>
                     <tr>
                         <td>Ratio</td>
                         <td>${params.ratio}</td>
                         <td><input type="text" class="param-input" data-param="ratio" placeholder="Your ratio" value="${params.ratio}"></td>
-                        <td style="text-align: center;"><input type="checkbox" class="param-perfect" data-param="ratio" checked></td>
                     </tr>
                     <tr>
                         <td>Water Temp</td>
                         <td>${params.water_temp}</td>
                         <td><input type="text" class="param-input" data-param="water_temp" placeholder="Your temp" value="${params.water_temp}"></td>
-                        <td style="text-align: center;"><input type="checkbox" class="param-perfect" data-param="water_temp" checked></td>
                     </tr>
                     <tr>
                         <td>Grind Size</td>
                         <td>${params.grind_size}</td>
                         <td><input type="text" class="param-input" data-param="grind_size" placeholder="Your grind" value="${params.grind_size}"></td>
-                        <td style="text-align: center;"><input type="checkbox" class="param-perfect" data-param="grind_size" checked></td>
                     </tr>
                     <tr>
                         <td>Brew Time</td>
                         <td>${params.brew_time}</td>
                         <td><input type="text" class="param-input" data-param="brew_time" placeholder="Your time" value="${params.brew_time}"></td>
-                        <td style="text-align: center;"><input type="checkbox" class="param-perfect" data-param="brew_time" checked></td>
                     </tr>
                     <tr>
                         <td>Pressure</td>
                         <td>${params.pressure}</td>
                         <td><input type="text" class="param-input" data-param="pressure" placeholder="Your pressure" value="${params.pressure}"></td>
-                        <td style="text-align: center;"><input type="checkbox" class="param-perfect" data-param="pressure" checked></td>
                     </tr>
                     <tr>
                         <td>Flow Control</td>
                         <td>${params.flow_control}</td>
                         <td><input type="text" class="param-input" data-param="flow_control" placeholder="Your profile" value="${params.flow_control}"></td>
-                        <td style="text-align: center;"><input type="checkbox" class="param-perfect" data-param="flow_control" checked></td>
                     </tr>
                 </tbody>
             </table>
@@ -1856,46 +2390,304 @@ async function adjustRecipeBasedOnRating(rating) {
     }
 }
 
-// Setup event listeners for adjusted recipe inputs and checkboxes
+// Setup event listeners for adjusted recipe inputs
 function setupAdjustedRecipeListeners() {
-    // Handle checkbox changes - when unchecked, enable input; when checked, disable and reset to suggested value
-    document.querySelectorAll('.param-perfect').forEach(checkbox => {
-        const param = checkbox.getAttribute('data-param');
-        const input = document.querySelector(`.param-input[data-param="${param}"]`);
+    // Inputs are always editable, no checkbox logic needed
+    document.querySelectorAll('.param-input').forEach(input => {
+        input.disabled = false;
+        input.style.opacity = '1';
+    });
+}
 
-        checkbox.addEventListener('change', function() {
-            if (this.checked) {
-                input.disabled = true;
-                input.style.opacity = '0.6';
-                // Reset to suggested value
-                const suggestedValue = state.adjustedRecipeData?.adjusted_parameters?.[param] || '';
-                input.value = suggestedValue;
-            } else {
-                input.disabled = false;
-                input.style.opacity = '1';
-                input.focus();
-            }
-        });
+// Set which technique is actively being used
+function setActiveTechnique(techniqueIndex, techniques) {
+    state.activeTechniqueIndex = techniqueIndex;
+    state.currentBrewMethod = techniques[techniqueIndex].technique_name;
 
-        // Initialize state
-        if (checkbox.checked) {
-            input.disabled = true;
-            input.style.opacity = '0.6';
+    // Update visual indicators
+    document.querySelectorAll('[id^="active-indicator-"]').forEach(indicator => {
+        indicator.classList.add('hidden');
+    });
+    document.getElementById(`active-indicator-${techniqueIndex}`)?.classList.remove('hidden');
+
+    console.log('Active technique set to:', state.currentBrewMethod);
+}
+
+// Show recipe details when "Use This and Show Recipe" is clicked
+function showRecipeDetails(techniqueIndex, techniques) {
+    // Set this as the active technique
+    setActiveTechnique(techniqueIndex, techniques);
+
+    // Show the recipe details for this technique
+    const recipeDetails = document.getElementById(`recipe-details-${techniqueIndex}`);
+    if (recipeDetails) {
+        recipeDetails.classList.remove('hidden');
+    }
+
+    // Show the "How Did It Taste?" rating section
+    if (elements.ratingSection) {
+        elements.ratingSection.classList.remove('hidden');
+    }
+
+    // Change button text to indicate recipe is shown
+    const btn = document.querySelector(`.use-this-show-recipe-btn[data-technique-index="${techniqueIndex}"]`);
+    if (btn) {
+        btn.textContent = '✓ Using This Recipe';
+        btn.disabled = true;
+        btn.style.backgroundColor = '#28a745';
+    }
+
+    // Hide all other technique cards and change grid to single column
+    const allCards = document.querySelectorAll('.technique-card');
+    allCards.forEach((card, index) => {
+        if (index !== techniqueIndex) {
+            card.style.display = 'none';
         }
     });
 
-    // Handle input changes - uncheck the checkbox when user types
-    document.querySelectorAll('.param-input').forEach(input => {
-        input.addEventListener('input', function() {
-            const param = this.getAttribute('data-param');
-            const checkbox = document.querySelector(`.param-perfect[data-param="${param}"]`);
-            if (checkbox && checkbox.checked) {
-                checkbox.checked = false;
-                this.disabled = false;
-                this.style.opacity = '1';
-            }
-        });
+    // Change the grid container to full width
+    const gridContainer = elements.methodContent.querySelector('div[style*="grid"]');
+    if (gridContainer) {
+        gridContainer.style.gridTemplateColumns = '1fr';
+    }
+}
+
+// Show adjustment column in the existing recipe table
+function showAdjustmentColumn(techniqueIndex) {
+    // Find the table for this technique
+    const table = document.getElementById(`recipe-table-${techniqueIndex}`);
+    if (!table) return;
+
+    // Show all adjustment columns
+    const adjustmentColumns = table.querySelectorAll('.adjustment-column');
+    adjustmentColumns.forEach(col => {
+        col.classList.remove('hidden');
     });
+
+    // Show the save button
+    const saveBtn = document.getElementById(`save-adjustments-${techniqueIndex}`);
+    if (saveBtn) {
+        saveBtn.classList.remove('hidden');
+    }
+
+    // Hide the "Input Adjustments" button (it's been clicked)
+    const inputAdjustmentsBtn = table.querySelector('.input-adjustments-btn');
+    if (inputAdjustmentsBtn) {
+        inputAdjustmentsBtn.style.display = 'none';
+    }
+}
+
+// Save inline adjustments from the recipe table
+async function saveInlineAdjustments(technique, techniqueIndex) {
+    if (!window.auth || !window.auth.isAuthenticated()) {
+        showAuthModal();
+        return;
+    }
+
+    const btn = document.querySelector(`.save-adjustments-btn[data-technique-index="${techniqueIndex}"]`);
+    if (!btn) return;
+
+    try {
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        // Collect adjustments from the table inputs
+        const table = document.getElementById(`recipe-table-${techniqueIndex}`);
+        const adjustedParams = {};
+        table.querySelectorAll('.param-input').forEach(input => {
+            const param = input.getAttribute('data-param');
+            adjustedParams[param] = input.value;
+        });
+
+        const supabase = window.getSupabase();
+        const userId = window.auth.getUserId();
+
+        // Create brew session
+        const session = {
+            user_id: userId,
+            coffee_name: state.currentCoffeeAnalysis.name || 'Unknown',
+            roaster: state.currentCoffeeAnalysis.roaster || 'Unknown',
+            roast_level: state.currentCoffeeAnalysis.roast_level || 'Unknown',
+            origin: state.currentCoffeeAnalysis.origin || 'Unknown',
+            processing: state.currentCoffeeAnalysis.processing || 'Unknown',
+            flavor_notes: state.currentCoffeeAnalysis.flavor_notes || [],
+            brew_method: technique.technique_name,
+            original_recipe: technique.parameters,
+            actual_brew: adjustedParams,
+            rating: 'manual_adjustment'
+        };
+
+        const { error } = await supabase
+            .from('brew_sessions')
+            .insert([session]);
+
+        if (error) throw error;
+
+        btn.textContent = '✓ Saved!';
+        btn.style.backgroundColor = 'var(--success-color)';
+
+        setTimeout(() => {
+            btn.textContent = '💾 Save My Adjustments';
+            btn.style.backgroundColor = '';
+            btn.disabled = false;
+        }, 2000);
+
+        console.log('Inline adjustments saved successfully');
+
+    } catch (error) {
+        console.error('Failed to save inline adjustments:', error);
+        btn.textContent = '❌ Failed';
+        setTimeout(() => {
+            btn.textContent = '💾 Save My Adjustments';
+            btn.disabled = false;
+        }, 2000);
+    }
+}
+
+// Show manual adjustment table for user to input their own values
+function showManualAdjustmentTable(technique) {
+    const params = technique.parameters;
+
+    // Build editable table
+    let tableHTML = `
+        <div style="margin-top: 20px; padding: 20px; background: linear-gradient(135deg, #FFF8ED 0%, #FFEDDA 100%); border: 2px solid #D4A574; border-radius: 8px;">
+            <h4 style="margin-top: 0; color: var(--primary-color);">Manual Recipe Adjustments</h4>
+            <p style="color: var(--secondary-color); margin-bottom: 15px;">Edit the values below to match what you actually used:</p>
+
+            <table class="brew-parameters-table">
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Adjusted Recommendation</th>
+                        <th>My Adjustments</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Dose</td>
+                        <td>${params.dose}</td>
+                        <td><input type="text" class="manual-input" data-param="dose" value="${params.dose}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                    </tr>
+                    <tr>
+                        <td>Yield</td>
+                        <td>${params.yield}</td>
+                        <td><input type="text" class="manual-input" data-param="yield" value="${params.yield}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                    </tr>
+                    <tr>
+                        <td>Ratio</td>
+                        <td>${params.ratio}</td>
+                        <td><input type="text" class="manual-input" data-param="ratio" value="${params.ratio}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                    </tr>
+                    <tr>
+                        <td>Water Temp</td>
+                        <td>${params.water_temp}</td>
+                        <td><input type="text" class="manual-input" data-param="water_temp" value="${params.water_temp}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                    </tr>
+                    <tr>
+                        <td>Grind Size</td>
+                        <td>${params.grind_size}</td>
+                        <td><input type="text" class="manual-input" data-param="grind_size" value="${params.grind_size}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                    </tr>
+                    <tr>
+                        <td>Brew Time</td>
+                        <td>${params.brew_time}</td>
+                        <td><input type="text" class="manual-input" data-param="brew_time" value="${params.brew_time}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                    </tr>
+                    <tr>
+                        <td>Pressure</td>
+                        <td>${params.pressure}</td>
+                        <td><input type="text" class="manual-input" data-param="pressure" value="${params.pressure}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                    </tr>
+                    <tr>
+                        <td>Flow Control</td>
+                        <td>${params.flow_control}</td>
+                        <td><input type="text" class="manual-input" data-param="flow_control" value="${params.flow_control}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div style="margin-top: 20px; text-align: center;">
+                <button id="save-manual-adjustments" class="btn btn-primary" style="min-width: 200px;">
+                    💾 Save My Adjustments
+                </button>
+            </div>
+        </div>
+    `;
+
+    // Display in adjustment feedback area
+    elements.adjustmentFeedback.classList.remove('hidden');
+    elements.adjustmentFeedback.querySelector('p').innerHTML = tableHTML;
+
+    // Add save button listener
+    document.getElementById('save-manual-adjustments')?.addEventListener('click', async () => {
+        await saveManualAdjustments(technique);
+    });
+}
+
+// Save manually adjusted recipe
+async function saveManualAdjustments(technique) {
+    if (!window.auth || !window.auth.isAuthenticated()) {
+        showAuthModal();
+        return;
+    }
+
+    const btn = document.getElementById('save-manual-adjustments');
+    if (!btn) return;
+
+    try {
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        // Collect manual adjustments
+        const adjustedParams = {};
+        document.querySelectorAll('.manual-input').forEach(input => {
+            const param = input.getAttribute('data-param');
+            adjustedParams[param] = input.value;
+        });
+
+        const supabase = window.getSupabase();
+        const userId = window.auth.getUserId();
+
+        // Create brew session
+        const session = {
+            user_id: userId,
+            coffee_name: state.currentCoffeeAnalysis.name || 'Unknown',
+            roaster: state.currentCoffeeAnalysis.roaster || 'Unknown',
+            roast_level: state.currentCoffeeAnalysis.roast_level || 'Unknown',
+            origin: state.currentCoffeeAnalysis.origin || 'Unknown',
+            processing: state.currentCoffeeAnalysis.processing || 'Unknown',
+            flavor_notes: state.currentCoffeeAnalysis.flavor_notes || [],
+            brew_method: technique.technique_name,
+            original_recipe: technique.parameters,
+            actual_brew: adjustedParams,
+            rating: 'manual_adjustment'
+        };
+
+        const { error } = await supabase
+            .from('brew_sessions')
+            .insert([session]);
+
+        if (error) throw error;
+
+        btn.textContent = '✓ Saved!';
+        btn.style.backgroundColor = 'var(--success-color)';
+
+        setTimeout(() => {
+            btn.textContent = '💾 Save My Adjustments';
+            btn.style.backgroundColor = '';
+            btn.disabled = false;
+        }, 2000);
+
+        console.log('Manual adjustments saved successfully');
+
+    } catch (error) {
+        console.error('Failed to save manual adjustments:', error);
+        btn.textContent = '❌ Failed';
+        setTimeout(() => {
+            btn.textContent = '💾 Save My Adjustments';
+            btn.disabled = false;
+        }, 2000);
+    }
 }
 
 // Save a perfect recipe from original recommendations

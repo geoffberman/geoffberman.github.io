@@ -162,8 +162,26 @@
                     </div>
 
                     <div class="form-group">
-                        <label>Grinder</label>
+                        <label>Pod/Capsule Machines</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="pod-machines" value="Nespresso" /> Nespresso
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="pod-machines" value="Keurig" /> Keurig (K-Cup)
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="pod-machines" value="Other Pods" /> Other Pod System
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Grinder <span style="color: #C74B50;">*</span></label>
                         <input type="text" id="grinder" placeholder="e.g., Baratza Encore, Hand grinder, Blade grinder" />
+                        <label class="checkbox-label" style="margin-top: 10px;">
+                            <input type="checkbox" id="no-grinder" /> I don't have a grinder (using pre-ground coffee)
+                        </label>
                     </div>
 
                     <div class="form-group">
@@ -187,13 +205,36 @@
                             <label class="checkbox-label">
                                 <input type="checkbox" name="other-methods" value="Siphon" /> Siphon
                             </label>
+
+                            <!-- Custom brew methods container -->
+                            <div id="custom-brew-methods"></div>
+
+                            <!-- Add custom brew method -->
+                            <div style="display: flex; gap: 8px; align-items: center; margin-top: 10px;">
+                                <label class="checkbox-label" style="margin: 0;">
+                                    <input type="checkbox" id="other-brew-method-toggle" /> Other
+                                </label>
+                                <input type="text" id="custom-brew-method-input" class="hidden" placeholder="Enter method name" style="flex: 1; padding: 6px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.9rem;" />
+                                <button type="button" id="add-custom-brew-method" class="btn btn-secondary hidden" style="padding: 6px 12px; font-size: 0.85rem; white-space: nowrap;">
+                                    + Add
+                                </button>
+                            </div>
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label>Additional Equipment or Notes</label>
-                        <textarea id="additional-equipment" rows="3" placeholder="e.g., Gooseneck kettle, Scale, Temperature-controlled kettle"></textarea>
+                        <label>Other Brewing Equipment</label>
+                        <input type="text" id="other-equipment" placeholder="e.g., Turkish cezve, Clever dripper, Vietnamese phin" />
                     </div>
+
+                    <div class="form-group">
+                        <label>Additional Notes</label>
+                        <textarea id="additional-equipment" rows="2" placeholder="e.g., Gooseneck kettle, Scale, Temperature-controlled kettle"></textarea>
+                    </div>
+
+                    <p style="font-size: 0.85rem; color: var(--secondary-color); margin-bottom: 15px;">
+                        <span style="color: #C74B50;">*</span> Required: Enter at least one brewing method and specify your grinder (or check "no grinder")
+                    </p>
 
                     <div class="button-group">
                         <button type="submit" class="btn btn-primary">Save Equipment</button>
@@ -206,12 +247,25 @@
 
         <main>
             <div id="upload-section" class="section">
+                <!-- Equipment Required Overlay -->
+                <div id="equipment-required-overlay" class="hidden" style="position: relative;">
+                    <div style="background: linear-gradient(135deg, #FFF3CD 0%, #FFE5B4 100%); border: 2px solid #D4A574; border-radius: 12px; padding: 30px; text-align: center; margin-bottom: 20px;">
+                        <h3 style="color: var(--primary-color); margin-bottom: 15px;">⚙️ Equipment Setup Required</h3>
+                        <p style="color: var(--secondary-color); margin-bottom: 20px; line-height: 1.6;">
+                            To get personalized brew recommendations, please set up your coffee equipment first. This helps us recommend methods that work with what you have!
+                        </p>
+                        <button id="go-to-equipment-btn" class="btn btn-primary" style="min-width: 200px;">
+                            Set Up My Equipment
+                        </button>
+                    </div>
+                </div>
+
                 <div class="upload-area" id="upload-area">
                     <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
-                    <p class="upload-text">Click to upload or drag and drop</p>
+                    <p class="upload-text">show me what you want to brew</p>
                     <p class="upload-subtext">Take a photo or choose from your gallery</p>
                     <input type="file" id="file-input" accept="image/*" capture="environment" hidden>
                 </div>
@@ -239,9 +293,15 @@
                     <button id="remove-image" class="btn-close">✕</button>
                 </div>
 
-                <button id="analyze-btn" class="btn btn-primary btn-large">
-                    Analyze & Get Recommendations
-                </button>
+                <div style="display: flex; gap: 10px; align-items: center; max-width: 600px; margin: 0 auto;">
+                    <select id="brew-method-select" class="btn" style="flex: 1; height: 50px; font-size: 1rem; cursor: pointer;">
+                        <option value="">Search All Methods</option>
+                        <!-- Options will be populated dynamically based on user's equipment -->
+                    </select>
+                    <button id="analyze-btn" class="btn btn-primary" style="flex: 1; height: 50px; font-size: 1rem;">
+                        Make Recommendations
+                    </button>
+                </div>
             </div>
 
             <div id="loading-section" class="section hidden">
@@ -259,50 +319,15 @@
                     </div>
 
                     <div id="brew-method" class="card">
-                        <h3>Recommended Techniques</h3>
+                        <h3 style="text-align: center;">Recommended Techniques</h3>
                         <div id="method-content"></div>
                     </div>
 
-                    <!-- Rating Slider (compact, hidden until recipe selected) -->
-                    <div id="rating-section" class="card hidden" style="background: linear-gradient(135deg, #FFF8ED 0%, #FFEDDA 100%); border: 1px solid #D4A574; padding: 12px 15px;">
-                        <h3 style="font-size: 0.95rem; margin-bottom: 6px;">How Did It Taste?</h3>
-                        <p style="margin-bottom: 8px; color: var(--secondary-color); font-size: 0.8rem;">Rate your brew to get recipe adjustments</p>
+                    <div id="alt-brew-card" class="card" style="background: linear-gradient(135deg, #FFFCF7 0%, #FFF8ED 100%); border: 2px solid var(--accent-color);">
+                        <h3>Try a different brew method?</h3>
 
-                        <div class="rating-slider-container">
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.75rem; color: var(--secondary-color);">
-                                <span>Too Sour</span>
-                                <span>Perfect</span>
-                                <span>Too Bitter</span>
-                            </div>
-
-                            <input type="range" id="taste-rating" class="taste-slider" min="-2" max="2" step="0.5" value="0">
-
-                            <div style="text-align: center; margin-top: 6px;">
-                                <p id="rating-label" style="font-weight: bold; color: var(--primary-color); font-size: 0.9rem; margin: 0;">Perfect!</p>
-                            </div>
-                        </div>
-
-                        <div style="display: flex; gap: 8px; margin-top: 10px;">
-                            <button id="adjust-recipe-btn" class="btn btn-primary" style="flex: 1; padding: 6px 10px; font-size: 0.8rem;" disabled>
-                                Adjust Recipe
-                            </button>
-                            <button id="save-recipe-btn" class="btn btn-secondary hidden" style="flex: 1; padding: 6px 10px; font-size: 0.8rem;">
-                                💾 Save Recipe
-                            </button>
-                        </div>
-
-                        <div id="adjustment-feedback" class="hidden" style="margin-top: 8px; padding: 10px; background: rgba(107, 68, 35, 0.1); border-radius: 4px;">
-                            <p style="margin: 0; color: var(--secondary-color); font-size: 0.8rem;"></p>
-                        </div>
-                    </div>
-
-                    <div class="card" style="background: linear-gradient(135deg, #FFFCF7 0%, #FFF8ED 100%); border: 2px solid var(--accent-color);">
-                        <h3>Try a Different Method</h3>
-                        <p style="margin-bottom: 15px; color: var(--secondary-color);">Want to see how this coffee would work with a different brewing method?</p>
-
-                        <div class="form-group">
-                            <label for="alt-brew-method">Select Brew Method:</label>
-                            <select id="alt-brew-method" class="brew-method-select">
+                        <div style="display: flex; gap: 10px; align-items: center; margin-top: 15px;">
+                            <select id="alt-brew-method" class="brew-method-select" style="flex: 1;">
                                 <option value="">-- Choose Method --</option>
                                 <option value="V60 Pour Over">V60 Pour Over</option>
                                 <option value="Espresso (Traditional)">Espresso (Traditional)</option>
@@ -315,11 +340,62 @@
                                 <option value="Chemex">Chemex</option>
                                 <option value="Moka Pot">Moka Pot</option>
                             </select>
+                            <button id="alt-brew-btn" class="btn btn-primary" disabled style="padding: 8px 16px; font-size: 0.9rem; white-space: nowrap;">
+                                Get recipe
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Rating Slider (compact, hidden until recipe selected) -->
+                    <div id="rating-section" class="card hidden" style="background: linear-gradient(135deg, #FFF8ED 0%, #FFEDDA 100%); border: 1px solid #D4A574; padding: 12px 15px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <h3 style="margin: 0; font-size: 0.95rem;">How Did It Taste?</h3>
+                            <button id="perfect-recipe-btn" class="btn btn-primary" style="background: #28a745; padding: 4px 8px; font-size: 0.75rem; white-space: nowrap; height: fit-content;">
+                                ✓ Perfect As-Is
+                            </button>
+                        </div>
+                        <p style="margin-bottom: 8px; color: var(--secondary-color); font-size: 0.8rem;">Rate your brew to get recipe adjustments</p>
+
+                        <div class="rating-slider-container">
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <div style="flex: 1;">
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.75rem; color: var(--secondary-color);">
+                                        <span>Too Sour</span>
+                                        <span>Perfect</span>
+                                        <span>Too Bitter</span>
+                                    </div>
+                                    <input type="range" id="taste-rating" class="taste-slider" min="-2" max="2" step="0.5" value="0" style="width: 100%;">
+                                </div>
+                                <button id="adjust-recipe-btn" class="btn btn-primary" style="padding: 4px 8px; font-size: 0.75rem; white-space: nowrap; height: fit-content;" disabled>
+                                    Adjust Recipe
+                                </button>
+                            </div>
+
+                            <div style="text-align: center; margin-top: 6px;">
+                                <p id="rating-label" style="font-weight: bold; color: var(--primary-color); font-size: 0.9rem; margin: 0;">Perfect!</p>
+                            </div>
                         </div>
 
-                        <button id="alt-brew-btn" class="btn btn-primary" disabled>
-                            Get Recipe for Selected Method
-                        </button>
+                        <div class="form-group" style="margin-top: 10px;">
+                            <label for="user-feedback" style="font-weight: bold; color: var(--primary-color); font-size: 0.8rem;">Additional Feedback (Optional)</label>
+                            <div style="display: flex; gap: 8px; align-items: flex-start; margin-top: 4px;">
+                                <textarea id="user-feedback" rows="2" placeholder="anything you want to say about the taste or the recommendations?" style="width: 66%; padding: 6px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; resize: vertical; font-size: 0.8rem;"></textarea>
+                                <button id="submit-feedback-btn" class="btn btn-secondary hidden" style="padding: 4px 8px; font-size: 0.75rem; white-space: nowrap;">
+                                    Submit
+                                </button>
+                            </div>
+                            <small style="color: var(--secondary-color); font-size: 0.7rem; display: block; margin-top: 3px;">Use this to correct any misidentifications or provide specific feedback</small>
+                        </div>
+
+                        <div style="display: flex; gap: 8px; margin-top: 10px;">
+                            <button id="save-recipe-btn" class="btn btn-secondary hidden" style="flex: 1; padding: 6px 10px; font-size: 0.8rem;">
+                                💾 Save This Recipe
+                            </button>
+                        </div>
+
+                        <div id="adjustment-feedback" class="hidden" style="margin-top: 8px; padding: 10px; background: rgba(107, 68, 35, 0.1); border-radius: 4px;">
+                            <p style="margin: 0; color: var(--secondary-color); font-size: 0.8rem;"></p>
+                        </div>
                     </div>
 
                     <button id="try-again-btn" class="btn btn-secondary">
