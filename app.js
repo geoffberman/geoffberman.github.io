@@ -742,6 +742,8 @@ function displayResults(data) {
         const params = technique.parameters;
         const imageUrl = getBrewMethodImage(technique.technique_name);
 
+        console.log(`Rendering technique ${index}:`, technique.technique_name, 'is_saved_recipe:', technique.is_saved_recipe);
+
         techniquesHTML += `
             <div class="technique-card" style="border: 2px solid ${technique.is_saved_recipe ? 'var(--success-color)' : 'var(--border-color)'}; border-radius: 8px; padding: 20px; background: ${technique.is_saved_recipe ? 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)' : 'white'}; display: flex; flex-direction: column; justify-content: center;">
                 <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; margin-bottom: 15px;">
@@ -3076,6 +3078,7 @@ async function integrateSavedRecipes(analysisData) {
                 is_saved_recipe: true // Flag to indicate this is a saved recipe
             };
 
+            console.log('Adding saved recipe to techniques:', brewMethod, 'is_saved_recipe:', technique.is_saved_recipe);
             mergedTechniques.push(technique);
 
             // Remove from AI map so we don't duplicate
