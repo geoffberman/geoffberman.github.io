@@ -635,8 +635,8 @@ function getBrewMethodImage(techniqueName) {
         // Latte with art in cup
         return 'https://images.unsplash.com/photo-1570968915860-54d5c301fa9f?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('v60')) {
-        // V60 pour over
-        return 'https://images.unsplash.com/photo-1498804103079-a6351b050096?w=400&h=300&fit=crop&q=80';
+        // V60 pour over setup
+        return 'https://images.unsplash.com/photo-1611564154665-e64f686e0d3d?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('pour over')) {
         // Generic pour over
         return 'https://images.unsplash.com/photo-1442512595331-e89e73853f31?w=400&h=300&fit=crop&q=80';
@@ -734,8 +734,9 @@ function displayResults(data) {
 
         techniquesHTML += `
             <div class="technique-card" style="border: 2px solid var(--border-color); border-radius: 8px; padding: 20px; background: white; display: flex; flex-direction: column; justify-content: center;">
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 15px;">
-                    <h4 style="margin: 0; font-size: 1rem;">${technique.technique_name}</h4>
+                <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; margin-bottom: 15px;">
+                    <h4 style="margin: 0; font-size: 1rem; flex: 1;">${technique.technique_name}</h4>
+                    <img src="${imageUrl}" alt="${technique.technique_name}" style="width: 80px; height: 60px; object-fit: cover; border-radius: 6px; flex-shrink: 0;" loading="lazy" />
                 </div>
                 <div id="active-indicator-${index}" class="hidden" style="margin-bottom: 10px; text-align: left; color: var(--primary-color); font-weight: bold; font-size: 0.9rem;">
                     ⭐ Currently Using This Recipe
@@ -815,15 +816,11 @@ function displayResults(data) {
                         <div style="margin: 0; line-height: 1.6; color: var(--secondary-color); font-size: 0.9rem;">${technique.technique_notes
                             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                             .replace(/\n\n/g, '</p><p style="margin: 10px 0;">')
-                            .replace(/^• (.*?)$/gm, '<li style="margin-left: 20px;">$1</li>')
-                            .replace(/(<li.*<\/li>)/s, '<ul style="margin: 10px 0; padding-left: 0;">$1</ul>')
+                            .replace(/^• (.*?)$/gm, '<li style="margin-left: 20px; margin-bottom: 0;">$1</li>')
+                            .replace(/(<li.*<\/li>)/s, '<ul style="margin: 0; padding-left: 0;">$1</ul>')
                             .replace(/\n/g, '<br>')
                         }</div>
                     </div>` : ''}
-
-                    <div style="text-align: center; margin-top: 10px;">
-                        <img src="${imageUrl}" alt="${technique.technique_name}" style="max-width: 100%; height: auto; border-radius: 8px;" loading="lazy" />
-                    </div>
                 </div>
             </div>
         `;
@@ -1066,6 +1063,50 @@ function updateBrewMethodDropdown() {
         option.value = method;
         option.textContent = method;
         dropdown.appendChild(option);
+    });
+
+    // Also update the alternative brew method dropdown
+    updateAltBrewMethodDropdown();
+}
+
+// Populate alternative brew method dropdown
+function updateAltBrewMethodDropdown() {
+    const altDropdown = document.getElementById('alt-brew-method');
+    if (!altDropdown) return;
+
+    const standardMethods = [
+        'V60 Pour Over',
+        'Espresso (Traditional)',
+        'Espresso Lungo',
+        'Turbo Shot Espresso',
+        'Latte',
+        'French Press',
+        'Aeropress',
+        'Chemex',
+        'Moka Pot'
+    ];
+
+    // Keep the "Choose Method" option
+    altDropdown.innerHTML = '<option value="">-- Choose Method --</option>';
+
+    const methods = [...standardMethods];
+
+    // Add custom brew methods from user's equipment
+    if (state.equipment && state.equipment.customBrewMethods && state.equipment.customBrewMethods.length > 0) {
+        state.equipment.customBrewMethods.forEach(method => {
+            methods.push(method);
+        });
+    }
+
+    // Remove duplicates and sort
+    const uniqueMethods = [...new Set(methods)].sort();
+
+    // Add options to dropdown
+    uniqueMethods.forEach(method => {
+        const option = document.createElement('option');
+        option.value = method;
+        option.textContent = method;
+        altDropdown.appendChild(option);
     });
 }
 
