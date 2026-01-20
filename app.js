@@ -639,10 +639,10 @@ function getBrewMethodImage(techniqueName) {
         return 'https://images.unsplash.com/photo-1570968915860-54d5c301fa9f?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('v60')) {
         // V60 pour over setup - Hario cone dripper
-        return 'https://images.unsplash.com/photo-1611162458324-aae1eb4129a2?w=400&h=300&fit=crop&q=80';
+        return 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('pour over')) {
         // Generic pour over
-        return 'https://images.unsplash.com/photo-1611162458324-aae1eb4129a2?w=400&h=300&fit=crop&q=80';
+        return 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('chemex')) {
         // Chemex brewer
         return 'https://images.unsplash.com/photo-1517487881594-2787fef5ebf7?w=400&h=300&fit=crop&q=80';
@@ -2049,7 +2049,7 @@ async function saveAsPreferredRecipe() {
             .eq('user_id', userId)
             .eq('coffee_hash', coffeeHash)
             .eq('brew_method', state.currentBrewMethod)
-            .single();
+            .maybeSingle();
 
         if (existing) {
             // Update existing recipe
@@ -2936,7 +2936,7 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData) {
             .eq('user_id', userId)
             .eq('coffee_hash', coffeeHash)
             .eq('brew_method', brewMethod)
-            .single();
+            .maybeSingle();
 
         if (existing) {
             // Update existing recipe
@@ -2950,6 +2950,7 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData) {
                 .eq('id', existing.id);
 
             if (error) throw error;
+            console.log('Updated existing preferred recipe');
         } else {
             // Insert new preferred recipe
             const { error } = await supabase
@@ -2957,6 +2958,7 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData) {
                 .insert([preferredRecipe]);
 
             if (error) throw error;
+            console.log('Inserted new preferred recipe');
         }
 
         console.log('Saved as preferred recipe');
