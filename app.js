@@ -812,7 +812,13 @@ function displayResults(data) {
                     </div>
 
                     ${technique.technique_notes ? `<div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 3px solid var(--accent-color); border-radius: 4px;">
-                        <p style="margin: 0; line-height: 1.6; color: var(--secondary-color); font-size: 0.9rem;">${technique.technique_notes}</p>
+                        <div style="margin: 0; line-height: 1.6; color: var(--secondary-color); font-size: 0.9rem;">${technique.technique_notes
+                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                            .replace(/\n\n/g, '</p><p style="margin: 10px 0;">')
+                            .replace(/^• (.*?)$/gm, '<li style="margin-left: 20px;">$1</li>')
+                            .replace(/(<li.*<\/li>)/s, '<ul style="margin: 10px 0; padding-left: 0;">$1</ul>')
+                            .replace(/\n/g, '<br>')
+                        }</div>
                     </div>` : ''}
 
                     <div style="text-align: center; margin-top: 10px;">
