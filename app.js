@@ -79,6 +79,7 @@ const elements = {
 
     // Rating slider elements
     ratingSection: document.getElementById('rating-section'),
+    altBrewCard: document.getElementById('alt-brew-card'),
     tasteRating: document.getElementById('taste-rating'),
     ratingLabel: document.getElementById('rating-label'),
     userFeedback: document.getElementById('user-feedback'),
@@ -882,9 +883,12 @@ function resetApp() {
     state.imageFile = null;
     elements.fileInput.value = '';
     elements.previewImage.src = '';
-    // Hide the rating section when resetting
+    // Hide the rating section and alt brew card when resetting
     if (elements.ratingSection) {
         elements.ratingSection.classList.add('hidden');
+    }
+    if (elements.altBrewCard) {
+        elements.altBrewCard.classList.add('hidden');
     }
     showSection('upload');
 }
@@ -2424,9 +2428,12 @@ function showRecipeDetails(techniqueIndex, techniques) {
         recipeDetails.classList.remove('hidden');
     }
 
-    // Show the "How Did It Taste?" rating section
+    // Show the "How Did It Taste?" rating section and alt brew card
     if (elements.ratingSection) {
         elements.ratingSection.classList.remove('hidden');
+    }
+    if (elements.altBrewCard) {
+        elements.altBrewCard.classList.remove('hidden');
     }
 
     // Change button text to indicate recipe is shown
