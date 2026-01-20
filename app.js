@@ -631,71 +631,99 @@ function getBrewMethodImage(techniqueName) {
     const technique = techniqueName.toLowerCase();
 
     // Map technique names to specific brew method images
+    // Using verified Unsplash images that show actual brewing equipment
     if (technique.includes('turbo')) {
-        // Espresso shot - turbo shot
+        // Espresso shot being pulled
         return 'https://images.unsplash.com/photo-1610889556528-9a770e32642f?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('lungo')) {
-        // Lungo - longer espresso
+        // Espresso lungo
         return 'https://images.unsplash.com/photo-1534687920214-dcab4b5da211?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('espresso')) {
-        // Traditional espresso shot
+        // Espresso machine portafilter
         return 'https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('latte')) {
-        // Latte with art in cup
+        // Latte art
         return 'https://images.unsplash.com/photo-1570968915860-54d5c301fa9f?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('v60')) {
-        // Hario V60 dripper - distinctive cone shape
-        return 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=300&fit=crop&q=80';
+        // Hario V60 - actual pour over cone dripper with gooseneck kettle
+        return 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('chemex')) {
-        // Chemex - distinctive hourglass shape with wood collar
-        return 'https://images.unsplash.com/photo-1453614512568-c4024d13c247?w=400&h=300&fit=crop&q=80';
+        // Chemex - hourglass glass brewer with wood collar
+        return 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('kalita') || technique.includes('wave')) {
-        // Kalita Wave - flat bottom dripper
-        return 'https://images.unsplash.com/photo-1559496417-e7f25cb247f3?w=400&h=300&fit=crop&q=80';
+        // Kalita Wave - flat bottom dripper pour over
+        return 'https://images.unsplash.com/photo-1545665225-b23b99e4d45e?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('clever') || technique.includes('dripper')) {
-        // Clever dripper
-        return 'https://images.unsplash.com/photo-1442512595331-e89e73853f31?w=400&h=300&fit=crop&q=80';
-    } else if (technique.includes('pour over')) {
-        // Generic pour over
-        return 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=300&fit=crop&q=80';
+        // Pour over dripper
+        return 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=400&h=300&fit=crop&q=80';
+    } else if (technique.includes('pour over') || technique.includes('pour-over')) {
+        // Generic pour over - V60 style cone dripper
+        return 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('french press')) {
-        // French press - plunger visible
-        return 'https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=400&h=300&fit=crop&q=80';
+        // French press with plunger
+        return 'https://images.unsplash.com/photo-1519082274554-1ca37455e6aa?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('aeropress')) {
-        // Aeropress
-        return 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=400&h=300&fit=crop&q=80';
+        // Aeropress brewing
+        return 'https://images.unsplash.com/photo-1559525839-b184a4d698c7?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('moka')) {
-        // Moka pot - stovetop espresso
+        // Moka pot on stove
         return 'https://images.unsplash.com/photo-1621555470436-d36e9683bba0?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('siphon') || technique.includes('vacuum')) {
         // Siphon/vacuum brewer
         return 'https://images.unsplash.com/photo-1558122105-86b8e8d7f148?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('cold brew')) {
-        // Cold brew
+        // Cold brew in jar
         return 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('drip') || technique.includes('oxo') || technique.includes('soup')) {
-        // Drip coffee maker / Oxo
+        // Drip coffee maker
         return 'https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?w=400&h=300&fit=crop&q=80';
     } else {
-        // Default coffee cup image
-        return 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&h=300&fit=crop&q=80';
+        // Default - pour over brewing
+        return 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=400&h=300&fit=crop&q=80';
     }
 }
 
 // Format pour over instructions with times/volumes as bullets
 function formatPourInstruction(instruction) {
-    // Pattern to match pour steps with times and volumes
-    // e.g., "0:00-0:45: Pour 50g", "At 0:30, pour 100ml", "Pour 60g over 30 seconds"
+    if (!instruction) return instruction;
+
     let matches = [];
     let match;
 
-    // Try to find timestamped pours first
-    const timeStampPattern = /(\d+:\d+(?:\s*[-–]\s*\d+:\d+)?)[:\s]+([^,;.]+(?:pour|add|bloom)[^,;.]*\d+\s*(?:g|ml)[^,;.]*)/gi;
-    while ((match = timeStampPattern.exec(instruction)) !== null) {
+    // Pattern 1: "0:00 - Pour 50g" or "0:00-0:45: Pour 50g" or "At 0:30, pour 100ml"
+    const timeStampPattern1 = /(\d+:\d+(?:\s*[-–]\s*\d+:\d+)?)\s*[-:,]?\s*([^.]*?(?:pour|add|bloom|wait)[^.]*?\d+\s*(?:g|ml|grams?|seconds?|sec|s\b)[^.]*)/gi;
+    while ((match = timeStampPattern1.exec(instruction)) !== null) {
         matches.push({ time: match[1], action: match[2].trim() });
     }
 
-    // If we found timestamped pours, format them as bullets
+    // Pattern 2: Look for numbered steps like "1. Pour 50g" or "1) Bloom with 50g"
+    if (matches.length === 0) {
+        const numberedPattern = /(?:^|\n)\s*(\d+)[.)]\s*([^.\n]*?(?:pour|bloom|add|wait)[^.\n]*?\d+\s*(?:g|ml|grams?|seconds?|sec)[^.\n]*)/gi;
+        while ((match = numberedPattern.exec(instruction)) !== null) {
+            matches.push({ time: `Step ${match[1]}`, action: match[2].trim() });
+        }
+    }
+
+    // Pattern 3: Look for "First pour", "Second pour", "Third pour" etc.
+    if (matches.length === 0) {
+        const ordinalPattern = /(first|second|third|fourth|fifth|final)\s+(pour|bloom)[^.]*?\d+\s*(?:g|ml)[^.]*/gi;
+        while ((match = ordinalPattern.exec(instruction)) !== null) {
+            matches.push({ time: match[1].charAt(0).toUpperCase() + match[1].slice(1), action: match[0].trim() });
+        }
+    }
+
+    // Pattern 4: Look for any "pour Xg" patterns with context
+    if (matches.length === 0) {
+        const pourPattern = /(?:bloom\s+(?:with\s+)?\d+\s*g[^.]*|pour\s+(?:(?:another|additional|remaining|more)\s+)?\d+\s*(?:g|ml)[^.]*)/gi;
+        const pourMatches = instruction.match(pourPattern);
+        if (pourMatches && pourMatches.length > 1) {
+            pourMatches.forEach((p, i) => {
+                matches.push({ time: `Pour ${i + 1}`, action: p.trim() });
+            });
+        }
+    }
+
+    // If we found pour steps, format them as bullets
     if (matches.length > 0) {
         let bullets = '<ul style="margin: 8px 0 8px 20px; list-style-type: disc;">';
         matches.forEach(m => {
@@ -703,22 +731,11 @@ function formatPourInstruction(instruction) {
         });
         bullets += '</ul>';
 
-        // Get any text before the first match as a header
-        const firstMatchIndex = instruction.search(/\d+:\d+/);
-        const header = firstMatchIndex > 0 ? instruction.substring(0, firstMatchIndex).trim() : '';
+        // Get any intro text before the pours
+        const firstPourIndex = instruction.search(/\d+:\d+|(?:first|bloom|pour\s+\d)/i);
+        const header = firstPourIndex > 0 ? instruction.substring(0, firstPourIndex).trim() : '';
 
         return header ? `${header}${bullets}` : bullets;
-    }
-
-    // Check for inline volume/time patterns without timestamps (e.g., "Pour 50g, then 100g, then 150g")
-    const inlinePours = instruction.match(/pour\s+\d+\s*(?:g|ml)(?:\s+(?:of\s+)?water)?(?:\s+(?:over|for|in)\s+\d+\s*(?:seconds?|sec|s))?/gi);
-    if (inlinePours && inlinePours.length > 1) {
-        let bullets = '<ul style="margin: 8px 0 8px 20px; list-style-type: disc;">';
-        inlinePours.forEach(pour => {
-            bullets += `<li style="margin-bottom: 4px;">${pour.trim()}</li>`;
-        });
-        bullets += '</ul>';
-        return bullets;
     }
 
     return instruction;
