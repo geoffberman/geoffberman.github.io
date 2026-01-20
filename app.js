@@ -639,10 +639,10 @@ function getBrewMethodImage(techniqueName) {
         return 'https://images.unsplash.com/photo-1570968915860-54d5c301fa9f?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('v60')) {
         // V60 pour over setup
-        return 'https://images.unsplash.com/photo-1611564154665-e64f686e0d3d?w=400&h=300&fit=crop&q=80';
+        return 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('pour over')) {
         // Generic pour over
-        return 'https://images.unsplash.com/photo-1442512595331-e89e73853f31?w=400&h=300&fit=crop&q=80';
+        return 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('chemex')) {
         // Chemex brewer
         return 'https://images.unsplash.com/photo-1517487881594-2787fef5ebf7?w=400&h=300&fit=crop&q=80';
@@ -822,8 +822,8 @@ function displayResults(data) {
                         <div style="margin: 0; line-height: 1.6; color: var(--secondary-color); font-size: 0.9rem;">${technique.technique_notes
                             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                             .replace(/\n\n/g, '</p><p style="margin: 10px 0;">')
-                            .replace(/^• (.*?)$/gm, '<li style="margin-left: 20px; margin-bottom: 0;">$1</li>')
-                            .replace(/(<li.*<\/li>)/s, '<ul style="margin: 0; padding-left: 0;">$1</ul>')
+                            .replace(/^• (.*?)$/gm, '<li style="margin: 0; padding: 0;">$1</li>')
+                            .replace(/(<li.*?<\/li>\n?)+/gs, match => `<ul style="margin: 0; padding-left: 20px; list-style-position: outside;">${match.replace(/\n/g, '')}</ul>`)
                             .replace(/\n/g, '<br>')
                         }</div>
                     </div>` : ''}
