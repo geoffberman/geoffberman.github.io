@@ -679,8 +679,8 @@ function displayResults(data) {
     const poorEquipmentWarning = checkForPoorEquipment();
     if (poorEquipmentWarning) {
         analysisHTML += `
-            <div style="background: linear-gradient(135deg, #FFE5E5 0%, #FFD4D4 100%); border: 2px solid #C74B50; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
-                <p style="margin: 0; color: #8B0000; font-weight: bold; font-size: 0.95rem;">
+            <div style="background: linear-gradient(135deg, #FFE5E5 0%, #FFD4D4 100%); border: 2px solid #C74B50; border-radius: 6px; padding: 10px; margin-bottom: 12px;">
+                <p style="margin: 0; color: #8B0000; font-weight: bold; font-size: 0.85rem;">
                     ⚠️ ${poorEquipmentWarning}
                 </p>
             </div>
@@ -690,36 +690,36 @@ function displayResults(data) {
     // Show equipment upgrade suggestions if provided by AI
     if (data.equipment_suggestions && data.equipment_suggestions.trim()) {
         analysisHTML += `
-            <div style="background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%); border: 2px solid #2196F3; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
-                <p style="margin: 0 0 10px 0; color: #0D47A1; font-weight: bold;">
+            <div style="background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%); border: 2px solid #2196F3; border-radius: 6px; padding: 10px; margin-bottom: 12px;">
+                <p style="margin: 0 0 6px 0; color: #0D47A1; font-weight: bold; font-size: 0.85rem;">
                     💡 Equipment Recommendations
                 </p>
-                <p style="margin: 0; color: #1565C0; font-size: 0.9rem; line-height: 1.5;">
+                <p style="margin: 0; color: #1565C0; font-size: 0.8rem; line-height: 1.4;">
                     ${data.equipment_suggestions}
                 </p>
             </div>
         `;
     }
 
-    analysisHTML += '<div class="analysis-details">';
+    analysisHTML += '<div class="analysis-details" style="line-height: 1.4;">';
 
     if (analysis.name) {
-        analysisHTML += `<p><strong>Coffee:</strong> ${analysis.name}</p>`;
+        analysisHTML += `<p style="margin-bottom: 6px;"><strong>Coffee:</strong> ${analysis.name}</p>`;
     }
     if (analysis.roaster) {
-        analysisHTML += `<p><strong>Roaster:</strong> ${analysis.roaster}</p>`;
+        analysisHTML += `<p style="margin-bottom: 6px;"><strong>Roaster:</strong> ${analysis.roaster}</p>`;
     }
     if (analysis.roast_level) {
-        analysisHTML += `<p><strong>Roast Level:</strong> ${analysis.roast_level}</p>`;
+        analysisHTML += `<p style="margin-bottom: 6px;"><strong>Roast Level:</strong> ${analysis.roast_level}</p>`;
     }
     if (analysis.origin) {
-        analysisHTML += `<p><strong>Origin:</strong> ${analysis.origin}</p>`;
+        analysisHTML += `<p style="margin-bottom: 6px;"><strong>Origin:</strong> ${analysis.origin}</p>`;
     }
     if (analysis.processing) {
-        analysisHTML += `<p><strong>Processing:</strong> ${analysis.processing}</p>`;
+        analysisHTML += `<p style="margin-bottom: 6px;"><strong>Processing:</strong> ${analysis.processing}</p>`;
     }
     if (analysis.flavor_notes && analysis.flavor_notes.length > 0) {
-        analysisHTML += `<p><strong>Flavor Notes:</strong> ${analysis.flavor_notes.join(', ')}</p>`;
+        analysisHTML += `<p style="margin-bottom: 6px;"><strong>Flavor Notes:</strong> ${analysis.flavor_notes.join(', ')}</p>`;
     }
 
     analysisHTML += '</div>';
