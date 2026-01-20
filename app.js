@@ -2485,6 +2485,12 @@ function showRecipeDetails(techniqueIndex, techniques) {
         recipeDetails.classList.remove('hidden');
     }
 
+    // Show the rating section now that a recipe is selected
+    const ratingSection = document.getElementById('rating-section');
+    if (ratingSection) {
+        ratingSection.classList.remove('hidden');
+    }
+
     // Change button text to indicate recipe is shown
     const btn = document.querySelector(`.use-this-show-recipe-btn[data-technique-index="${techniqueIndex}"]`);
     if (btn) {
