@@ -95,6 +95,13 @@ const elements = {
     goToEquipmentBtn: document.getElementById('go-to-equipment-btn')
 };
 
+// Utility: Escape HTML to prevent XSS and formatting issues
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // Initialize app
 async function init() {
     setupEventListeners();
@@ -638,11 +645,11 @@ function getBrewMethodImage(techniqueName) {
         // Latte with art in cup
         return 'https://images.unsplash.com/photo-1570968915860-54d5c301fa9f?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('v60')) {
-        // V60 pour over setup - Hario cone dripper
-        return 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=300&fit=crop&q=80';
+        // V60 pour over setup - Hario cone dripper with gooseneck kettle
+        return 'https://images.unsplash.com/photo-1611564154665-e64f686e0d3d?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('pour over')) {
         // Generic pour over
-        return 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=300&fit=crop&q=80';
+        return 'https://images.unsplash.com/photo-1611564154665-e64f686e0d3d?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('chemex')) {
         // Chemex brewer
         return 'https://images.unsplash.com/photo-1517487881594-2787fef5ebf7?w=400&h=300&fit=crop&q=80';
@@ -873,7 +880,7 @@ function displayResults(data) {
         elements.analysisContent.innerHTML += `
             <div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
                 <p><strong>Full Analysis:</strong></p>
-                <p style="white-space: pre-wrap; font-size: 0.9rem; margin-top: 10px;">${data.raw_response}</p>
+                <p style="white-space: pre-wrap; font-size: 0.9rem; margin-top: 10px;">${escapeHtml(data.raw_response)}</p>
             </div>
         `;
     }
