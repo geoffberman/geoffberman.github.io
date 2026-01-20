@@ -527,11 +527,19 @@ async function analyzeImage(specificMethod = null) {
 
         const equipmentDescription = getEquipmentDescription();
 
+        // Fetch user's brewing preferences from their history
+        const userPreferences = await getUserPreferences();
+
         const requestBody = {
             image: base64Image,
             mediaType: mediaType,
             equipment: equipmentDescription
         };
+
+        // Add user preferences if available
+        if (userPreferences && userPreferences.summary) {
+            requestBody.userPreferences = userPreferences.summary;
+        }
 
         // Add specific method if provided
         if (specificMethod) {
@@ -636,26 +644,38 @@ function getBrewMethodImage(techniqueName) {
         // Latte with art in cup
         return 'https://images.unsplash.com/photo-1570968915860-54d5c301fa9f?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('v60')) {
-        // V60 pour over
-        return 'https://images.unsplash.com/photo-1498804103079-a6351b050096?w=400&h=300&fit=crop&q=80';
+        // Hario V60 dripper - distinctive cone shape
+        return 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=300&fit=crop&q=80';
+    } else if (technique.includes('chemex')) {
+        // Chemex - distinctive hourglass shape with wood collar
+        return 'https://images.unsplash.com/photo-1453614512568-c4024d13c247?w=400&h=300&fit=crop&q=80';
+    } else if (technique.includes('kalita') || technique.includes('wave')) {
+        // Kalita Wave - flat bottom dripper
+        return 'https://images.unsplash.com/photo-1559496417-e7f25cb247f3?w=400&h=300&fit=crop&q=80';
+    } else if (technique.includes('clever') || technique.includes('dripper')) {
+        // Clever dripper
+        return 'https://images.unsplash.com/photo-1442512595331-e89e73853f31?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('pour over')) {
         // Generic pour over
-        return 'https://images.unsplash.com/photo-1442512595331-e89e73853f31?w=400&h=300&fit=crop&q=80';
-    } else if (technique.includes('chemex')) {
-        // Chemex brewer
-        return 'https://images.unsplash.com/photo-1517487881594-2787fef5ebf7?w=400&h=300&fit=crop&q=80';
+        return 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('french press')) {
-        // French press
-        return 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400&h=300&fit=crop&q=80';
+        // French press - plunger visible
+        return 'https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('aeropress')) {
         // Aeropress
-        return 'https://images.unsplash.com/photo-1611564154665-e64f686e0d3d?w=400&h=300&fit=crop&q=80';
-    } else if (technique.includes('moka')) {
-        // Moka pot
-        return 'https://images.unsplash.com/photo-1517487881594-2787fef5ebf7?w=400&h=300&fit=crop&q=80';
-    } else if (technique.includes('oxo') || technique.includes('soup')) {
-        // Oxo/single cup brewer
         return 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=400&h=300&fit=crop&q=80';
+    } else if (technique.includes('moka')) {
+        // Moka pot - stovetop espresso
+        return 'https://images.unsplash.com/photo-1621555470436-d36e9683bba0?w=400&h=300&fit=crop&q=80';
+    } else if (technique.includes('siphon') || technique.includes('vacuum')) {
+        // Siphon/vacuum brewer
+        return 'https://images.unsplash.com/photo-1558122105-86b8e8d7f148?w=400&h=300&fit=crop&q=80';
+    } else if (technique.includes('cold brew')) {
+        // Cold brew
+        return 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400&h=300&fit=crop&q=80';
+    } else if (technique.includes('drip') || technique.includes('oxo') || technique.includes('soup')) {
+        // Drip coffee maker / Oxo
+        return 'https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?w=400&h=300&fit=crop&q=80';
     } else {
         // Default coffee cup image
         return 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&h=300&fit=crop&q=80';
@@ -744,25 +764,25 @@ function displayResults(data) {
         `;
     }
 
-    analysisHTML += '<div class="analysis-details">';
+    analysisHTML += '<div class="analysis-details" style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; font-size: 0.9rem;">';
 
     if (analysis.name) {
-        analysisHTML += `<p><strong>Coffee:</strong> ${analysis.name}</p>`;
+        analysisHTML += `<p style="margin: 2px 0;"><strong>Coffee:</strong> ${analysis.name}</p>`;
     }
     if (analysis.roaster) {
-        analysisHTML += `<p><strong>Roaster:</strong> ${analysis.roaster}</p>`;
+        analysisHTML += `<p style="margin: 2px 0;"><strong>Roaster:</strong> ${analysis.roaster}</p>`;
     }
     if (analysis.roast_level) {
-        analysisHTML += `<p><strong>Roast Level:</strong> ${analysis.roast_level}</p>`;
+        analysisHTML += `<p style="margin: 2px 0;"><strong>Roast Level:</strong> ${analysis.roast_level}</p>`;
     }
     if (analysis.origin) {
-        analysisHTML += `<p><strong>Origin:</strong> ${analysis.origin}</p>`;
+        analysisHTML += `<p style="margin: 2px 0;"><strong>Origin:</strong> ${analysis.origin}</p>`;
     }
     if (analysis.processing) {
-        analysisHTML += `<p><strong>Processing:</strong> ${analysis.processing}</p>`;
+        analysisHTML += `<p style="margin: 2px 0;"><strong>Processing:</strong> ${analysis.processing}</p>`;
     }
     if (analysis.flavor_notes && analysis.flavor_notes.length > 0) {
-        analysisHTML += `<p><strong>Flavor Notes:</strong> ${analysis.flavor_notes.join(', ')}</p>`;
+        analysisHTML += `<p style="margin: 2px 0; grid-column: 1 / -1;"><strong>Flavor Notes:</strong> ${analysis.flavor_notes.join(', ')}</p>`;
     }
 
     analysisHTML += '</div>';
@@ -777,7 +797,8 @@ function displayResults(data) {
 
         techniquesHTML += `
             <div class="technique-card" style="border: 2px solid var(--border-color); border-radius: 8px; padding: 20px; background: white; display: flex; flex-direction: column; justify-content: center;">
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 15px;">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
+                    <img src="${imageUrl}" alt="${technique.technique_name}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 6px; flex-shrink: 0;" loading="lazy" />
                     <h4 style="margin: 0; font-size: 1rem;"><span style="color: var(--primary-color); font-weight: bold;">#${index + 1}</span> ${technique.technique_name}</h4>
                 </div>
                 <div id="active-indicator-${index}" class="hidden" style="margin-bottom: 10px; text-align: left; color: var(--primary-color); font-weight: bold; font-size: 0.9rem;">
@@ -2064,6 +2085,90 @@ function createCoffeeHash(name, roaster, roastLevel, origin) {
     // Simple hash function - concatenate and create a simple hash
     const str = `${name || ''}_${roaster || ''}_${roastLevel || ''}_${origin || ''}`.toLowerCase();
     return str.replace(/\s+/g, '_');
+}
+
+// Fetch user's preferred recipes for similar coffees
+async function getUserPreferences(roastLevel, origin) {
+    if (!window.auth || !window.auth.isAuthenticated()) {
+        return null;
+    }
+
+    const supabase = window.getSupabase();
+    if (!supabase) return null;
+
+    const userId = window.auth.getUserId();
+    if (!userId) return null;
+
+    try {
+        // First, try to get the user's most recent brews to understand their preferences
+        const { data: recentBrews, error: brewError } = await supabase
+            .from('brew_sessions')
+            .select('brew_method, actual_brew, rating, roast_level, origin')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(10);
+
+        if (brewError) {
+            console.error('Error fetching recent brews:', brewError);
+            return null;
+        }
+
+        // Get saved recipes for similar coffees (same roast level or origin)
+        const { data: savedRecipes, error: recipeError } = await supabase
+            .from('saved_recipes')
+            .select('brew_method, recipe, coffee_name, roaster, times_brewed')
+            .eq('user_id', userId)
+            .order('times_brewed', { ascending: false })
+            .limit(5);
+
+        if (recipeError) {
+            console.error('Error fetching saved recipes:', recipeError);
+            return null;
+        }
+
+        // Build preference summary
+        const preferences = {
+            recentBrews: recentBrews || [],
+            savedRecipes: savedRecipes || [],
+            summary: ''
+        };
+
+        // Create a human-readable summary for the AI
+        if (recentBrews && recentBrews.length > 0) {
+            const methods = [...new Set(recentBrews.map(b => b.brew_method))];
+            const perfectBrews = recentBrews.filter(b => b.rating === 'perfect');
+
+            let summaryParts = [];
+            if (methods.length > 0) {
+                summaryParts.push(`User frequently brews with: ${methods.slice(0, 3).join(', ')}`);
+            }
+            if (perfectBrews.length > 0) {
+                const perfectMethods = [...new Set(perfectBrews.map(b => b.brew_method))];
+                summaryParts.push(`Methods rated perfect: ${perfectMethods.join(', ')}`);
+
+                // Include actual parameters from perfect brews
+                const lastPerfect = perfectBrews[0];
+                if (lastPerfect.actual_brew) {
+                    summaryParts.push(`Last successful brew parameters: ${JSON.stringify(lastPerfect.actual_brew)}`);
+                }
+            }
+            preferences.summary = summaryParts.join('. ');
+        }
+
+        if (savedRecipes && savedRecipes.length > 0) {
+            const topRecipe = savedRecipes[0];
+            if (preferences.summary) {
+                preferences.summary += `. Most used recipe: ${topRecipe.brew_method} (brewed ${topRecipe.times_brewed} times)`;
+            } else {
+                preferences.summary = `Most used recipe: ${topRecipe.brew_method} (brewed ${topRecipe.times_brewed} times)`;
+            }
+        }
+
+        return preferences.summary ? preferences : null;
+    } catch (error) {
+        console.error('Error fetching user preferences:', error);
+        return null;
+    }
 }
 
 // Rating Slider Functions
