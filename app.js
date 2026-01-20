@@ -737,6 +737,12 @@ function displayResults(data) {
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 15px;">
                     <h4 style="margin: 0; font-size: 1rem;">${technique.technique_name}</h4>
                 </div>
+
+                <!-- Thumbnail image - always visible -->
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <img src="${imageUrl}" alt="${technique.technique_name}" style="max-width: 100%; height: auto; max-height: 180px; border-radius: 8px; object-fit: cover;" loading="lazy" />
+                </div>
+
                 <div id="active-indicator-${index}" class="hidden" style="margin-bottom: 10px; text-align: left; color: var(--primary-color); font-weight: bold; font-size: 0.9rem;">
                     ⭐ Currently Using This Recipe
                 </div>
@@ -811,12 +817,12 @@ function displayResults(data) {
                         </button>
                     </div>
 
-                    ${technique.technique_notes ? `<div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 3px solid var(--accent-color); border-radius: 4px;">
-                        <div style="margin: 0; line-height: 1.6; color: var(--secondary-color); font-size: 0.9rem;">${technique.technique_notes
+                    ${technique.technique_notes ? `<div style="margin-top: 12px; padding: 10px; background: #f9f9f9; border-left: 3px solid var(--accent-color); border-radius: 4px;">
+                        <div style="margin: 0; line-height: 1.3; color: var(--secondary-color); font-size: 0.85rem;">${technique.technique_notes
                             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                            .replace(/\n\n/g, '</p><p style="margin: 10px 0;">')
-                            .replace(/^• (.*?)$/gm, '<li style="margin-left: 20px;">$1</li>')
-                            .replace(/(<li.*<\/li>)/s, '<ul style="margin: 10px 0; padding-left: 0;">$1</ul>')
+                            .replace(/\n\n/g, '</p><p style="margin: 4px 0;">')
+                            .replace(/^• (.*?)$/gm, '<li style="margin: 2px 0; margin-left: 18px;">$1</li>')
+                            .replace(/(<li.*<\/li>)/s, '<ul style="margin: 4px 0; padding-left: 0;">$1</ul>')
                             .replace(/\n/g, '<br>')
                         }</div>
                     </div>` : ''}
