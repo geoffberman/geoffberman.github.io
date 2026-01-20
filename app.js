@@ -830,10 +830,11 @@ function displayResults(data) {
                     ${technique.technique_notes ? `<div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 3px solid var(--accent-color); border-radius: 4px;">
                         <div style="margin: 0; line-height: 1.6; color: var(--secondary-color); font-size: 0.9rem;">${technique.technique_notes
                             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                            .replace(/^• (.*?)$/gm, '<li style="margin: 0; padding: 0; line-height: 1.4;">$1</li>')
+                            .replace(/(<li.*?<\/li>\n?)+/gs, match => `<ul style="margin: 5px 0 0 0; padding-left: 20px; list-style-position: outside;">${match.replace(/\n/g, '')}</ul>`)
                             .replace(/\n\n/g, '</p><p style="margin: 10px 0;">')
-                            .replace(/^• (.*?)$/gm, '<li style="margin: 0; padding: 0;">$1</li>')
-                            .replace(/(<li.*?<\/li>\n?)+/gs, match => `<ul style="margin: 0; padding-left: 20px; list-style-position: outside;">${match.replace(/\n/g, '')}</ul>`)
                             .replace(/\n/g, '<br>')
+                            .replace(/<br>\s*<ul/g, '<ul')
                         }</div>
                     </div>` : ''}
                 </div>
