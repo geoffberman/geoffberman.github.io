@@ -662,6 +662,48 @@ function getBrewMethodImage(techniqueName) {
     }
 }
 
+// Format pour over instructions with times/volumes as bullets
+function formatPourInstruction(instruction) {
+    // Pattern to match pour steps with times and volumes
+    // e.g., "0:00-0:45: Pour 50g", "At 0:30, pour 100ml", "Pour 60g over 30 seconds"
+    let matches = [];
+    let match;
+
+    // Try to find timestamped pours first
+    const timeStampPattern = /(\d+:\d+(?:\s*[-–]\s*\d+:\d+)?)[:\s]+([^,;.]+(?:pour|add|bloom)[^,;.]*\d+\s*(?:g|ml)[^,;.]*)/gi;
+    while ((match = timeStampPattern.exec(instruction)) !== null) {
+        matches.push({ time: match[1], action: match[2].trim() });
+    }
+
+    // If we found timestamped pours, format them as bullets
+    if (matches.length > 0) {
+        let bullets = '<ul style="margin: 8px 0 8px 20px; list-style-type: disc;">';
+        matches.forEach(m => {
+            bullets += `<li style="margin-bottom: 4px;"><strong>${m.time}</strong>: ${m.action}</li>`;
+        });
+        bullets += '</ul>';
+
+        // Get any text before the first match as a header
+        const firstMatchIndex = instruction.search(/\d+:\d+/);
+        const header = firstMatchIndex > 0 ? instruction.substring(0, firstMatchIndex).trim() : '';
+
+        return header ? `${header}${bullets}` : bullets;
+    }
+
+    // Check for inline volume/time patterns without timestamps (e.g., "Pour 50g, then 100g, then 150g")
+    const inlinePours = instruction.match(/pour\s+\d+\s*(?:g|ml)(?:\s+(?:of\s+)?water)?(?:\s+(?:over|for|in)\s+\d+\s*(?:seconds?|sec|s))?/gi);
+    if (inlinePours && inlinePours.length > 1) {
+        let bullets = '<ul style="margin: 8px 0 8px 20px; list-style-type: disc;">';
+        inlinePours.forEach(pour => {
+            bullets += `<li style="margin-bottom: 4px;">${pour.trim()}</li>`;
+        });
+        bullets += '</ul>';
+        return bullets;
+    }
+
+    return instruction;
+}
+
 // Display results
 function displayResults(data) {
     const analysis = data.coffee_analysis;
@@ -813,7 +855,7 @@ function displayResults(data) {
                     </div>
 
                     ${technique.technique_notes ? `<div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 3px solid var(--accent-color); border-radius: 4px;">
-                        <p style="margin: 0; line-height: 1.6; color: var(--secondary-color); font-size: 0.9rem;">${technique.technique_notes}</p>
+                        <div style="margin: 0; line-height: 1.6; color: var(--secondary-color); font-size: 0.9rem;">${formatPourInstruction(technique.technique_notes)}</div>
                     </div>` : ''}
 
                     <div style="text-align: center; margin-top: 10px;">
