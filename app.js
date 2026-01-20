@@ -638,11 +638,11 @@ function getBrewMethodImage(techniqueName) {
         // Latte with art in cup
         return 'https://images.unsplash.com/photo-1570968915860-54d5c301fa9f?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('v60')) {
-        // V60 pour over setup
-        return 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=300&fit=crop&q=80';
+        // V60 pour over setup - Hario cone dripper
+        return 'https://images.unsplash.com/photo-1611162458324-aae1eb4129a2?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('pour over')) {
         // Generic pour over
-        return 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=300&fit=crop&q=80';
+        return 'https://images.unsplash.com/photo-1611162458324-aae1eb4129a2?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('chemex')) {
         // Chemex brewer
         return 'https://images.unsplash.com/photo-1517487881594-2787fef5ebf7?w=400&h=300&fit=crop&q=80';
@@ -2975,6 +2975,7 @@ async function getSavedRecipesForCoffee(coffeeAnalysis) {
     );
 
     const savedRecipes = [];
+    const recipeMap = new Map(); // Use Map to deduplicate by brew_method
 
     // Try to get from Supabase if authenticated
     if (window.auth && window.auth.isAuthenticated()) {
@@ -2990,7 +2991,10 @@ async function getSavedRecipesForCoffee(coffeeAnalysis) {
                 .order('times_brewed', { ascending: false });
 
             if (!error && data) {
-                savedRecipes.push(...data);
+                // Add Supabase recipes to map (these take priority)
+                data.forEach(recipe => {
+                    recipeMap.set(recipe.brew_method, recipe);
+                });
             }
         } catch (error) {
             console.error('Failed to fetch saved recipes from database:', error);
@@ -2998,18 +3002,25 @@ async function getSavedRecipesForCoffee(coffeeAnalysis) {
     }
 
     // Also check localStorage for saved recipes (fallback or for non-authenticated users)
+    // Only add if not already in map from Supabase
     try {
         const localRecipes = localStorage.getItem('saved_recipes');
         if (localRecipes) {
             const recipes = JSON.parse(localRecipes);
             const matchingRecipes = recipes.filter(r => r.coffee_hash === coffeeHash);
-            savedRecipes.push(...matchingRecipes);
+            matchingRecipes.forEach(recipe => {
+                // Only add if not already present from Supabase
+                if (!recipeMap.has(recipe.brew_method)) {
+                    recipeMap.set(recipe.brew_method, recipe);
+                }
+            });
         }
     } catch (error) {
         console.error('Failed to fetch saved recipes from localStorage:', error);
     }
 
-    return savedRecipes;
+    // Convert map values back to array
+    return Array.from(recipeMap.values());
 }
 
 // Integrate saved recipes into AI recommendations
