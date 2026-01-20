@@ -644,8 +644,8 @@ function getBrewMethodImage(techniqueName) {
         // Chemex brewer
         return 'https://images.unsplash.com/photo-1545665225-b23b99e4d45e?w=200&h=200&fit=crop&q=80';
     } else if (technique.includes('pour over')) {
-        // Generic pour over
-        return 'https://images.unsplash.com/photo-1442512595331-e89e73853f31?w=200&h=200&fit=crop&q=80';
+        // Generic pour over - coffee being poured
+        return 'https://images.unsplash.com/photo-1498804103079-a6351b050096?w=200&h=200&fit=crop&q=80';
     } else if (technique.includes('french press')) {
         // French press
         return 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=200&h=200&fit=crop&q=80';
@@ -690,18 +690,26 @@ function displayResults(data) {
         `;
     }
 
-    // Show equipment upgrade suggestions if provided by AI
+    // Show equipment upgrade suggestions if provided by AI (but hide if no upgrades needed)
     if (data.equipment_suggestions && data.equipment_suggestions.trim()) {
-        analysisHTML += `
-            <div style="background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%); border: 2px solid #2196F3; border-radius: 6px; padding: 10px; margin-bottom: 12px;">
-                <p style="margin: 0 0 6px 0; color: #0D47A1; font-weight: bold; font-size: 0.85rem;">
-                    💡 Equipment Recommendations
-                </p>
-                <p style="margin: 0; color: #1565C0; font-size: 0.8rem; line-height: 1.4;">
-                    ${data.equipment_suggestions}
-                </p>
-            </div>
-        `;
+        const suggestions = data.equipment_suggestions.toLowerCase();
+        const hasNoUpgrades = suggestions.includes('no equipment') ||
+                             suggestions.includes('no upgrades') ||
+                             suggestions.includes('well-suited') ||
+                             suggestions.includes('current setup');
+
+        if (!hasNoUpgrades) {
+            analysisHTML += `
+                <div style="background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%); border: 2px solid #2196F3; border-radius: 6px; padding: 10px; margin-bottom: 12px;">
+                    <p style="margin: 0 0 6px 0; color: #0D47A1; font-weight: bold; font-size: 0.85rem;">
+                        💡 Equipment Recommendations
+                    </p>
+                    <p style="margin: 0; color: #1565C0; font-size: 0.8rem; line-height: 1.4;">
+                        ${data.equipment_suggestions}
+                    </p>
+                </div>
+            `;
+        }
     }
 
     analysisHTML += '<div class="analysis-details" style="line-height: 1.4;">';
@@ -820,7 +828,7 @@ function displayResults(data) {
                         <div style="margin: 0; line-height: 1.3; color: var(--secondary-color); font-size: 0.85rem;">${technique.technique_notes
                             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                             .replace(/\n\n/g, '</p><p style="margin: 4px 0;">')
-                            .replace(/^• (.*?)$/gm, '<li style="margin: 2px 0; margin-left: 18px;">$1</li>')
+                            .replace(/^• (.*?)$/gm, '<li style="margin: 0; margin-left: 18px;">$1</li>')
                             .replace(/(<li.*<\/li>)/s, '<ul style="margin: 4px 0; padding-left: 0;">$1</ul>')
                             .replace(/\n/g, '<br>')
                         }</div>
