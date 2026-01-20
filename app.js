@@ -95,6 +95,13 @@ const elements = {
     goToEquipmentBtn: document.getElementById('go-to-equipment-btn')
 };
 
+// Utility: Escape HTML to prevent XSS and formatting issues
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // Initialize app
 async function init() {
     setupEventListeners();
@@ -638,11 +645,11 @@ function getBrewMethodImage(techniqueName) {
         // Latte with art in cup
         return 'https://images.unsplash.com/photo-1570968915860-54d5c301fa9f?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('v60')) {
-        // V60 pour over setup - Hario cone dripper
-        return 'https://images.unsplash.com/photo-1611162458324-aae1eb4129a2?w=400&h=300&fit=crop&q=80';
+        // V60 pour over setup - Hario cone dripper with gooseneck kettle
+        return '/images/v60.png';
     } else if (technique.includes('pour over')) {
         // Generic pour over
-        return 'https://images.unsplash.com/photo-1611162458324-aae1eb4129a2?w=400&h=300&fit=crop&q=80';
+        return 'https://images.unsplash.com/photo-1611564154665-e64f686e0d3d?w=400&h=300&fit=crop&q=80';
     } else if (technique.includes('chemex')) {
         // Chemex brewer
         return 'https://images.unsplash.com/photo-1517487881594-2787fef5ebf7?w=400&h=300&fit=crop&q=80';
@@ -734,6 +741,8 @@ function displayResults(data) {
     techniques.forEach((technique, index) => {
         const params = technique.parameters;
         const imageUrl = getBrewMethodImage(technique.technique_name);
+
+        console.log(`Rendering technique ${index}:`, technique.technique_name, 'is_saved_recipe:', technique.is_saved_recipe);
 
         techniquesHTML += `
             <div class="technique-card" style="border: 2px solid ${technique.is_saved_recipe ? 'var(--success-color)' : 'var(--border-color)'}; border-radius: 8px; padding: 20px; background: ${technique.is_saved_recipe ? 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)' : 'white'}; display: flex; flex-direction: column; justify-content: center;">
@@ -873,7 +882,7 @@ function displayResults(data) {
         elements.analysisContent.innerHTML += `
             <div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
                 <p><strong>Full Analysis:</strong></p>
-                <p style="white-space: pre-wrap; font-size: 0.9rem; margin-top: 10px;">${data.raw_response}</p>
+                <p style="white-space: pre-wrap; font-size: 0.9rem; margin-top: 10px;">${escapeHtml(data.raw_response)}</p>
             </div>
         `;
     }
@@ -2049,7 +2058,7 @@ async function saveAsPreferredRecipe() {
             .eq('user_id', userId)
             .eq('coffee_hash', coffeeHash)
             .eq('brew_method', state.currentBrewMethod)
-            .single();
+            .maybeSingle();
 
         if (existing) {
             // Update existing recipe
@@ -2936,7 +2945,7 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData) {
             .eq('user_id', userId)
             .eq('coffee_hash', coffeeHash)
             .eq('brew_method', brewMethod)
-            .single();
+            .maybeSingle();
 
         if (existing) {
             // Update existing recipe
@@ -2950,6 +2959,7 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData) {
                 .eq('id', existing.id);
 
             if (error) throw error;
+            console.log('Updated existing preferred recipe');
         } else {
             // Insert new preferred recipe
             const { error } = await supabase
@@ -2957,6 +2967,7 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData) {
                 .insert([preferredRecipe]);
 
             if (error) throw error;
+            console.log('Inserted new preferred recipe');
         }
 
         console.log('Saved as preferred recipe');
@@ -3067,6 +3078,7 @@ async function integrateSavedRecipes(analysisData) {
                 is_saved_recipe: true // Flag to indicate this is a saved recipe
             };
 
+            console.log('Adding saved recipe to techniques:', brewMethod, 'is_saved_recipe:', technique.is_saved_recipe);
             mergedTechniques.push(technique);
 
             // Remove from AI map so we don't duplicate
