@@ -876,16 +876,6 @@ function displayResults(data) {
             await saveInlineAdjustments(technique, techniqueIndex);
         });
     });
-
-    // If there's a raw response (fallback), show it
-    if (data.raw_response) {
-        elements.analysisContent.innerHTML += `
-            <div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
-                <p><strong>Full Analysis:</strong></p>
-                <p style="white-space: pre-wrap; font-size: 0.9rem; margin-top: 10px;">${escapeHtml(data.raw_response)}</p>
-            </div>
-        `;
-    }
 }
 
 // Show error
