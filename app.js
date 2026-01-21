@@ -2258,6 +2258,7 @@ async function adjustRecipeBasedOnRating(rating) {
             },
             body: JSON.stringify({
                 equipment: equipmentDescription,
+                currentBrewMethod: state.currentBrewMethod,
                 adjustmentRequest: adjustmentGuidance,
                 previousAnalysis: state.currentCoffeeAnalysis
             })

@@ -19,7 +19,7 @@ module.exports = async function handler(req, res) {
     }
 
     try {
-        const { image, mediaType, equipment, specificMethod, adjustmentRequest, previousAnalysis } = req.body;
+        const { image, mediaType, equipment, specificMethod, currentBrewMethod, adjustmentRequest, previousAnalysis } = req.body;
 
         // Handle recipe adjustment requests
         if (adjustmentRequest && previousAnalysis) {
@@ -34,7 +34,11 @@ Previous coffee details:
 - Origin: ${previousAnalysis.origin || 'Unknown'}
 - Processing: ${previousAnalysis.processing || 'Unknown'}
 
+Brew Method Used: ${currentBrewMethod || 'Unknown'}
+
 Equipment: ${equipment}
+
+⚠️ CRITICAL: The user brewed this coffee using "${currentBrewMethod}". You MUST provide adjustments for the SAME brew method (${currentBrewMethod}). DO NOT switch to a different brew method.
 
 ⚠️ IMPORTANT: Analyze the user's feedback to determine the appropriate response:
 
