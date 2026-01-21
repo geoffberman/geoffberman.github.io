@@ -75,7 +75,7 @@ Make the adjusted_parameters complete and ready to display in a table. The adjus
                 },
                 body: JSON.stringify({
                     model: 'claude-3-haiku-20240307',
-                    max_tokens: 2000,
+                    max_tokens: 3000,
                     messages: [{
                         role: 'user',
                         content: adjustmentPrompt
@@ -337,7 +337,7 @@ Read the image carefully and extract all visible information accurately. Provide
             },
             body: JSON.stringify({
                 model: 'claude-3-haiku-20240307',
-                max_tokens: 2048,
+                max_tokens: 4096,
                 messages: [{
                     role: 'user',
                     content: [
