@@ -2557,7 +2557,7 @@ async function saveInlineAdjustments(technique, techniqueIndex) {
         });
 
         // Save as preferred recipe (handles both localStorage and database)
-        await saveAsPreferredRecipeWithData(technique.technique_name, adjustedParams, technique.technique_notes);
+        await saveAsPreferredRecipeWithData(technique.technique_name, adjustedParams);
 
         // If authenticated, also save brew session
         if (window.auth && window.auth.isAuthenticated()) {
@@ -2791,11 +2791,10 @@ async function savePerfectRecipe(technique, techniqueIndex) {
 
         if (error) throw error;
 
-        // Save as preferred recipe (including technique notes)
+        // Save as preferred recipe
         await saveAsPreferredRecipeWithData(
             technique.technique_name,
-            technique.parameters,
-            technique.technique_notes
+            technique.parameters
         );
 
         btn.textContent = '✓ Saved!';
@@ -2863,15 +2862,10 @@ async function saveAdjustedBrew() {
 
         if (error) throw error;
 
-        // Get technique notes from the current active technique
-        const currentTechnique = state.currentCoffeeAnalysis?.recommended_techniques?.[state.activeTechniqueIndex];
-        const techniqueNotes = currentTechnique?.technique_notes || '';
-
         // Save as preferred recipe using their actual values
         await saveAsPreferredRecipeWithData(
             state.currentBrewMethod,
-            actualBrew,
-            techniqueNotes
+            actualBrew
         );
 
         btn.textContent = '✓ Saved!';
@@ -2900,13 +2894,12 @@ async function saveAdjustedBrew() {
 }
 
 // Helper function to save preferred recipe with specific data
-async function saveAsPreferredRecipeWithData(brewMethod, recipeData, techniqueNotes = '') {
+async function saveAsPreferredRecipeWithData(brewMethod, recipeData) {
     // Always save to localStorage as backup
     saveRecipeToLocalStorage(
         state.currentCoffeeAnalysis,
         brewMethod,
-        recipeData,
-        techniqueNotes
+        recipeData
     );
 
     // If authenticated, also save to database
@@ -2932,7 +2925,6 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, techniqueNo
         roaster: state.currentCoffeeAnalysis.roaster || 'Unknown',
         brew_method: brewMethod,
         recipe: recipeData,
-        technique_notes: techniqueNotes || '',
         last_brewed: new Date().toISOString()
     };
 
@@ -2952,7 +2944,6 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, techniqueNo
                 .from('saved_recipes')
                 .update({
                     recipe: recipeData,
-                    technique_notes: techniqueNotes || '',
                     times_brewed: existing.times_brewed + 1,
                     last_brewed: new Date().toISOString()
                 })
@@ -3074,8 +3065,7 @@ async function integrateSavedRecipes(analysisData) {
                 reasoning: aiTechnique?.reasoning ||
                     `You previously saved this recipe for this coffee (brewed ${saved.times_brewed || 1} time${saved.times_brewed > 1 ? 's' : ''}). Using your preferred parameters.`,
                 parameters: savedRecipe,
-                // Use saved technique_notes first, fall back to AI's notes if none were saved
-                technique_notes: saved.technique_notes || aiTechnique?.technique_notes || '',
+                technique_notes: aiTechnique?.technique_notes || '',
                 is_saved_recipe: true // Flag to indicate this is a saved recipe
             };
 
@@ -3108,7 +3098,7 @@ async function integrateSavedRecipes(analysisData) {
 }
 
 // Save recipe to localStorage for non-authenticated users
-function saveRecipeToLocalStorage(coffeeAnalysis, brewMethod, recipeData, techniqueNotes = '') {
+function saveRecipeToLocalStorage(coffeeAnalysis, brewMethod, recipeData) {
     try {
         const coffeeHash = createCoffeeHash(
             coffeeAnalysis.name,
@@ -3134,7 +3124,6 @@ function saveRecipeToLocalStorage(coffeeAnalysis, brewMethod, recipeData, techni
             roaster: coffeeAnalysis.roaster || 'Unknown',
             brew_method: brewMethod,
             recipe: recipeData,
-            technique_notes: techniqueNotes || '',
             times_brewed: 1,
             last_brewed: new Date().toISOString()
         };
@@ -3142,7 +3131,6 @@ function saveRecipeToLocalStorage(coffeeAnalysis, brewMethod, recipeData, techni
         if (existingIndex >= 0) {
             // Update existing
             savedRecipes[existingIndex].recipe = recipeData;
-            savedRecipes[existingIndex].technique_notes = techniqueNotes || '';
             savedRecipes[existingIndex].times_brewed = (savedRecipes[existingIndex].times_brewed || 0) + 1;
             savedRecipes[existingIndex].last_brewed = new Date().toISOString();
         } else {

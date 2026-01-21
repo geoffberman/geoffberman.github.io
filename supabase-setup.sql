@@ -74,9 +74,6 @@ CREATE TABLE saved_recipes (
     -- User's preferred recipe
     recipe JSONB NOT NULL,
 
-    -- Technique notes (pour over instructions, etc.)
-    technique_notes TEXT DEFAULT '',
-
     -- Metadata
     times_brewed INTEGER DEFAULT 1,
     last_brewed TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
