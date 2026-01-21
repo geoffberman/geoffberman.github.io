@@ -19,7 +19,7 @@ module.exports = async function handler(req, res) {
     }
 
     try {
-        const { image, mediaType, equipment, specificMethod, adjustmentRequest, previousAnalysis } = req.body;
+        const { image, mediaType, equipment, specificMethod, currentBrewMethod, adjustmentRequest, previousAnalysis } = req.body;
 
         // Handle recipe adjustment requests
         if (adjustmentRequest && previousAnalysis) {
@@ -34,7 +34,11 @@ Previous coffee details:
 - Origin: ${previousAnalysis.origin || 'Unknown'}
 - Processing: ${previousAnalysis.processing || 'Unknown'}
 
+Brew Method Used: ${currentBrewMethod || 'Unknown'}
+
 Equipment: ${equipment}
+
+⚠️ CRITICAL: The user brewed this coffee using "${currentBrewMethod}". You MUST provide adjustments for the SAME brew method (${currentBrewMethod}). DO NOT switch to a different brew method.
 
 ⚠️ IMPORTANT: Analyze the user's feedback to determine the appropriate response:
 
@@ -241,7 +245,7 @@ Example tailored profiles:
 Pressure profiling is expected and MUST be specific to this coffee.`;
         }
 
-        promptText += '\n\nProvide your response in the following JSON format:';
+        promptText += '\n\n⚠️ CRITICAL OUTPUT FORMAT: Provide your response as pure JSON ONLY. Do NOT wrap it in markdown code blocks (```json). Do NOT add any explanatory text before or after the JSON. Return ONLY the raw JSON object starting with { and ending with }.\n\nProvide your response in the following JSON format:';
 
         // Build JSON format based on whether specific method is requested
         let jsonFormat;
