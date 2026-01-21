@@ -241,7 +241,7 @@ Example tailored profiles:
 Pressure profiling is expected and MUST be specific to this coffee.`;
         }
 
-        promptText += '\n\nProvide your response in the following JSON format:';
+        promptText += '\n\n⚠️ CRITICAL OUTPUT FORMAT: Provide your response as pure JSON ONLY. Do NOT wrap it in markdown code blocks (```json). Do NOT add any explanatory text before or after the JSON. Return ONLY the raw JSON object starting with { and ending with }.\n\nProvide your response in the following JSON format:';
 
         // Build JSON format based on whether specific method is requested
         let jsonFormat;

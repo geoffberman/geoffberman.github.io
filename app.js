@@ -560,18 +560,46 @@ async function analyzeImage(specificMethod = null) {
         const data = await response.json();
         const analysisText = data.content[0].text;
 
+        console.log('Raw AI response:', analysisText);
+
         // Parse the JSON response
         let analysisData;
         try {
-            // Extract JSON from the response (might be wrapped in markdown code blocks)
-            const jsonMatch = analysisText.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                analysisData = JSON.parse(jsonMatch[0]);
+            // Try multiple extraction methods
+            let jsonStr = null;
+
+            // Method 1: Extract from markdown code blocks
+            const codeBlockMatch = analysisText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+            if (codeBlockMatch) {
+                jsonStr = codeBlockMatch[1];
+                console.log('Extracted JSON from code block');
+            }
+
+            // Method 2: Find JSON object directly
+            if (!jsonStr) {
+                const directMatch = analysisText.match(/\{[\s\S]*\}/);
+                if (directMatch) {
+                    jsonStr = directMatch[0];
+                    console.log('Extracted JSON directly');
+                }
+            }
+
+            // Method 3: Try parsing the entire response as JSON
+            if (!jsonStr) {
+                jsonStr = analysisText.trim();
+                console.log('Attempting to parse entire response as JSON');
+            }
+
+            if (jsonStr) {
+                analysisData = JSON.parse(jsonStr);
+                console.log('Successfully parsed JSON:', analysisData);
             } else {
                 throw new Error('No JSON found in response');
             }
         } catch (parseError) {
             // If JSON parsing fails, create a fallback structure
+            console.error('JSON parsing failed:', parseError);
+            console.error('Failed text:', analysisText);
             analysisData = parseFallbackResponse(analysisText);
         }
 
