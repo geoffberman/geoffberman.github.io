@@ -830,8 +830,8 @@ function displayResults(data) {
                     ${technique.technique_notes ? `<div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 3px solid var(--accent-color); border-radius: 4px;">
                         <div style="margin: 0; line-height: 1.6; color: var(--secondary-color); font-size: 0.9rem;">${technique.technique_notes
                             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                            .replace(/^• (.*?)$/gm, '<li style="margin: 0; padding: 0; line-height: 1.3;">$1</li>')
-                            .replace(/(<li.*?<\/li>\n?)+/gs, match => `<ul style="margin: 0; padding-left: 20px; list-style-position: outside;">${match.replace(/\n/g, '')}</ul>`)
+                            .replace(/^• (.*?)$/gm, '<li style="margin: 0; padding: 0; line-height: 1.0;">$1</li>')
+                            .replace(/(<li.*?<\/li>\n?)+/gs, match => `<ul style="margin: 0; margin-bottom: 0; padding-left: 20px; list-style-position: outside; line-height: 1.0;">${match.replace(/\n/g, '')}</ul>`)
                             .replace(/\n\n/g, '</p><p style="margin: 10px 0;">')
                             .replace(/\n/g, '<br>')
                             .replace(/<br>\s*<ul/g, '<ul')
@@ -959,6 +959,7 @@ function loadEquipment() {
                 (equipment.pourOver && equipment.pourOver.length > 0) ||
                 (equipment.podMachines && equipment.podMachines.length > 0) ||
                 (equipment.otherMethods && equipment.otherMethods.length > 0) ||
+                (equipment.customBrewMethods && equipment.customBrewMethods.length > 0) ||
                 (equipment.otherEquipment && equipment.otherEquipment.trim()) ||
                 (equipment.additionalEquipment && equipment.additionalEquipment.trim())
             );
@@ -2072,7 +2073,8 @@ async function saveAsPreferredRecipe() {
             if (error) throw error;
         }
 
-        console.log('Saved as preferred recipe');
+        console.log('Saved as preferred recipe with coffee hash:', coffeeHash);
+        console.log('Brew method:', state.currentBrewMethod);
     } catch (error) {
         console.error('Failed to save preferred recipe:', error);
     }
@@ -2975,6 +2977,14 @@ async function getSavedRecipesForCoffee(coffeeAnalysis) {
         coffeeAnalysis.roast_level,
         coffeeAnalysis.origin
     );
+
+    console.log('Looking for saved recipes with coffee hash:', coffeeHash);
+    console.log('Coffee details:', {
+        name: coffeeAnalysis.name,
+        roaster: coffeeAnalysis.roaster,
+        roast_level: coffeeAnalysis.roast_level,
+        origin: coffeeAnalysis.origin
+    });
 
     const savedRecipes = [];
     const recipeMap = new Map(); // Use Map to deduplicate by brew_method
