@@ -959,6 +959,7 @@ function loadEquipment() {
                 (equipment.pourOver && equipment.pourOver.length > 0) ||
                 (equipment.podMachines && equipment.podMachines.length > 0) ||
                 (equipment.otherMethods && equipment.otherMethods.length > 0) ||
+                (equipment.customBrewMethods && equipment.customBrewMethods.length > 0) ||
                 (equipment.otherEquipment && equipment.otherEquipment.trim()) ||
                 (equipment.additionalEquipment && equipment.additionalEquipment.trim())
             );
