@@ -1311,6 +1311,7 @@ function updateBrewMethodDropdown() {
     // Start with all standard brewing methods (same as before)
     const standardMethods = [
         'Espresso',
+        'Latte',
         'V60 Pour Over',
         'Chemex',
         'French Press',
