@@ -1161,14 +1161,8 @@ function showError(message) {
 
 // Reset app
 function resetApp() {
-    state.imageData = null;
-    state.imageFile = null;
-    state.hiddenAiRecommendations = null;
-    elements.fileInput.value = '';
-    elements.previewImage.src = '';
-    showSection('upload');
-    // Refresh saved recipes dropdown when returning to upload page
-    populateSavedRecipesDropdown();
+    // Reload the page to ensure proper initialization and saved recipe detection
+    window.location.reload();
 }
 
 // Equipment management functions
