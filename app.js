@@ -6,7 +6,8 @@ const state = {
     currentCoffeeAnalysis: null,
     currentBrewMethod: null,
     currentRecipe: null,
-    hiddenAiRecommendations: null
+    hiddenAiRecommendations: null,
+    currentImageHash: null
 };
 
 // DOM elements
@@ -717,6 +718,18 @@ async function analyzeImage(specificMethod = null) {
         const base64Image = await getBase64Image(state.imageFile);
         const mediaType = state.imageFile.type;
 
+        // Create image hash for caching
+        const imageHash = await createImageHash(base64Image);
+
+        // Check if we have cached analysis for this exact image
+        const cachedData = await checkCachedAnalysis(imageHash);
+        if (cachedData && !specificMethod) {
+            console.log('Using cached analysis for this image');
+            displayResults(cachedData);
+            showSection('results');
+            return;
+        }
+
         const equipmentDescription = getEquipmentDescription();
 
         const requestBody = {
@@ -787,6 +800,24 @@ async function analyzeImage(specificMethod = null) {
             console.error('JSON parsing failed:', parseError);
             console.error('Failed text:', analysisText);
             analysisData = parseFallbackResponse(analysisText);
+        }
+
+        // Store image hash in state for saving recipes later
+        state.currentImageHash = imageHash;
+
+        // Cache the analysis data (in localStorage for now)
+        if (!specificMethod) {
+            try {
+                const cacheKey = `analysis_cache_${imageHash}`;
+                const cacheData = {
+                    coffee_analysis: analysisData.coffee_analysis,
+                    recommended_techniques: analysisData.recommended_techniques,
+                    timestamp: Date.now()
+                };
+                localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+            } catch (error) {
+                console.error('Failed to cache analysis:', error);
+            }
         }
 
         // Check for saved recipes and integrate them into recommendations
@@ -1161,14 +1192,8 @@ function showError(message) {
 
 // Reset app
 function resetApp() {
-    state.imageData = null;
-    state.imageFile = null;
-    state.hiddenAiRecommendations = null;
-    elements.fileInput.value = '';
-    elements.previewImage.src = '';
-    showSection('upload');
-    // Refresh saved recipes dropdown when returning to upload page
-    populateSavedRecipesDropdown();
+    // Reload the page to ensure proper initialization and saved recipe detection
+    window.location.reload();
 }
 
 // Equipment management functions
@@ -1317,6 +1342,7 @@ function updateBrewMethodDropdown() {
     // Start with all standard brewing methods (same as before)
     const standardMethods = [
         'Espresso',
+        'Latte',
         'V60 Pour Over',
         'Chemex',
         'French Press',
@@ -2312,8 +2338,13 @@ async function saveAsPreferredRecipe() {
     const preferredRecipe = {
         user_id: userId,
         coffee_hash: coffeeHash,
+        image_hash: state.currentImageHash,
         coffee_name: state.currentCoffeeAnalysis.name || 'Unknown',
         roaster: state.currentCoffeeAnalysis.roaster || 'Unknown',
+        roast_level: state.currentCoffeeAnalysis.roast_level || 'Unknown',
+        origin: state.currentCoffeeAnalysis.origin || 'Unknown',
+        flavor_notes: state.currentCoffeeAnalysis.flavor_notes || [],
+        processing: state.currentCoffeeAnalysis.processing || 'Unknown',
         brew_method: state.currentBrewMethod,
         recipe: state.currentRecipe,
         last_brewed: new Date().toISOString()
@@ -2361,6 +2392,81 @@ function createCoffeeHash(name, roaster, roastLevel, origin) {
     // Simple hash function - concatenate and create a simple hash
     const str = `${name || ''}_${roaster || ''}_${roastLevel || ''}_${origin || ''}`.toLowerCase();
     return str.replace(/\s+/g, '_');
+}
+
+// Create a hash from image data for caching
+async function createImageHash(base64Image) {
+    // Use SubtleCrypto to create SHA-256 hash
+    const encoder = new TextEncoder();
+    const data = encoder.encode(base64Image.substring(0, 10000)); // Use first 10k chars for performance
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
+}
+
+// Check if we have cached analysis for this image
+async function checkCachedAnalysis(imageHash) {
+    // Check Supabase if authenticated
+    if (window.auth && window.auth.isAuthenticated()) {
+        try {
+            const supabase = window.getSupabase();
+            const userId = window.auth.getUserId();
+
+            const { data, error } = await supabase
+                .from('saved_recipes')
+                .select('*')
+                .eq('user_id', userId)
+                .eq('image_hash', imageHash)
+                .order('updated_at', { ascending: false })
+                .limit(10); // Get up to 10 recipes for this image
+
+            if (!error && data && data.length > 0) {
+                console.log(`Found ${data.length} saved recipe(s) for this image`);
+
+                // Reconstruct analysis data from saved recipes
+                const firstRecipe = data[0];
+                const coffeeAnalysis = {
+                    name: firstRecipe.coffee_name,
+                    roaster: firstRecipe.roaster,
+                    roast_level: firstRecipe.roast_level,
+                    origin: firstRecipe.origin,
+                    flavor_notes: firstRecipe.flavor_notes || [],
+                    processing: firstRecipe.processing || 'Unknown'
+                };
+
+                // Convert saved recipes to technique format
+                const techniques = data.map(recipe => ({
+                    technique_name: recipe.brew_method,
+                    reasoning: `You previously saved this recipe for this coffee (brewed ${recipe.times_brewed || 1} time${recipe.times_brewed > 1 ? 's' : ''}).`,
+                    parameters: recipe.recipe,
+                    technique_notes: '',
+                    is_saved_recipe: true
+                }));
+
+                return {
+                    coffee_analysis: coffeeAnalysis,
+                    recommended_techniques: techniques
+                };
+            }
+        } catch (error) {
+            console.error('Failed to check cached analysis:', error);
+        }
+    }
+
+    // Check localStorage as fallback
+    try {
+        const cacheKey = `analysis_cache_${imageHash}`;
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+            console.log('Found cached analysis in localStorage');
+            return JSON.parse(cached);
+        }
+    } catch (error) {
+        console.error('Failed to check localStorage cache:', error);
+    }
+
+    return null;
 }
 
 // Rating Slider Functions
@@ -3201,8 +3307,13 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData) {
     const preferredRecipe = {
         user_id: userId,
         coffee_hash: coffeeHash,
+        image_hash: state.currentImageHash,
         coffee_name: state.currentCoffeeAnalysis.name || 'Unknown',
         roaster: state.currentCoffeeAnalysis.roaster || 'Unknown',
+        roast_level: state.currentCoffeeAnalysis.roast_level || 'Unknown',
+        origin: state.currentCoffeeAnalysis.origin || 'Unknown',
+        flavor_notes: state.currentCoffeeAnalysis.flavor_notes || [],
+        processing: state.currentCoffeeAnalysis.processing || 'Unknown',
         brew_method: brewMethod,
         recipe: recipeData,
         last_brewed: new Date().toISOString()
