@@ -5,7 +5,8 @@ const state = {
     equipment: null,
     currentCoffeeAnalysis: null,
     currentBrewMethod: null,
-    currentRecipe: null
+    currentRecipe: null,
+    hiddenAiRecommendations: null
 };
 
 // DOM elements
@@ -1055,9 +1056,31 @@ function displayResults(data) {
         `;
     });
 
+    // Add button to reveal AI recommendations if they were hidden
+    if (data.has_hidden_ai_recommendations) {
+        techniquesHTML += `
+            <div id="reveal-ai-btn-container" style="grid-column: 1 / -1; text-align: center; padding: 20px;">
+                <div style="background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%); border: 2px solid var(--success-color); border-radius: 12px; padding: 20px; max-width: 600px; margin: 0 auto;">
+                    <p style="margin: 0 0 15px 0; color: var(--secondary-color); font-size: 0.95rem; line-height: 1.5;">
+                        💾 <strong>Using your saved recipe${techniques.length > 1 ? 's' : ''}!</strong><br>
+                        Want to try a different brew method? We can generate AI recommendations.
+                    </p>
+                    <button id="reveal-ai-recommendations-btn" class="btn btn-primary" style="font-size: 0.95rem; padding: 12px 24px;">
+                        🤖 Show AI Recommendations
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
     techniquesHTML += '</div>';
 
     elements.methodContent.innerHTML = techniquesHTML;
+
+    // Store hidden AI recommendations in state for later reveal
+    if (data.has_hidden_ai_recommendations) {
+        state.hiddenAiRecommendations = data.hidden_ai_recommendations;
+    }
 
     // Track active technique (default to first one)
     if (!state.activeTechniqueIndex && state.activeTechniqueIndex !== 0) {
@@ -1090,6 +1113,44 @@ function displayResults(data) {
             await saveInlineAdjustments(technique, techniqueIndex);
         });
     });
+
+    // Add event listener for reveal AI recommendations button
+    const revealBtn = document.getElementById('reveal-ai-recommendations-btn');
+    if (revealBtn) {
+        revealBtn.addEventListener('click', () => {
+            revealAiRecommendations();
+        });
+    }
+}
+
+// Reveal hidden AI recommendations
+function revealAiRecommendations() {
+    if (!state.hiddenAiRecommendations || state.hiddenAiRecommendations.length === 0) {
+        console.log('No hidden AI recommendations to reveal');
+        return;
+    }
+
+    console.log(`Revealing ${state.hiddenAiRecommendations.length} hidden AI recommendation(s)`);
+
+    // Get current techniques (saved recipes) and append hidden AI recommendations
+    const currentTechniques = state.currentCoffeeAnalysis.recommended_techniques || [];
+    const allTechniques = [...currentTechniques, ...state.hiddenAiRecommendations];
+
+    // Update state with all techniques
+    state.currentCoffeeAnalysis.recommended_techniques = allTechniques;
+    state.currentRecipe.recommended_techniques = allTechniques;
+
+    // Clear hidden recommendations from state
+    delete state.hiddenAiRecommendations;
+
+    // Re-render the results with all techniques
+    const updatedData = {
+        coffee_analysis: state.currentCoffeeAnalysis,
+        recommended_techniques: allTechniques,
+        has_hidden_ai_recommendations: false // No longer hiding anything
+    };
+
+    displayResults(updatedData);
 }
 
 // Show error
@@ -1102,6 +1163,7 @@ function showError(message) {
 function resetApp() {
     state.imageData = null;
     state.imageFile = null;
+    state.hiddenAiRecommendations = null;
     elements.fileInput.value = '';
     elements.previewImage.src = '';
     showSection('upload');
@@ -3269,7 +3331,7 @@ async function integrateSavedRecipes(analysisData) {
 
         // Get the recommended techniques from AI
         const aiTechniques = analysisData.recommended_techniques || [];
-        const mergedTechniques = [];
+        const savedTechniques = [];
 
         // Create a map of AI techniques by brew method for easy lookup
         const aiTechniqueMap = {};
@@ -3296,24 +3358,29 @@ async function integrateSavedRecipes(analysisData) {
             };
 
             console.log('Adding saved recipe to techniques:', brewMethod, 'is_saved_recipe:', technique.is_saved_recipe);
-            mergedTechniques.push(technique);
+            savedTechniques.push(technique);
 
             // Remove from AI map so we don't duplicate
             delete aiTechniqueMap[brewMethod];
         });
 
-        // Add remaining AI techniques that weren't in saved recipes
-        Object.values(aiTechniqueMap).forEach(tech => {
-            mergedTechniques.push({
-                ...tech,
-                is_saved_recipe: false
-            });
-        });
+        // Store remaining AI techniques that weren't in saved recipes
+        const hiddenAiTechniques = Object.values(aiTechniqueMap).map(tech => ({
+            ...tech,
+            is_saved_recipe: false
+        }));
 
-        // Update the analysis data with merged techniques
-        analysisData.recommended_techniques = mergedTechniques;
+        // ONLY show saved recipes initially (hide AI recommendations)
+        analysisData.recommended_techniques = savedTechniques;
 
-        console.log('Integrated saved recipes into recommendations:', mergedTechniques.length, 'total techniques');
+        // Store hidden AI recommendations for later reveal
+        if (hiddenAiTechniques.length > 0) {
+            analysisData.hidden_ai_recommendations = hiddenAiTechniques;
+            analysisData.has_hidden_ai_recommendations = true;
+            console.log(`Hiding ${hiddenAiTechniques.length} AI recommendation(s) - showing only saved recipes`);
+        }
+
+        console.log('Showing saved recipes only:', savedTechniques.length, 'technique(s)');
 
     } catch (error) {
         console.error('Failed to integrate saved recipes:', error);
