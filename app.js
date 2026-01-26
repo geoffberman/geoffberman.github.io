@@ -5,7 +5,8 @@ const state = {
     equipment: null,
     currentCoffeeAnalysis: null,
     currentBrewMethod: null,
-    currentRecipe: null
+    currentRecipe: null,
+    hiddenAiRecommendations: null
 };
 
 // DOM elements
@@ -92,7 +93,14 @@ const elements = {
     noGrinder: document.getElementById('no-grinder'),
     otherEquipment: document.getElementById('other-equipment'),
     equipmentRequiredOverlay: document.getElementById('equipment-required-overlay'),
-    goToEquipmentBtn: document.getElementById('go-to-equipment-btn')
+    goToEquipmentBtn: document.getElementById('go-to-equipment-btn'),
+
+    // Saved recipes dropdown elements
+    savedRecipesSection: document.getElementById('saved-recipes-section'),
+    savedRecipesSelect: document.getElementById('saved-recipes-select'),
+    loadSavedRecipeBtn: document.getElementById('load-saved-recipe-btn'),
+    savedRecipesLoginPrompt: document.getElementById('saved-recipes-login-prompt'),
+    signinForRecipesBtn: document.getElementById('signin-for-recipes-btn')
 };
 
 // Utility: Escape HTML to prevent XSS and formatting issues
@@ -100,6 +108,159 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Fetch user's most recent saved recipes (across all coffees)
+async function getRecentSavedRecipes(limit = 5) {
+    const recipes = [];
+
+    // Try Supabase if authenticated
+    if (window.auth && window.auth.isAuthenticated()) {
+        try {
+            const supabase = window.getSupabase();
+            const userId = window.auth.getUserId();
+
+            const { data, error } = await supabase
+                .from('saved_recipes')
+                .select('*')
+                .eq('user_id', userId)
+                .order('last_brewed', { ascending: false })
+                .limit(limit);
+
+            if (!error && data) {
+                recipes.push(...data);
+            }
+        } catch (error) {
+            console.error('Failed to fetch recent recipes from database:', error);
+        }
+    }
+
+    // Fallback to localStorage if no Supabase results
+    if (recipes.length === 0) {
+        try {
+            const localRecipes = localStorage.getItem('saved_recipes');
+            if (localRecipes) {
+                const parsed = JSON.parse(localRecipes);
+                // Sort by last_brewed descending
+                parsed.sort((a, b) => new Date(b.last_brewed) - new Date(a.last_brewed));
+                recipes.push(...parsed.slice(0, limit));
+            }
+        } catch (error) {
+            console.error('Failed to fetch recent recipes from localStorage:', error);
+        }
+    }
+
+    return recipes;
+}
+
+// Populate the saved recipes dropdown with recent recipes
+async function populateSavedRecipesDropdown() {
+    const select = elements.savedRecipesSelect;
+    const section = elements.savedRecipesSection;
+    const loginPrompt = elements.savedRecipesLoginPrompt;
+
+    // Check if user is logged in
+    if (!window.auth || !window.auth.isAuthenticated()) {
+        // Check localStorage for recipes
+        const localRecipes = localStorage.getItem('saved_recipes');
+        if (!localRecipes || JSON.parse(localRecipes).length === 0) {
+            // No recipes and not logged in - show login prompt
+            section.classList.add('hidden');
+            loginPrompt.classList.remove('hidden');
+            return;
+        }
+    }
+
+    // Fetch recent recipes
+    const recipes = await getRecentSavedRecipes(5);
+
+    if (recipes.length === 0) {
+        // No saved recipes - hide dropdown
+        section.classList.add('hidden');
+        loginPrompt.classList.add('hidden');
+        return;
+    }
+
+    // Clear existing options (except first placeholder)
+    select.innerHTML = '<option value="">Choose from your recent recipes...</option>';
+
+    // Add recipe options
+    recipes.forEach((recipe, index) => {
+        const option = document.createElement('option');
+        option.value = index; // Use index as value
+
+        // Create label: "Coffee Name - Brew Method (Roaster)"
+        let label = '';
+        if (recipe.coffee_name && recipe.coffee_name !== 'Unknown') {
+            label = recipe.coffee_name;
+        } else {
+            label = 'Coffee Recipe';
+        }
+
+        label += ` - ${recipe.brew_method}`;
+
+        if (recipe.roaster && recipe.roaster !== 'Unknown') {
+            label += ` (${recipe.roaster})`;
+        }
+
+        // Add times brewed if > 1
+        if (recipe.times_brewed && recipe.times_brewed > 1) {
+            label += ` [${recipe.times_brewed}x]`;
+        }
+
+        option.textContent = label;
+        option.dataset.recipeData = JSON.stringify(recipe); // Store full recipe data
+        select.appendChild(option);
+    });
+
+    // Show the dropdown section
+    section.classList.remove('hidden');
+    loginPrompt.classList.add('hidden');
+}
+
+// Load a saved recipe directly without uploading a photo
+async function loadSavedRecipeDirectly(recipeData) {
+    try {
+        // Reconstruct the coffee analysis from saved data
+        const coffeeAnalysis = {
+            name: recipeData.coffee_name || 'Unknown',
+            roaster: recipeData.roaster || 'Unknown',
+            roast_level: recipeData.roast_level || 'Unknown',
+            origin: recipeData.origin || 'Unknown',
+            processing: recipeData.processing || 'Unknown',
+            flavor_notes: recipeData.flavor_notes || []
+        };
+
+        // Create analysis data structure matching API response format
+        const analysisData = {
+            coffee_analysis: coffeeAnalysis,
+            recommended_techniques: [
+                {
+                    technique_name: recipeData.brew_method,
+                    reasoning: `This is your saved recipe for this coffee. You've brewed it ${recipeData.times_brewed || 1} time${recipeData.times_brewed > 1 ? 's' : ''}.`,
+                    parameters: recipeData.recipe,
+                    technique_notes: '',
+                    is_saved_recipe: true
+                }
+            ]
+        };
+
+        // Update state
+        state.currentCoffeeAnalysis = coffeeAnalysis;
+        state.currentBrewMethod = recipeData.brew_method;
+        state.currentRecipe = recipeData.recipe;
+        state.imageData = null; // No image for saved recipes
+        state.imageFile = null;
+
+        // Display results
+        displayResults(analysisData);
+        showSection('results');
+
+        console.log('Loaded saved recipe:', recipeData.coffee_name, '-', recipeData.brew_method);
+    } catch (error) {
+        console.error('Failed to load saved recipe:', error);
+        showError('Failed to load saved recipe. Please try again.');
+    }
 }
 
 // Initialize app
@@ -161,6 +322,9 @@ async function init() {
 
     // Check if equipment meets requirements and show/hide overlay
     updateEquipmentRequiredOverlay();
+
+    // Load saved recipes dropdown
+    await populateSavedRecipesDropdown();
 }
 
 // Handle auth state changes
@@ -171,9 +335,13 @@ function handleAuthStateChange(event, session) {
         hideSignInButton();
         migrateLocalStorageToDatabase();
         loadEquipmentFromDatabase();
+        // Refresh saved recipes dropdown after sign in
+        populateSavedRecipesDropdown();
     } else if (event === 'SIGNED_OUT') {
         hideUserProfile();
         showSignInButton();
+        // Update saved recipes dropdown after sign out
+        populateSavedRecipesDropdown();
     }
 }
 
@@ -450,6 +618,24 @@ function setupEventListeners() {
         // Open equipment settings
         elements.settingsSection.classList.remove('hidden');
         showEquipmentForm();
+    });
+
+    // Saved recipes dropdown
+    elements.savedRecipesSelect.addEventListener('change', () => {
+        const selectedIndex = elements.savedRecipesSelect.value;
+        elements.loadSavedRecipeBtn.disabled = !selectedIndex;
+    });
+
+    elements.loadSavedRecipeBtn.addEventListener('click', () => {
+        const selectedOption = elements.savedRecipesSelect.selectedOptions[0];
+        if (selectedOption && selectedOption.dataset.recipeData) {
+            const recipeData = JSON.parse(selectedOption.dataset.recipeData);
+            loadSavedRecipeDirectly(recipeData);
+        }
+    });
+
+    elements.signinForRecipesBtn.addEventListener('click', () => {
+        showAuthModal();
     });
 }
 
@@ -870,9 +1056,31 @@ function displayResults(data) {
         `;
     });
 
+    // Add button to reveal AI recommendations if they were hidden
+    if (data.has_hidden_ai_recommendations) {
+        techniquesHTML += `
+            <div id="reveal-ai-btn-container" style="grid-column: 1 / -1; text-align: center; padding: 20px;">
+                <div style="background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%); border: 2px solid var(--success-color); border-radius: 12px; padding: 20px; max-width: 600px; margin: 0 auto;">
+                    <p style="margin: 0 0 15px 0; color: var(--secondary-color); font-size: 0.95rem; line-height: 1.5;">
+                        💾 <strong>Using your saved recipe${techniques.length > 1 ? 's' : ''}!</strong><br>
+                        Want to try a different brew method? We can generate AI recommendations.
+                    </p>
+                    <button id="reveal-ai-recommendations-btn" class="btn btn-primary" style="font-size: 0.95rem; padding: 12px 24px;">
+                        🤖 Show AI Recommendations
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
     techniquesHTML += '</div>';
 
     elements.methodContent.innerHTML = techniquesHTML;
+
+    // Store hidden AI recommendations in state for later reveal
+    if (data.has_hidden_ai_recommendations) {
+        state.hiddenAiRecommendations = data.hidden_ai_recommendations;
+    }
 
     // Track active technique (default to first one)
     if (!state.activeTechniqueIndex && state.activeTechniqueIndex !== 0) {
@@ -905,6 +1113,44 @@ function displayResults(data) {
             await saveInlineAdjustments(technique, techniqueIndex);
         });
     });
+
+    // Add event listener for reveal AI recommendations button
+    const revealBtn = document.getElementById('reveal-ai-recommendations-btn');
+    if (revealBtn) {
+        revealBtn.addEventListener('click', () => {
+            revealAiRecommendations();
+        });
+    }
+}
+
+// Reveal hidden AI recommendations
+function revealAiRecommendations() {
+    if (!state.hiddenAiRecommendations || state.hiddenAiRecommendations.length === 0) {
+        console.log('No hidden AI recommendations to reveal');
+        return;
+    }
+
+    console.log(`Revealing ${state.hiddenAiRecommendations.length} hidden AI recommendation(s)`);
+
+    // Get current techniques (saved recipes) and append hidden AI recommendations
+    const currentTechniques = state.currentCoffeeAnalysis.recommended_techniques || [];
+    const allTechniques = [...currentTechniques, ...state.hiddenAiRecommendations];
+
+    // Update state with all techniques
+    state.currentCoffeeAnalysis.recommended_techniques = allTechniques;
+    state.currentRecipe.recommended_techniques = allTechniques;
+
+    // Clear hidden recommendations from state
+    delete state.hiddenAiRecommendations;
+
+    // Re-render the results with all techniques
+    const updatedData = {
+        coffee_analysis: state.currentCoffeeAnalysis,
+        recommended_techniques: allTechniques,
+        has_hidden_ai_recommendations: false // No longer hiding anything
+    };
+
+    displayResults(updatedData);
 }
 
 // Show error
@@ -917,9 +1163,12 @@ function showError(message) {
 function resetApp() {
     state.imageData = null;
     state.imageFile = null;
+    state.hiddenAiRecommendations = null;
     elements.fileInput.value = '';
     elements.previewImage.src = '';
     showSection('upload');
+    // Refresh saved recipes dropdown when returning to upload page
+    populateSavedRecipesDropdown();
 }
 
 // Equipment management functions
@@ -3082,7 +3331,7 @@ async function integrateSavedRecipes(analysisData) {
 
         // Get the recommended techniques from AI
         const aiTechniques = analysisData.recommended_techniques || [];
-        const mergedTechniques = [];
+        const savedTechniques = [];
 
         // Create a map of AI techniques by brew method for easy lookup
         const aiTechniqueMap = {};
@@ -3109,24 +3358,29 @@ async function integrateSavedRecipes(analysisData) {
             };
 
             console.log('Adding saved recipe to techniques:', brewMethod, 'is_saved_recipe:', technique.is_saved_recipe);
-            mergedTechniques.push(technique);
+            savedTechniques.push(technique);
 
             // Remove from AI map so we don't duplicate
             delete aiTechniqueMap[brewMethod];
         });
 
-        // Add remaining AI techniques that weren't in saved recipes
-        Object.values(aiTechniqueMap).forEach(tech => {
-            mergedTechniques.push({
-                ...tech,
-                is_saved_recipe: false
-            });
-        });
+        // Store remaining AI techniques that weren't in saved recipes
+        const hiddenAiTechniques = Object.values(aiTechniqueMap).map(tech => ({
+            ...tech,
+            is_saved_recipe: false
+        }));
 
-        // Update the analysis data with merged techniques
-        analysisData.recommended_techniques = mergedTechniques;
+        // ONLY show saved recipes initially (hide AI recommendations)
+        analysisData.recommended_techniques = savedTechniques;
 
-        console.log('Integrated saved recipes into recommendations:', mergedTechniques.length, 'total techniques');
+        // Store hidden AI recommendations for later reveal
+        if (hiddenAiTechniques.length > 0) {
+            analysisData.hidden_ai_recommendations = hiddenAiTechniques;
+            analysisData.has_hidden_ai_recommendations = true;
+            console.log(`Hiding ${hiddenAiTechniques.length} AI recommendation(s) - showing only saved recipes`);
+        }
+
+        console.log('Showing saved recipes only:', savedTechniques.length, 'technique(s)');
 
     } catch (error) {
         console.error('Failed to integrate saved recipes:', error);
