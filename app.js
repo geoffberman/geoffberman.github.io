@@ -722,6 +722,9 @@ async function analyzeImage(specificMethod = null) {
         // Create image hash for caching
         const imageHash = await createImageHash(base64Image);
 
+        // Store image hash in state for saving recipes later (must be set before early return)
+        state.currentImageHash = imageHash;
+
         // Check if we have cached analysis for this exact image
         const cachedData = await checkCachedAnalysis(imageHash);
         if (cachedData && !specificMethod) {
@@ -802,9 +805,6 @@ async function analyzeImage(specificMethod = null) {
             console.error('Failed text:', analysisText);
             analysisData = parseFallbackResponse(analysisText);
         }
-
-        // Store image hash in state for saving recipes later
-        state.currentImageHash = imageHash;
 
         // Cache the analysis data (in localStorage for now)
         if (!specificMethod) {
