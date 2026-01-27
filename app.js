@@ -113,7 +113,7 @@ function escapeHtml(text) {
 
 // Fetch user's most recent saved recipes (across all coffees)
 async function getRecentSavedRecipes(limit = 5) {
-    const recipes = [];
+    let allRecipes = [];
 
     // Try Supabase if authenticated
     if (window.auth && window.auth.isAuthenticated()) {
@@ -121,15 +121,16 @@ async function getRecentSavedRecipes(limit = 5) {
             const supabase = window.getSupabase();
             const userId = window.auth.getUserId();
 
+            // Fetch more recipes than limit to ensure we get unique coffee+method combos
             const { data, error } = await supabase
                 .from('saved_recipes')
                 .select('*')
                 .eq('user_id', userId)
                 .order('last_brewed', { ascending: false })
-                .limit(limit);
+                .limit(limit * 5); // Fetch more to account for duplicates
 
             if (!error && data) {
-                recipes.push(...data);
+                allRecipes.push(...data);
             }
         } catch (error) {
             console.error('Failed to fetch recent recipes from database:', error);
@@ -137,19 +138,33 @@ async function getRecentSavedRecipes(limit = 5) {
     }
 
     // Fallback to localStorage if no Supabase results
-    if (recipes.length === 0) {
+    if (allRecipes.length === 0) {
         try {
             const localRecipes = localStorage.getItem('saved_recipes');
             if (localRecipes) {
                 const parsed = JSON.parse(localRecipes);
                 // Sort by last_brewed descending
                 parsed.sort((a, b) => new Date(b.last_brewed) - new Date(a.last_brewed));
-                recipes.push(...parsed.slice(0, limit));
+                allRecipes.push(...parsed);
             }
         } catch (error) {
             console.error('Failed to fetch recent recipes from localStorage:', error);
         }
     }
+
+    // Deduplicate by coffee_hash + brew_method, keeping only the most recent
+    const uniqueRecipes = new Map();
+    for (const recipe of allRecipes) {
+        const key = `${recipe.coffee_hash}_${recipe.brew_method}`;
+        if (!uniqueRecipes.has(key)) {
+            uniqueRecipes.set(key, recipe);
+        }
+    }
+
+    // Convert Map values to array, sort by last_brewed, and limit
+    const recipes = Array.from(uniqueRecipes.values())
+        .sort((a, b) => new Date(b.last_brewed) - new Date(a.last_brewed))
+        .slice(0, limit);
 
     return recipes;
 }
