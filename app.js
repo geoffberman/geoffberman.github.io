@@ -241,7 +241,8 @@ async function loadSavedRecipeDirectly(recipeData) {
                     reasoning: `This is your saved recipe for this coffee. You've brewed it ${recipeData.times_brewed || 1} time${recipeData.times_brewed > 1 ? 's' : ''}.`,
                     parameters: recipeData.recipe,
                     technique_notes: '',
-                    is_saved_recipe: true
+                    is_saved_recipe: true,
+                    saved_notes: recipeData.notes || null
                 }
             ]
         };
@@ -1066,11 +1067,23 @@ function displayResults(data) {
                         </tbody>
                     </table>
 
-                    <div id="save-adjustments-${index}" class="hidden" style="margin-top: 20px; text-align: center;">
-                        <button class="btn btn-primary save-adjustments-btn" data-technique-index="${index}" style="min-width: 200px;">
-                            💾 Save My Adjustments
-                        </button>
+                    <div id="save-adjustments-${index}" class="hidden" style="margin-top: 20px;">
+                        <div style="margin-bottom: 15px;">
+                            <label for="adjustment-notes-${index}" style="display: block; font-weight: bold; color: var(--primary-color); margin-bottom: 8px; font-size: 0.9rem;">Notes (optional)</label>
+                            <textarea id="adjustment-notes-${index}" class="adjustment-notes" rows="3" placeholder="What changed? How did it taste? Any observations..." style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; resize: vertical; font-size: 0.85rem;"></textarea>
+                            <small style="color: var(--secondary-color); font-size: 0.75rem; display: block; margin-top: 4px;">These notes will appear when you load this recipe in the future</small>
+                        </div>
+                        <div style="text-align: center;">
+                            <button class="btn btn-primary save-adjustments-btn" data-technique-index="${index}" style="min-width: 200px;">
+                                💾 Save My Adjustments
+                            </button>
+                        </div>
                     </div>
+
+                    ${technique.saved_notes ? `<div style="margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #FFF8ED 0%, #FFEDDA 100%); border: 2px solid var(--accent-color); border-radius: 8px;">
+                        <h4 style="margin: 0 0 10px 0; color: var(--primary-color); font-size: 0.95rem;">Notes from Previous Cups</h4>
+                        <div style="margin: 0; line-height: 1.6; color: var(--secondary-color); font-size: 0.85rem; white-space: pre-wrap; font-family: inherit;">${escapeHtml(technique.saved_notes)}</div>
+                    </div>` : ''}
 
                     ${technique.technique_notes ? `<div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 3px solid var(--accent-color); border-radius: 4px;">
                         <div style="margin: 0; line-height: 1.6; color: var(--secondary-color); font-size: 0.9rem;">${technique.technique_notes
@@ -2311,12 +2324,13 @@ async function saveBrewSession(rating) {
     }
 }
 
-async function saveAsPreferredRecipe() {
+async function saveAsPreferredRecipe(notes = null) {
     // Always save to localStorage as backup
     saveRecipeToLocalStorage(
         state.currentCoffeeAnalysis,
         state.currentBrewMethod,
-        state.currentRecipe
+        state.currentRecipe,
+        notes
     );
 
     // If authenticated, also save to database
@@ -2354,26 +2368,42 @@ async function saveAsPreferredRecipe() {
         // Check if recipe already exists
         const { data: existing } = await supabase
             .from('saved_recipes')
-            .select('id, times_brewed')
+            .select('id, times_brewed, notes')
             .eq('user_id', userId)
             .eq('coffee_hash', coffeeHash)
             .eq('brew_method', state.currentBrewMethod)
             .maybeSingle();
 
         if (existing) {
-            // Update existing recipe
+            // Update existing recipe and append notes
+            const updateData = {
+                recipe: state.currentRecipe,
+                times_brewed: existing.times_brewed + 1,
+                last_brewed: new Date().toISOString()
+            };
+
+            // Append new notes to existing notes if provided
+            if (notes && notes.trim()) {
+                const timestamp = new Date().toLocaleString();
+                const newNote = `[${timestamp}] ${notes.trim()}`;
+                updateData.notes = existing.notes
+                    ? `${existing.notes}\n\n${newNote}`
+                    : newNote;
+            }
+
             const { error } = await supabase
                 .from('saved_recipes')
-                .update({
-                    recipe: state.currentRecipe,
-                    times_brewed: existing.times_brewed + 1,
-                    last_brewed: new Date().toISOString()
-                })
+                .update(updateData)
                 .eq('id', existing.id);
 
             if (error) throw error;
         } else {
             // Insert new preferred recipe
+            if (notes && notes.trim()) {
+                const timestamp = new Date().toLocaleString();
+                preferredRecipe.notes = `[${timestamp}] ${notes.trim()}`;
+            }
+
             const { error } = await supabase
                 .from('saved_recipes')
                 .insert([preferredRecipe]);
@@ -2791,10 +2821,17 @@ async function adjustRecipeBasedOnRating(rating) {
                 </tbody>
             </table>
 
-            <div style="margin-top: 20px; text-align: center;">
-                <button id="save-adjusted-recipe-btn" class="btn btn-primary" style="background: #28a745; min-width: 250px;">
-                    💾 Save My Brew
-                </button>
+            <div style="margin-top: 20px;">
+                <div style="margin-bottom: 15px;">
+                    <label for="adjusted-recipe-notes" style="display: block; font-weight: bold; color: var(--primary-color); margin-bottom: 8px; font-size: 0.9rem;">Notes (optional)</label>
+                    <textarea id="adjusted-recipe-notes" rows="3" placeholder="What changed? How did it taste? Any observations..." style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; resize: vertical; font-size: 0.85rem;"></textarea>
+                    <small style="color: var(--secondary-color); font-size: 0.75rem; display: block; margin-top: 4px;">These notes will appear when you load this recipe in the future</small>
+                </div>
+                <div style="text-align: center;">
+                    <button id="save-adjusted-recipe-btn" class="btn btn-primary" style="background: #28a745; min-width: 250px;">
+                        💾 Save My Brew
+                    </button>
+                </div>
             </div>
 
             <h4 style="margin-top: 25px; margin-bottom: 15px;">What Changed and Why</h4>
@@ -2942,8 +2979,12 @@ async function saveInlineAdjustments(technique, techniqueIndex) {
             adjustedParams[param] = input.value;
         });
 
+        // Collect notes
+        const notesTextarea = document.getElementById(`adjustment-notes-${techniqueIndex}`);
+        const notes = notesTextarea ? notesTextarea.value.trim() : null;
+
         // Save as preferred recipe (handles both localStorage and database)
-        await saveAsPreferredRecipeWithData(technique.technique_name, adjustedParams);
+        await saveAsPreferredRecipeWithData(technique.technique_name, adjustedParams, notes);
 
         // If authenticated, also save brew session
         if (window.auth && window.auth.isAuthenticated()) {
@@ -2970,6 +3011,11 @@ async function saveInlineAdjustments(technique, techniqueIndex) {
                 .insert([session]);
 
             if (error) throw error;
+        }
+
+        // Clear the notes textarea after successful save
+        if (notesTextarea) {
+            notesTextarea.value = '';
         }
 
         btn.textContent = '✓ Saved!';
@@ -3223,6 +3269,10 @@ async function saveAdjustedBrew() {
             actualBrew[param] = input.value.trim();
         });
 
+        // Collect notes
+        const notesTextarea = document.getElementById('adjusted-recipe-notes');
+        const notes = notesTextarea ? notesTextarea.value.trim() : null;
+
         const supabase = window.getSupabase();
         const userId = window.auth.getUserId();
 
@@ -3248,11 +3298,17 @@ async function saveAdjustedBrew() {
 
         if (error) throw error;
 
-        // Save as preferred recipe using their actual values
+        // Save as preferred recipe using their actual values with notes
         await saveAsPreferredRecipeWithData(
             state.currentBrewMethod,
-            actualBrew
+            actualBrew,
+            notes
         );
+
+        // Clear the notes textarea after successful save
+        if (notesTextarea) {
+            notesTextarea.value = '';
+        }
 
         btn.textContent = '✓ Saved!';
         btn.style.background = '#218838';
@@ -3280,12 +3336,13 @@ async function saveAdjustedBrew() {
 }
 
 // Helper function to save preferred recipe with specific data
-async function saveAsPreferredRecipeWithData(brewMethod, recipeData) {
+async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = null) {
     // Always save to localStorage as backup
     saveRecipeToLocalStorage(
         state.currentCoffeeAnalysis,
         brewMethod,
-        recipeData
+        recipeData,
+        notes
     );
 
     // If authenticated, also save to database
@@ -3323,27 +3380,43 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData) {
         // Check if recipe already exists
         const { data: existing } = await supabase
             .from('saved_recipes')
-            .select('id, times_brewed')
+            .select('id, times_brewed, notes')
             .eq('user_id', userId)
             .eq('coffee_hash', coffeeHash)
             .eq('brew_method', brewMethod)
             .maybeSingle();
 
         if (existing) {
-            // Update existing recipe
+            // Update existing recipe and append notes
+            const updateData = {
+                recipe: recipeData,
+                times_brewed: existing.times_brewed + 1,
+                last_brewed: new Date().toISOString()
+            };
+
+            // Append new notes to existing notes if provided
+            if (notes && notes.trim()) {
+                const timestamp = new Date().toLocaleString();
+                const newNote = `[${timestamp}] ${notes.trim()}`;
+                updateData.notes = existing.notes
+                    ? `${existing.notes}\n\n${newNote}`
+                    : newNote;
+            }
+
             const { error } = await supabase
                 .from('saved_recipes')
-                .update({
-                    recipe: recipeData,
-                    times_brewed: existing.times_brewed + 1,
-                    last_brewed: new Date().toISOString()
-                })
+                .update(updateData)
                 .eq('id', existing.id);
 
             if (error) throw error;
             console.log('Updated existing preferred recipe');
         } else {
             // Insert new preferred recipe
+            if (notes && notes.trim()) {
+                const timestamp = new Date().toLocaleString();
+                preferredRecipe.notes = `[${timestamp}] ${notes.trim()}`;
+            }
+
             const { error } = await supabase
                 .from('saved_recipes')
                 .insert([preferredRecipe]);
@@ -3502,7 +3575,7 @@ async function integrateSavedRecipes(analysisData) {
 }
 
 // Save recipe to localStorage for non-authenticated users
-function saveRecipeToLocalStorage(coffeeAnalysis, brewMethod, recipeData) {
+function saveRecipeToLocalStorage(coffeeAnalysis, brewMethod, recipeData, notes = null) {
     try {
         const coffeeHash = createCoffeeHash(
             coffeeAnalysis.name,
@@ -3537,8 +3610,21 @@ function saveRecipeToLocalStorage(coffeeAnalysis, brewMethod, recipeData) {
             savedRecipes[existingIndex].recipe = recipeData;
             savedRecipes[existingIndex].times_brewed = (savedRecipes[existingIndex].times_brewed || 0) + 1;
             savedRecipes[existingIndex].last_brewed = new Date().toISOString();
+
+            // Append new notes to existing notes if provided
+            if (notes && notes.trim()) {
+                const timestamp = new Date().toLocaleString();
+                const newNote = `[${timestamp}] ${notes.trim()}`;
+                savedRecipes[existingIndex].notes = savedRecipes[existingIndex].notes
+                    ? `${savedRecipes[existingIndex].notes}\n\n${newNote}`
+                    : newNote;
+            }
         } else {
             // Add new
+            if (notes && notes.trim()) {
+                const timestamp = new Date().toLocaleString();
+                recipe.notes = `[${timestamp}] ${notes.trim()}`;
+            }
             savedRecipes.push(recipe);
         }
 
