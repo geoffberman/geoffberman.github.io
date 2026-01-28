@@ -1,7 +1,7 @@
 {
-  "name": "Family Grocery List",
-  "short_name": "Grocery List",
-  "description": "Collaborative grocery list app for the whole family",
+  "name": "Shared List",
+  "short_name": "Shared List",
+  "description": "Collaborative shopping list for the Berman family",
   "start_url": "/grocery/",
   "display": "standalone",
   "background_color": "#FAF7F2",
