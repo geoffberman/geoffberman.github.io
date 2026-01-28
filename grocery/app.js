@@ -142,6 +142,24 @@ function setupEventListeners() {
         if (e.key === 'Enter') addItem();
     });
 
+    // Live auto-suggest category as user types
+    elements.itemInput.addEventListener('input', (e) => {
+        const itemName = e.target.value.trim();
+        if (itemName && !elements.categoryInput.value) {
+            const suggestedCategory = autoCategorize(itemName);
+            if (suggestedCategory) {
+                elements.categoryInput.value = suggestedCategory;
+                // Add visual hint that it's auto-suggested (user can still change it)
+                elements.categoryInput.style.fontStyle = 'italic';
+            }
+        }
+    });
+
+    // Reset font style when user manually changes category
+    elements.categoryInput.addEventListener('change', (e) => {
+        elements.categoryInput.style.fontStyle = 'normal';
+    });
+
     // List actions
     elements.newListBtn.addEventListener('click', startNewList);
     elements.archiveListBtn.addEventListener('click', archiveCurrentList);
@@ -618,7 +636,12 @@ async function addItem() {
     if (!name) return;
 
     const quantity = elements.quantityInput.value.trim();
-    const category = elements.categoryInput.value;
+    let category = elements.categoryInput.value;
+
+    // Auto-categorize if no category selected
+    if (!category) {
+        category = autoCategorize(name);
+    }
 
     const newItem = {
         name,
@@ -777,6 +800,47 @@ async function clearFrequentItems() {
         renderFrequentItems();
     }
 }
+// ============================================================================
+// AUTO-CATEGORIZATION
+// ============================================================================
+
+function autoCategorize(itemName) {
+    const name = itemName.toLowerCase();
+    
+    // Bakery
+    if (/bread|bun|roll|bagel|croissant|muffin|donut|cake|cookie|pastry|biscuit|scone|waffle|pancake|tortilla|pita/.test(name)) {
+        return 'bakery';
+    }
+    
+    // Cheese
+    if (/cheese|cheddar|mozzarella|parmesan|brie|feta|gouda|swiss|provolone/.test(name)) {
+        return 'cheese';
+    }
+    
+    // Meat
+    if (/chicken|beef|pork|fish|turkey|lamb|meat|steak|bacon|sausage|ham|salmon|tuna|shrimp/.test(name)) {
+        return 'meat';
+    }
+    
+    // Pantry/Canned goods
+    if (/can|rice|pasta|bean|soup|sauce|oil|vinegar|spice|flour|sugar|salt|pepper|cereal|oat|jar/.test(name)) {
+        return 'pantry';
+    }
+    
+    // Dairy
+    if (/milk|yogurt|butter|cream|egg/.test(name)) {
+        return 'dairy';
+    }
+    
+    // Produce
+    if (/apple|banana|orange|grape|berry|lettuce|tomato|potato|onion|carrot|celery|spinach|kale|broccoli|cucumber|pepper|fruit|vegetable|avocado|lemon|lime/.test(name)) {
+        return 'produce';
+    }
+    
+    return '';
+}
+
+
 
 // ============================================================================
 // UI RENDERING
@@ -799,18 +863,12 @@ function renderItems() {
 
     // Group by category if enabled
     if (state.settings.groupByCategory) {
-        const categories = {
-            'produce': [],
-            'dairy': [],
-            'meat': [],
-            'bakery': [],
-            'pantry': [],
-            'frozen': [],
-            'beverages': [],
-            'snacks': [],
-            'household': [],
-            'other': []
-        };
+        // Custom category order: bakery, cheese, meat, pantry, dairy, produce, then others
+        const categoryOrder = ['bakery', 'cheese', 'meat', 'pantry', 'dairy', 'produce', 'frozen', 'beverages', 'snacks', 'household', 'other'];
+        const categories = {};
+        categoryOrder.forEach(cat => {
+            categories[cat] = [];
+        });
 
         itemsToRender.forEach(item => {
             const cat = item.category || 'other';
@@ -822,14 +880,17 @@ function renderItems() {
         });
 
         let html = '';
-        Object.entries(categories).forEach(([category, items]) => {
-            if (items.length > 0) {
+        // Render in custom order
+        categoryOrder.forEach(category => {
+            const items = categories[category];
+            if (items && items.length > 0) {
                 const categoryEmoji = {
-                    'produce': '🥬',
-                    'dairy': '🥛',
-                    'meat': '🥩',
                     'bakery': '🍞',
+                    'cheese': '🧀',
+                    'meat': '🥩',
                     'pantry': '🥫',
+                    'dairy': '🥛',
+                    'produce': '🥬',
                     'frozen': '❄️',
                     'beverages': '🥤',
                     'snacks': '🍿',
