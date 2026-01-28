@@ -55,6 +55,12 @@ const elements = {
     settingsModal: document.getElementById('settings-modal'),
     closeSettingsBtn: document.getElementById('close-settings-btn'),
     authModal: document.getElementById('auth-modal'),
+    editModal: document.getElementById('edit-modal'),
+    closeEditBtn: document.getElementById('close-edit-btn'),
+    editItemName: document.getElementById('edit-item-name'),
+    editItemQuantity: document.getElementById('edit-item-quantity'),
+    editItemCategory: document.getElementById('edit-item-category'),
+    saveEditBtn: document.getElementById('save-edit-btn'),
 
     // Settings
     autoAddFrequentCheckbox: document.getElementById('auto-add-frequent'),
@@ -171,6 +177,10 @@ function setupEventListeners() {
     elements.closeSettingsBtn.addEventListener('click', () => {
         elements.settingsModal.classList.add('hidden');
     });
+
+    // Edit modal
+    elements.closeEditBtn?.addEventListener('click', closeEditModal);
+    elements.saveEditBtn?.addEventListener('click', saveEditedItem);
     elements.viewHistoryBtn.addEventListener('click', showArchivedLists);
     elements.closeHistoryBtn.addEventListener('click', () => {
         elements.archivedListsSection.classList.add('hidden');
@@ -244,6 +254,9 @@ function setupEventListeners() {
     window.addEventListener('click', (e) => {
         if (e.target === elements.settingsModal) {
             elements.settingsModal.classList.add('hidden');
+        }
+        if (e.target === elements.editModal) {
+            closeEditModal();
         }
         if (!elements.userMenuBtn?.contains(e.target) && !elements.userMenu?.contains(e.target)) {
             elements.userMenu?.classList.add('hidden');
@@ -752,6 +765,69 @@ async function deleteItem(itemId) {
     }
 }
 
+let currentEditItemId = null;
+
+function openEditModal(itemId) {
+    const item = state.items.find(i => i.id === itemId);
+    if (!item) return;
+
+    currentEditItemId = itemId;
+    elements.editItemName.value = item.name;
+    elements.editItemQuantity.value = item.quantity || '';
+    elements.editItemCategory.value = item.category || '';
+
+    elements.editModal.classList.remove('hidden');
+}
+
+function closeEditModal() {
+    currentEditItemId = null;
+    elements.editModal.classList.add('hidden');
+}
+
+async function saveEditedItem() {
+    if (!currentEditItemId) return;
+
+    const item = state.items.find(i => i.id === currentEditItemId);
+    if (!item) return;
+
+    const newName = elements.editItemName.value.trim();
+    const newQuantity = elements.editItemQuantity.value.trim();
+    const newCategory = elements.editItemCategory.value;
+
+    if (!newName) {
+        alert('Item name cannot be empty');
+        return;
+    }
+
+    item.name = newName;
+    item.quantity = newQuantity;
+    item.category = newCategory;
+
+    if (window.supabase && state.currentUser && state.currentList?.id) {
+        try {
+            const { error } = await window.supabase
+                .from('grocery_items')
+                .update({
+                    name: item.name,
+                    quantity: item.quantity,
+                    category: item.category
+                })
+                .eq('id', currentEditItemId);
+
+            if (error) throw error;
+
+        } catch (error) {
+            console.error('Error updating item:', error);
+            saveToLocalStorage();
+        }
+    } else {
+        saveToLocalStorage();
+    }
+
+    closeEditModal();
+    renderItems();
+}
+
 async function addFrequentItem(itemName, category, quantity) {
     const newItem = {
         name: itemName,
@@ -861,54 +937,49 @@ function renderItems() {
 
     let itemsToRender = [...state.items];
 
-    // Group by category if enabled
-    if (state.settings.groupByCategory) {
-        // Custom category order: bakery, cheese, meat, pantry, dairy, produce, then others
-        const categoryOrder = ['bakery', 'cheese', 'meat', 'pantry', 'dairy', 'produce', 'frozen', 'beverages', 'snacks', 'household', 'other'];
-        const categories = {};
-        categoryOrder.forEach(cat => {
-            categories[cat] = [];
-        });
+    // Always group by category with custom order: bakery, cheese, meat, pantry, dairy, produce, then others
+    const categoryOrder = ['bakery', 'cheese', 'meat', 'pantry', 'dairy', 'produce', 'frozen', 'beverages', 'snacks', 'household', 'other'];
+    const categories = {};
+    categoryOrder.forEach(cat => {
+        categories[cat] = [];
+    });
 
-        itemsToRender.forEach(item => {
-            const cat = item.category || 'other';
-            if (categories[cat]) {
-                categories[cat].push(item);
-            } else {
-                categories.other.push(item);
-            }
-        });
+    itemsToRender.forEach(item => {
+        const cat = item.category || 'other';
+        if (categories[cat]) {
+            categories[cat].push(item);
+        } else {
+            categories.other.push(item);
+        }
+    });
 
-        let html = '';
-        // Render in custom order
-        categoryOrder.forEach(category => {
-            const items = categories[category];
-            if (items && items.length > 0) {
-                const categoryEmoji = {
-                    'bakery': '🍞',
-                    'cheese': '🧀',
-                    'meat': '🥩',
-                    'pantry': '🥫',
-                    'dairy': '🥛',
-                    'produce': '🥬',
-                    'frozen': '❄️',
-                    'beverages': '🥤',
-                    'snacks': '🍿',
-                    'household': '🧼',
-                    'other': '📦'
-                };
+    let html = '';
+    // Render in custom order
+    categoryOrder.forEach(category => {
+        const items = categories[category];
+        if (items && items.length > 0) {
+            const categoryEmoji = {
+                'bakery': '🍞',
+                'cheese': '🧀',
+                'meat': '🥩',
+                'pantry': '🥫',
+                'dairy': '🥛',
+                'produce': '🥬',
+                'frozen': '❄️',
+                'beverages': '🥤',
+                'snacks': '🍿',
+                'household': '🧼',
+                'other': '📦'
+            };
 
-                html += `<div class="category-group">
-                    <h3 class="category-title">${categoryEmoji[category]} ${category.charAt(0).toUpperCase() + category.slice(1)}</h3>
-                    ${items.map(renderItemHTML).join('')}
-                </div>`;
-            }
-        });
+            html += `<div class="category-group">
+                <h3 class="category-title">${categoryEmoji[category]} ${category.charAt(0).toUpperCase() + category.slice(1)}</h3>
+                ${items.map(renderItemHTML).join('')}
+            </div>`;
+        }
+    });
 
-        elements.itemsList.innerHTML = html;
-    } else {
-        elements.itemsList.innerHTML = itemsToRender.map(renderItemHTML).join('');
-    }
+    elements.itemsList.innerHTML = html;
 
     // Update stats
     const total = state.items.length;
@@ -917,11 +988,18 @@ function renderItems() {
     elements.checkedItems.textContent = `${checked} checked`;
     elements.listStats.classList.remove('hidden');
 
-    // Add event listeners to checkboxes and delete buttons
+    // Add event listeners to checkboxes, edit buttons, and delete buttons
     document.querySelectorAll('.item-checkbox').forEach(checkbox => {
         checkbox.addEventListener('change', (e) => {
             const itemId = e.target.dataset.itemId;
             toggleItem(itemId);
+        });
+    });
+
+    document.querySelectorAll('.edit-item-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const itemId = e.target.dataset.itemId;
+            openEditModal(itemId);
         });
     });
 
@@ -944,7 +1022,10 @@ function renderItemHTML(item) {
                 <span class="item-name">${escapeHtml(item.name)}</span>
                 ${item.quantity ? `<span class="item-quantity">${escapeHtml(item.quantity)}</span>` : ''}
             </label>
-            <button class="delete-item-btn" data-item-id="${item.id}" title="Delete">🗑️</button>
+            <div class="item-actions">
+                <button class="edit-item-btn" data-item-id="${item.id}" title="Edit">✏️</button>
+                <button class="delete-item-btn" data-item-id="${item.id}" title="Delete">🗑️</button>
+            </div>
         </div>
     `;
 }
