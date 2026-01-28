@@ -15,8 +15,7 @@ CREATE TABLE IF NOT EXISTS grocery_lists (
     archived_at TIMESTAMP WITH TIME ZONE,
     is_archived BOOLEAN DEFAULT FALSE,
     -- For collaborative lists, we track the "owner" but allow family sharing
-    family_id UUID, -- Optional: for multi-user families
-    CONSTRAINT unique_active_list_per_user UNIQUE NULLS NOT DISTINCT (user_id, is_archived) WHERE is_archived = FALSE
+    family_id UUID -- Optional: for multi-user families
 );
 
 -- Grocery Items Table
@@ -77,6 +76,11 @@ CREATE INDEX IF NOT EXISTS idx_grocery_items_checked ON grocery_items(is_checked
 CREATE INDEX IF NOT EXISTS idx_frequent_items_user_id ON frequent_items(user_id);
 CREATE INDEX IF NOT EXISTS idx_frequent_items_frequency ON frequent_items(frequency_count DESC);
 CREATE INDEX IF NOT EXISTS idx_family_members_family_id ON family_members(family_id);
+
+-- Unique constraint: Only one active (non-archived) list per user
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_active_list_per_user
+    ON grocery_lists(user_id)
+    WHERE is_archived = FALSE;
 
 -- Row Level Security (RLS) Policies
 
