@@ -104,6 +104,133 @@ const elements = {
     signinForRecipesBtn: document.getElementById('signin-for-recipes-btn')
 };
 
+// Grinder settings mappings
+const GRINDER_MAPPINGS = {
+    'ceado': {
+        patterns: ['ceado', 'e37', 'e37s', 'e37sd', '37sd'],
+        scale: '0-8',
+        name: 'Ceado 37SD',
+        settings: {
+            'extra fine': '0-1',
+            'fine': '1-2',
+            'medium-fine': '2.5-4',
+            'medium': '4-5',
+            'medium-coarse': '5.5-6.5',
+            'coarse': '7-8'
+        }
+    },
+    'baratza-encore': {
+        patterns: ['baratza encore', 'encore'],
+        scale: '1-40',
+        name: 'Baratza Encore',
+        settings: {
+            'extra fine': '1-8',
+            'fine': '8-12',
+            'medium-fine': '12-18',
+            'medium': '18-24',
+            'medium-coarse': '24-28',
+            'coarse': '28-32',
+            'extra coarse': '32-40'
+        }
+    },
+    'baratza-virtuoso': {
+        patterns: ['baratza virtuoso', 'virtuoso'],
+        scale: '1-40',
+        name: 'Baratza Virtuoso',
+        settings: {
+            'extra fine': '1-8',
+            'fine': '8-12',
+            'medium-fine': '12-18',
+            'medium': '18-24',
+            'medium-coarse': '24-28',
+            'coarse': '28-32',
+            'extra coarse': '32-40'
+        }
+    },
+    'comandante': {
+        patterns: ['comandante'],
+        scale: '0-50 clicks',
+        name: 'Comandante',
+        settings: {
+            'extra fine': '10-15',
+            'fine': '15-20',
+            'medium-fine': '20-25',
+            'medium': '25-30',
+            'medium-coarse': '30-35',
+            'coarse': '35-40',
+            'extra coarse': '40-50'
+        }
+    },
+    '1zpresso': {
+        patterns: ['1zpresso', 'zpresso', 'jx', 'j-max', 'k-max'],
+        scale: '0-90 clicks',
+        name: '1Zpresso',
+        settings: {
+            'extra fine': '10-20',
+            'fine': '20-30',
+            'medium-fine': '30-45',
+            'medium': '45-55',
+            'medium-coarse': '55-65',
+            'coarse': '65-75',
+            'extra coarse': '75-90'
+        }
+    }
+};
+
+// Function to detect grinder type from user's grinder name
+function detectGrinderType(grinderName) {
+    if (!grinderName) return null;
+
+    const lowerName = grinderName.toLowerCase();
+
+    for (const [key, config] of Object.entries(GRINDER_MAPPINGS)) {
+        if (config.patterns.some(pattern => lowerName.includes(pattern))) {
+            return config;
+        }
+    }
+
+    return null;
+}
+
+// Function to format grind size with specific grinder setting
+function formatGrindSize(grindSize, userGrinder) {
+    if (!grindSize) return '';
+
+    // If grind size already contains a parenthetical grinder setting, return as-is
+    if (grindSize.includes('(') && grindSize.includes(')')) {
+        return grindSize;
+    }
+
+    const grinderConfig = detectGrinderType(userGrinder);
+    if (!grinderConfig) {
+        return grindSize; // Return original if no grinder mapping found
+    }
+
+    // Extract the descriptive grind size from the input
+    // Handle cases like "Medium-fine" or "Medium-fine, setting 15"
+    const lowerGrindSize = grindSize.toLowerCase();
+
+    // Try to match known grind descriptors
+    let matchedDescriptor = null;
+    let setting = null;
+
+    for (const descriptor of Object.keys(grinderConfig.settings)) {
+        if (lowerGrindSize.includes(descriptor)) {
+            matchedDescriptor = descriptor;
+            setting = grinderConfig.settings[descriptor];
+            break;
+        }
+    }
+
+    if (matchedDescriptor && setting) {
+        // Use original case from input, removing any trailing grinder-specific text
+        const displayDescriptor = grindSize.split(',')[0].trim();
+        return `${displayDescriptor} (${grinderConfig.name}: ${setting})`;
+    }
+
+    return grindSize; // Return original if no match found
+}
+
 // Utility: Escape HTML to prevent XSS and formatting issues
 function escapeHtml(text) {
     const div = document.createElement('div');
@@ -113,7 +240,7 @@ function escapeHtml(text) {
 
 // Fetch user's most recent saved recipes (across all coffees)
 async function getRecentSavedRecipes(limit = 5) {
-    const recipes = [];
+    let allRecipes = [];
 
     // Try Supabase if authenticated
     if (window.auth && window.auth.isAuthenticated()) {
@@ -121,15 +248,16 @@ async function getRecentSavedRecipes(limit = 5) {
             const supabase = window.getSupabase();
             const userId = window.auth.getUserId();
 
+            // Fetch more recipes than limit to ensure we get unique coffee+method combos
             const { data, error } = await supabase
                 .from('saved_recipes')
                 .select('*')
                 .eq('user_id', userId)
                 .order('last_brewed', { ascending: false })
-                .limit(limit);
+                .limit(limit * 5); // Fetch more to account for duplicates
 
             if (!error && data) {
-                recipes.push(...data);
+                allRecipes.push(...data);
             }
         } catch (error) {
             console.error('Failed to fetch recent recipes from database:', error);
@@ -137,19 +265,33 @@ async function getRecentSavedRecipes(limit = 5) {
     }
 
     // Fallback to localStorage if no Supabase results
-    if (recipes.length === 0) {
+    if (allRecipes.length === 0) {
         try {
             const localRecipes = localStorage.getItem('saved_recipes');
             if (localRecipes) {
                 const parsed = JSON.parse(localRecipes);
                 // Sort by last_brewed descending
                 parsed.sort((a, b) => new Date(b.last_brewed) - new Date(a.last_brewed));
-                recipes.push(...parsed.slice(0, limit));
+                allRecipes.push(...parsed);
             }
         } catch (error) {
             console.error('Failed to fetch recent recipes from localStorage:', error);
         }
     }
+
+    // Deduplicate by coffee_hash + brew_method, keeping only the most recent
+    const uniqueRecipes = new Map();
+    for (const recipe of allRecipes) {
+        const key = `${recipe.coffee_hash}_${recipe.brew_method}`;
+        if (!uniqueRecipes.has(key)) {
+            uniqueRecipes.set(key, recipe);
+        }
+    }
+
+    // Convert Map values to array, sort by last_brewed, and limit
+    const recipes = Array.from(uniqueRecipes.values())
+        .sort((a, b) => new Date(b.last_brewed) - new Date(a.last_brewed))
+        .slice(0, limit);
 
     return recipes;
 }
@@ -722,6 +864,9 @@ async function analyzeImage(specificMethod = null) {
         // Create image hash for caching
         const imageHash = await createImageHash(base64Image);
 
+        // Store image hash in state for saving recipes later (must be set before early return)
+        state.currentImageHash = imageHash;
+
         // Check if we have cached analysis for this exact image
         const cachedData = await checkCachedAnalysis(imageHash);
         if (cachedData && !specificMethod) {
@@ -802,9 +947,6 @@ async function analyzeImage(specificMethod = null) {
             console.error('Failed text:', analysisText);
             analysisData = parseFallbackResponse(analysisText);
         }
-
-        // Store image hash in state for saving recipes later
-        state.currentImageHash = imageHash;
 
         // Cache the analysis data (in localStorage for now)
         if (!specificMethod) {
@@ -1046,8 +1188,8 @@ function displayResults(data) {
                             </tr>
                             <tr>
                                 <td>Grind Size</td>
-                                <td>${params.grind_size}</td>
-                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="grind_size" placeholder="Your grind" value="${params.grind_size}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                                <td>${formatGrindSize(params.grind_size, state.equipment?.grinder)}</td>
+                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="grind_size" placeholder="Your grind" value="${formatGrindSize(params.grind_size, state.equipment?.grinder)}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
                             </tr>
                             <tr>
                                 <td>Brew Time</td>
@@ -2800,8 +2942,8 @@ async function adjustRecipeBasedOnRating(rating) {
                     </tr>
                     <tr>
                         <td>Grind Size</td>
-                        <td>${params.grind_size}</td>
-                        <td><input type="text" class="param-input" data-param="grind_size" placeholder="Your grind" value="${params.grind_size}"></td>
+                        <td>${formatGrindSize(params.grind_size, state.equipment?.grinder)}</td>
+                        <td><input type="text" class="param-input" data-param="grind_size" placeholder="Your grind" value="${formatGrindSize(params.grind_size, state.equipment?.grinder)}"></td>
                     </tr>
                     <tr>
                         <td>Brew Time</td>
@@ -3080,8 +3222,8 @@ function showManualAdjustmentTable(technique) {
                     </tr>
                     <tr>
                         <td>Grind Size</td>
-                        <td>${params.grind_size}</td>
-                        <td><input type="text" class="manual-input" data-param="grind_size" value="${params.grind_size}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                        <td>${formatGrindSize(params.grind_size, state.equipment?.grinder)}</td>
+                        <td><input type="text" class="manual-input" data-param="grind_size" value="${formatGrindSize(params.grind_size, state.equipment?.grinder)}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
                     </tr>
                     <tr>
                         <td>Brew Time</td>
