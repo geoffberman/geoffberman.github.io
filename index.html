@@ -285,6 +285,37 @@
                         Choose File
                     </button>
                 </div>
+
+                <!-- Saved Recipes Dropdown -->
+                <div id="saved-recipes-section" class="hidden" style="margin-top: 30px; padding-top: 20px; border-top: 2px solid var(--border-color);">
+                    <h3 style="text-align: center; color: var(--secondary-color); font-size: 1rem; margin-bottom: 12px;">
+                        Quick Access to Recent Recipes
+                    </h3>
+                    <div style="display: flex; gap: 8px; align-items: center; max-width: 600px; margin: 0 auto;">
+                        <select id="saved-recipes-select" class="btn" style="flex: 1; height: 50px; font-size: 0.95rem; cursor: pointer;">
+                            <option value="">Choose from your recent recipes...</option>
+                            <!-- Options populated dynamically -->
+                        </select>
+                        <button id="load-saved-recipe-btn" class="btn btn-primary" disabled style="width: 40px; height: 40px; font-size: 1.3rem; padding: 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; min-width: 40px;">
+                            →
+                        </button>
+                    </div>
+                    <p style="text-align: center; margin-top: 10px; font-size: 0.85rem; color: var(--secondary-color);">
+                        💾 Your 5 most recent saved recipes
+                    </p>
+                </div>
+
+                <!-- Not Logged In Message -->
+                <div id="saved-recipes-login-prompt" class="hidden" style="margin-top: 30px; padding-top: 20px; border-top: 2px solid var(--border-color);">
+                    <div style="background: linear-gradient(135deg, #FFF8ED 0%, #FFE5B4 100%); border: 2px solid var(--accent-color); border-radius: 12px; padding: 20px; text-align: center; max-width: 600px; margin: 0 auto;">
+                        <p style="color: var(--secondary-color); margin-bottom: 12px;">
+                            💾 Sign in to access your saved recipes
+                        </p>
+                        <button id="signin-for-recipes-btn" class="btn btn-primary" style="font-size: 0.9rem;">
+                            Sign In
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <div id="preview-section" class="section hidden">
