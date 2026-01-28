@@ -104,6 +104,133 @@ const elements = {
     signinForRecipesBtn: document.getElementById('signin-for-recipes-btn')
 };
 
+// Grinder settings mappings
+const GRINDER_MAPPINGS = {
+    'ceado': {
+        patterns: ['ceado', 'e37', 'e37s', 'e37sd', '37sd'],
+        scale: '0-8',
+        name: 'Ceado 37SD',
+        settings: {
+            'extra fine': '0-1',
+            'fine': '1-2',
+            'medium-fine': '2.5-4',
+            'medium': '4-5',
+            'medium-coarse': '5.5-6.5',
+            'coarse': '7-8'
+        }
+    },
+    'baratza-encore': {
+        patterns: ['baratza encore', 'encore'],
+        scale: '1-40',
+        name: 'Baratza Encore',
+        settings: {
+            'extra fine': '1-8',
+            'fine': '8-12',
+            'medium-fine': '12-18',
+            'medium': '18-24',
+            'medium-coarse': '24-28',
+            'coarse': '28-32',
+            'extra coarse': '32-40'
+        }
+    },
+    'baratza-virtuoso': {
+        patterns: ['baratza virtuoso', 'virtuoso'],
+        scale: '1-40',
+        name: 'Baratza Virtuoso',
+        settings: {
+            'extra fine': '1-8',
+            'fine': '8-12',
+            'medium-fine': '12-18',
+            'medium': '18-24',
+            'medium-coarse': '24-28',
+            'coarse': '28-32',
+            'extra coarse': '32-40'
+        }
+    },
+    'comandante': {
+        patterns: ['comandante'],
+        scale: '0-50 clicks',
+        name: 'Comandante',
+        settings: {
+            'extra fine': '10-15',
+            'fine': '15-20',
+            'medium-fine': '20-25',
+            'medium': '25-30',
+            'medium-coarse': '30-35',
+            'coarse': '35-40',
+            'extra coarse': '40-50'
+        }
+    },
+    '1zpresso': {
+        patterns: ['1zpresso', 'zpresso', 'jx', 'j-max', 'k-max'],
+        scale: '0-90 clicks',
+        name: '1Zpresso',
+        settings: {
+            'extra fine': '10-20',
+            'fine': '20-30',
+            'medium-fine': '30-45',
+            'medium': '45-55',
+            'medium-coarse': '55-65',
+            'coarse': '65-75',
+            'extra coarse': '75-90'
+        }
+    }
+};
+
+// Function to detect grinder type from user's grinder name
+function detectGrinderType(grinderName) {
+    if (!grinderName) return null;
+
+    const lowerName = grinderName.toLowerCase();
+
+    for (const [key, config] of Object.entries(GRINDER_MAPPINGS)) {
+        if (config.patterns.some(pattern => lowerName.includes(pattern))) {
+            return config;
+        }
+    }
+
+    return null;
+}
+
+// Function to format grind size with specific grinder setting
+function formatGrindSize(grindSize, userGrinder) {
+    if (!grindSize) return '';
+
+    // If grind size already contains a parenthetical grinder setting, return as-is
+    if (grindSize.includes('(') && grindSize.includes(')')) {
+        return grindSize;
+    }
+
+    const grinderConfig = detectGrinderType(userGrinder);
+    if (!grinderConfig) {
+        return grindSize; // Return original if no grinder mapping found
+    }
+
+    // Extract the descriptive grind size from the input
+    // Handle cases like "Medium-fine" or "Medium-fine, setting 15"
+    const lowerGrindSize = grindSize.toLowerCase();
+
+    // Try to match known grind descriptors
+    let matchedDescriptor = null;
+    let setting = null;
+
+    for (const descriptor of Object.keys(grinderConfig.settings)) {
+        if (lowerGrindSize.includes(descriptor)) {
+            matchedDescriptor = descriptor;
+            setting = grinderConfig.settings[descriptor];
+            break;
+        }
+    }
+
+    if (matchedDescriptor && setting) {
+        // Use original case from input, removing any trailing grinder-specific text
+        const displayDescriptor = grindSize.split(',')[0].trim();
+        return `${displayDescriptor} (${grinderConfig.name}: ${setting})`;
+    }
+
+    return grindSize; // Return original if no match found
+}
+
 // Utility: Escape HTML to prevent XSS and formatting issues
 function escapeHtml(text) {
     const div = document.createElement('div');
@@ -1061,8 +1188,8 @@ function displayResults(data) {
                             </tr>
                             <tr>
                                 <td>Grind Size</td>
-                                <td>${params.grind_size}</td>
-                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="grind_size" placeholder="Your grind" value="${params.grind_size}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                                <td>${formatGrindSize(params.grind_size, state.equipment?.grinder)}</td>
+                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="grind_size" placeholder="Your grind" value="${formatGrindSize(params.grind_size, state.equipment?.grinder)}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
                             </tr>
                             <tr>
                                 <td>Brew Time</td>
@@ -2815,8 +2942,8 @@ async function adjustRecipeBasedOnRating(rating) {
                     </tr>
                     <tr>
                         <td>Grind Size</td>
-                        <td>${params.grind_size}</td>
-                        <td><input type="text" class="param-input" data-param="grind_size" placeholder="Your grind" value="${params.grind_size}"></td>
+                        <td>${formatGrindSize(params.grind_size, state.equipment?.grinder)}</td>
+                        <td><input type="text" class="param-input" data-param="grind_size" placeholder="Your grind" value="${formatGrindSize(params.grind_size, state.equipment?.grinder)}"></td>
                     </tr>
                     <tr>
                         <td>Brew Time</td>
@@ -3095,8 +3222,8 @@ function showManualAdjustmentTable(technique) {
                     </tr>
                     <tr>
                         <td>Grind Size</td>
-                        <td>${params.grind_size}</td>
-                        <td><input type="text" class="manual-input" data-param="grind_size" value="${params.grind_size}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                        <td>${formatGrindSize(params.grind_size, state.equipment?.grinder)}</td>
+                        <td><input type="text" class="manual-input" data-param="grind_size" value="${formatGrindSize(params.grind_size, state.equipment?.grinder)}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
                     </tr>
                     <tr>
                         <td>Brew Time</td>
