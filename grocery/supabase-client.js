@@ -1,11 +1,8 @@
 // Supabase Client for Grocery App
 // This is separate from the coffee app's Supabase instance
 
-// IMPORTANT: Replace these with your grocery app's Supabase credentials
-// Get these from: Supabase Dashboard → Settings → API
-
-const SUPABASE_URL = 'YOUR_GROCERY_SUPABASE_URL'; // Replace with your Project URL
-const SUPABASE_ANON_KEY = 'YOUR_GROCERY_SUPABASE_ANON_KEY'; // Replace with your anon/public key
+const SUPABASE_URL = 'https://ilinxxocqvgncglwbvom.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlsaW54eG9jcXZnbmNnbHdidm9tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MTExMTQsImV4cCI6MjA4NTE4NzExNH0.qZYyCnaXXMUnbFOWmkUZRhIyGfdzXHwfBbJc86hKEHA';
 
 // Initialize Supabase client
 if (typeof supabase !== 'undefined' && supabase.createClient) {
