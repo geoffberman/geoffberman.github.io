@@ -1214,11 +1214,26 @@ async function analyzeImage(specificMethod = null) {
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || `API request failed with status ${response.status}`);
+            const errorMsg = errorData.error || `API request failed with status ${response.status}`;
+            const errorDetails = errorData.details || '';
+            throw new Error(errorMsg + (errorDetails ? '\n\nDetails: ' + errorDetails : ''));
         }
 
         const data = await response.json();
+
+        // Validate response structure
+        if (!data || !data.content || !data.content[0] || !data.content[0].text) {
+            console.error('Invalid API response structure:', data);
+            throw new Error('API returned an invalid response structure. Please try again.');
+        }
+
         const analysisText = data.content[0].text;
+
+        // Validate response has actual content
+        if (!analysisText || analysisText.trim() === '') {
+            console.error('API returned empty response');
+            throw new Error('API returned an empty response. Please try again or check your AI provider settings.');
+        }
 
         console.log('Raw AI response:', analysisText);
 

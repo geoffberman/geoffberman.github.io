@@ -342,6 +342,12 @@ Read the image carefully and extract all visible information accurately. Provide
             3500
         );
 
+        // Validate result
+        if (!result || !result.text) {
+            console.error('Provider returned invalid result:', result);
+            throw new Error('AI provider returned an invalid response');
+        }
+
         // Format response to match expected structure
         const data = {
             content: [{ text: result.text }],
@@ -352,6 +358,10 @@ Read the image carefully and extract all visible information accurately. Provide
 
     } catch (error) {
         console.error('Analysis error:', error);
-        res.status(500).json({ error: error.message });
+        console.error('Error stack:', error.stack);
+        res.status(500).json({
+            error: error.message || 'An unknown error occurred',
+            details: error.stack ? error.stack.split('\n').slice(0, 3).join('\n') : 'No stack trace available'
+        });
     }
 }

@@ -98,8 +98,19 @@ class AnthropicProvider extends AIProvider {
 
     const data = await response.json();
 
+    // Validate response has content
+    if (!data.content || !data.content[0] || !data.content[0].text) {
+      console.error('Anthropic returned invalid response:', JSON.stringify(data, null, 2));
+      throw new Error('Anthropic API returned an invalid response structure');
+    }
+
+    const text = data.content[0].text;
+    if (text.trim() === '') {
+      throw new Error('Anthropic API returned an empty response');
+    }
+
     return {
-      text: data.content[0].text,
+      text: text,
       usage: data.usage
     };
   }
@@ -189,7 +200,13 @@ class GeminiProvider extends AIProvider {
     const data = await response.json();
 
     // Extract text from Gemini response
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    // Validate response has content
+    if (!text || text.trim() === '') {
+      console.error('Gemini returned empty response:', JSON.stringify(data, null, 2));
+      throw new Error('Gemini API returned an empty response. Response structure: ' + JSON.stringify(data).substring(0, 200));
+    }
 
     return {
       text: text,
