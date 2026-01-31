@@ -1,4 +1,5 @@
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const { getProvider } = require('./ai-provider');
 
 // Using Claude 3 Haiku for API compatibility
 module.exports = async function handler(req, res) {
@@ -19,7 +20,7 @@ module.exports = async function handler(req, res) {
     }
 
     try {
-        const { image, mediaType, equipment, specificMethod, currentBrewMethod, adjustmentRequest, previousAnalysis } = req.body;
+        const { image, mediaType, equipment, specificMethod, currentBrewMethod, adjustmentRequest, previousAnalysis, aiProvider = 'anthropic' } = req.body;
 
         // Handle recipe adjustment requests
         if (adjustmentRequest && previousAnalysis) {
@@ -70,28 +71,20 @@ For taste/extraction adjustments (case 1), provide your response in this EXACT J
 
 Make the adjusted_parameters complete and ready to display in a table. The adjustments_explained should explain what changed from the original and WHY.`;
 
-            const adjustmentResponse = await fetch('https://api.anthropic.com/v1/messages', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-api-key': process.env.ANTHROPIC_API_KEY,
-                    'anthropic-version': '2023-06-01'
-                },
-                body: JSON.stringify({
-                    model: 'claude-3-haiku-20240307',
-                    max_tokens: 2000,
-                    messages: [{
-                        role: 'user',
-                        content: adjustmentPrompt
-                    }]
-                })
-            });
+            // Use the provider abstraction for adjustment requests
+            const provider = getProvider(aiProvider);
+            const result = await provider.sendMessage(
+                [{ role: 'user', content: adjustmentPrompt }],
+                '', // No system prompt for adjustments
+                2000
+            );
 
-            if (!adjustmentResponse.ok) {
-                throw new Error(`Anthropic API error: ${adjustmentResponse.status}`);
-            }
+            // Format response to match expected structure
+            const adjustmentData = {
+                content: [{ text: result.text }],
+                usage: result.usage
+            };
 
-            const adjustmentData = await adjustmentResponse.json();
             res.status(200).json(adjustmentData);
             return;
         }
@@ -280,7 +273,7 @@ Pressure profiling is expected and MUST be specific to this coffee.`;
         "pressure": "Pressure if applicable (e.g., 9 bar, N/A for pour over)",
         "flow_control": "Detailed pressure profiling if espresso with flow control, otherwise N/A"
       },
-      "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid.\n\n⚠️ POUR OVER SPECIFIC REQUIREMENT: If this is a pour over method (V60, Chemex, Kalita Wave, etc.), you MUST include detailed pouring instructions in this field formatted as follows:\n\n**Pouring Schedule:**\n• **Bloom**: [X]g water, wait [Y] seconds\n• **First Pour**: [X]g to [total]g, [timing]\n• **Second Pour**: [X]g to [total]g, [timing]\n• **Third Pour**: [X]g to [total]g, [timing]\n[Continue for all pours until reaching target yield]\n\nExample:\n**Pouring Schedule:**\n• **Bloom**: 50g water, wait 30-45 seconds\n• **First Pour**: 100g to 150g total (0:45-1:15)\n• **Second Pour**: 100g to 250g total (1:15-1:45)\n• **Third Pour**: 50g to 300g total (1:45-2:15)\n• Target finish time: 2:30-3:00\n\n⚠️ MILK DRINK SPECIFIC REQUIREMENT: If this is a milk-based drink (Latte, Cappuccino, Cortado, Flat White, etc.), you MUST include milk preparation and assembly instructions in this field formatted as follows:\n\n**Milk Preparation:**\n• Steam [X]ml of milk to [temp]°F ([temp]°C)\n• Texture: [microfoam/velvety/etc description]\n• Pour pattern: [how to combine with espresso]\n• Ratio: [espresso:milk ratio like 1:3 for latte]\n\nExample for Latte:\n**Milk Preparation:**\n• Steam 180-240ml of whole milk to 140-150°F (60-65°C)\n• Texture: Smooth, velvety microfoam with minimal visible bubbles\n• Pour pattern: Start with espresso in cup, pour milk in circular motion from center\n• Ratio: 1:3 to 1:5 (espresso:milk)"
+      "technique_notes": "Comprehensive qualitative brewing guidance (4-6 paragraphs):\n\n**Extraction Philosophy for This Coffee:**\n[2-3 sentences explaining the extraction approach specific to this coffee's roast level, origin, and processing. Explain the 'why' behind the parameters. Example: 'This Ethiopian natural light roast demands careful attention to extraction balance. The high temperatures and moderate brew time aim to fully develop the coffee's fruity sweetness while managing the delicate floral notes that can turn vegetal if under-extracted.']\n\n**Flavor Highlighting Strategy:**\n[2-3 sentences on how to bring out the specific flavor notes of THIS coffee. Be specific about which notes and how this technique emphasizes them. Example: 'The V60 technique with its clean filter and even extraction is ideal for showcasing this coffee's bright blueberry and jasmine notes. The bloom phase ensures even saturation while the controlled pours prevent channeling that would muddy these delicate flavors.']\n\n**Alternative Approaches:**\nDepending on your taste preference:\n• **For [brighter acidity/more fruit/etc.]**: [specific adjustment with reasoning - e.g., 'increase water temp to 96°C to extract more fruit-forward notes']\n• **For [more body/sweetness/etc.]**: [specific adjustment with reasoning - e.g., 'use a slightly coarser grind and slower pour rate to build body']\n• **For [different characteristic]**: [specific adjustment with reasoning]\n\n**Technique Execution:**\n[Detailed execution instructions specific to the method]\n\n⚠️ POUR OVER REQUIREMENT: If pour over (V60, Chemex, Kalita), include detailed schedule:\n**Pouring Schedule:**\n• **Bloom**: [X]g water, wait [Y] seconds, [technique note]\n• **First Pour**: [X]g to [total]g, [timing], [technique note]\n• **Second Pour**: [X]g to [total]g, [timing], [technique note]\n• **Third Pour**: [X]g to [total]g, [timing], [technique note]\n• Target finish time: [time]\n\n⚠️ MILK DRINK REQUIREMENT: If milk-based drink, include:\n**Milk Preparation:**\n• Steam [X]ml of milk to [temp]°F ([temp]°C)\n• Texture: [detailed description]\n• Pour pattern: [assembly instructions]\n• Ratio: [espresso:milk ratio]\n\n⚠️ ESPRESSO REQUIREMENT: If espresso, include:\n**Shot Preparation:**\n• [Pre-infusion details if applicable]\n• [Pressure profiling if flow control available]\n• [Visual cues for timing - when to stop shot]\n• [Expected shot appearance and flow]\n\n**Common Pitfalls:**\n[2-3 common mistakes to avoid with this specific coffee and method combination. Be specific. Example: '1) Over-agitating during bloom can create channeling in light roasts - gentle swirl only. 2) Pouring too fast will under-extract the fruity notes, leaving a sour, thin cup. 3) Water below 93°C will struggle to extract sweetness from the dense light roast structure.']"
     }
   ],
   "equipment_suggestions": "CRITICAL: ONLY include this field if you have an ACTUAL recommendation to upgrade/add equipment. DO NOT include affirmations or 'equipment is fine' messages. If their gear is adequate, completely OMIT this field from the JSON response."
@@ -313,7 +306,7 @@ Read the image carefully and extract all visible information accurately. Use tec
         "pressure": "Pressure if applicable (e.g., 9 bar, N/A for pour over)",
         "flow_control": "Detailed pressure profiling if espresso with flow control, otherwise N/A"
       },
-      "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid.\n\n⚠️ POUR OVER SPECIFIC REQUIREMENT: If this is a pour over method (V60, Chemex, Kalita Wave, etc.), you MUST include detailed pouring instructions in this field formatted as follows:\n\n**Pouring Schedule:**\n• **Bloom**: [X]g water, wait [Y] seconds\n• **First Pour**: [X]g to [total]g, [timing]\n• **Second Pour**: [X]g to [total]g, [timing]\n• **Third Pour**: [X]g to [total]g, [timing]\n[Continue for all pours until reaching target yield]\n\nExample:\n**Pouring Schedule:**\n• **Bloom**: 50g water, wait 30-45 seconds\n• **First Pour**: 100g to 150g total (0:45-1:15)\n• **Second Pour**: 100g to 250g total (1:15-1:45)\n• **Third Pour**: 50g to 300g total (1:45-2:15)\n• Target finish time: 2:30-3:00\n\n⚠️ MILK DRINK SPECIFIC REQUIREMENT: If this is a milk-based drink (Latte, Cappuccino, Cortado, Flat White, etc.), you MUST include milk preparation and assembly instructions in this field formatted as follows:\n\n**Milk Preparation:**\n• Steam [X]ml of milk to [temp]°F ([temp]°C)\n• Texture: [microfoam/velvety/etc description]\n• Pour pattern: [how to combine with espresso]\n• Ratio: [espresso:milk ratio like 1:3 for latte]\n\nExample for Latte:\n**Milk Preparation:**\n• Steam 180-240ml of whole milk to 140-150°F (60-65°C)\n• Texture: Smooth, velvety microfoam with minimal visible bubbles\n• Pour pattern: Start with espresso in cup, pour milk in circular motion from center\n• Ratio: 1:3 to 1:5 (espresso:milk)"
+      "technique_notes": "Comprehensive qualitative brewing guidance (4-6 paragraphs):\n\n**Extraction Philosophy for This Coffee:**\n[2-3 sentences explaining the extraction approach specific to this coffee's roast level, origin, and processing. Explain the 'why' behind the parameters. Example: 'This Ethiopian natural light roast demands careful attention to extraction balance. The high temperatures and moderate brew time aim to fully develop the coffee's fruity sweetness while managing the delicate floral notes that can turn vegetal if under-extracted.']\n\n**Flavor Highlighting Strategy:**\n[2-3 sentences on how to bring out the specific flavor notes of THIS coffee. Be specific about which notes and how this technique emphasizes them. Example: 'The V60 technique with its clean filter and even extraction is ideal for showcasing this coffee's bright blueberry and jasmine notes. The bloom phase ensures even saturation while the controlled pours prevent channeling that would muddy these delicate flavors.']\n\n**Alternative Approaches:**\nDepending on your taste preference:\n• **For [brighter acidity/more fruit/etc.]**: [specific adjustment with reasoning - e.g., 'increase water temp to 96°C to extract more fruit-forward notes']\n• **For [more body/sweetness/etc.]**: [specific adjustment with reasoning - e.g., 'use a slightly coarser grind and slower pour rate to build body']\n• **For [different characteristic]**: [specific adjustment with reasoning]\n\n**Technique Execution:**\n[Detailed execution instructions specific to the method]\n\n⚠️ POUR OVER REQUIREMENT: If pour over (V60, Chemex, Kalita), include detailed schedule:\n**Pouring Schedule:**\n• **Bloom**: [X]g water, wait [Y] seconds, [technique note]\n• **First Pour**: [X]g to [total]g, [timing], [technique note]\n• **Second Pour**: [X]g to [total]g, [timing], [technique note]\n• **Third Pour**: [X]g to [total]g, [timing], [technique note]\n• Target finish time: [time]\n\n⚠️ MILK DRINK REQUIREMENT: If milk-based drink, include:\n**Milk Preparation:**\n• Steam [X]ml of milk to [temp]°F ([temp]°C)\n• Texture: [detailed description]\n• Pour pattern: [assembly instructions]\n• Ratio: [espresso:milk ratio]\n\n⚠️ ESPRESSO REQUIREMENT: If espresso, include:\n**Shot Preparation:**\n• [Pre-infusion details if applicable]\n• [Pressure profiling if flow control available]\n• [Visual cues for timing - when to stop shot]\n• [Expected shot appearance and flow]\n\n**Common Pitfalls:**\n[2-3 common mistakes to avoid with this specific coffee and method combination. Be specific. Example: '1) Over-agitating during bloom can create channeling in light roasts - gentle swirl only. 2) Pouring too fast will under-extract the fruity notes, leaving a sour, thin cup. 3) Water below 93°C will struggle to extract sweetness from the dense light roast structure.']"
     },
     {
       "technique_name": "Second recommended brew method (MUST match user's equipment). If espresso, specify style.",
@@ -328,7 +321,7 @@ Read the image carefully and extract all visible information accurately. Use tec
         "pressure": "Pressure if applicable or N/A",
         "flow_control": "Detailed pressure profiling if espresso with flow control, otherwise N/A"
       },
-      "technique_notes": "2-3 sentences with practical technique tips. Assume good knowledge but not pro-level. Focus on what makes this technique work well and common pitfalls to avoid.\n\n⚠️ POUR OVER SPECIFIC REQUIREMENT: If this is a pour over method (V60, Chemex, Kalita Wave, etc.), you MUST include detailed pouring instructions in this field formatted as follows:\n\n**Pouring Schedule:**\n• **Bloom**: [X]g water, wait [Y] seconds\n• **First Pour**: [X]g to [total]g, [timing]\n• **Second Pour**: [X]g to [total]g, [timing]\n• **Third Pour**: [X]g to [total]g, [timing]\n[Continue for all pours until reaching target yield]\n\nExample:\n**Pouring Schedule:**\n• **Bloom**: 50g water, wait 30-45 seconds\n• **First Pour**: 100g to 150g total (0:45-1:15)\n• **Second Pour**: 100g to 250g total (1:15-1:45)\n• **Third Pour**: 50g to 300g total (1:45-2:15)\n• Target finish time: 2:30-3:00\n\n⚠️ MILK DRINK SPECIFIC REQUIREMENT: If this is a milk-based drink (Latte, Cappuccino, Cortado, Flat White, etc.), you MUST include milk preparation and assembly instructions in this field formatted as follows:\n\n**Milk Preparation:**\n• Steam [X]ml of milk to [temp]°F ([temp]°C)\n• Texture: [microfoam/velvety/etc description]\n• Pour pattern: [how to combine with espresso]\n• Ratio: [espresso:milk ratio like 1:3 for latte]\n\nExample for Latte:\n**Milk Preparation:**\n• Steam 180-240ml of whole milk to 140-150°F (60-65°C)\n• Texture: Smooth, velvety microfoam with minimal visible bubbles\n• Pour pattern: Start with espresso in cup, pour milk in circular motion from center\n• Ratio: 1:3 to 1:5 (espresso:milk)"
+      "technique_notes": "Comprehensive qualitative brewing guidance (4-6 paragraphs):\n\n**Extraction Philosophy for This Coffee:**\n[2-3 sentences explaining the extraction approach specific to this coffee's roast level, origin, and processing. Explain the 'why' behind the parameters. Example: 'This Ethiopian natural light roast demands careful attention to extraction balance. The high temperatures and moderate brew time aim to fully develop the coffee's fruity sweetness while managing the delicate floral notes that can turn vegetal if under-extracted.']\n\n**Flavor Highlighting Strategy:**\n[2-3 sentences on how to bring out the specific flavor notes of THIS coffee. Be specific about which notes and how this technique emphasizes them. Example: 'The V60 technique with its clean filter and even extraction is ideal for showcasing this coffee's bright blueberry and jasmine notes. The bloom phase ensures even saturation while the controlled pours prevent channeling that would muddy these delicate flavors.']\n\n**Alternative Approaches:**\nDepending on your taste preference:\n• **For [brighter acidity/more fruit/etc.]**: [specific adjustment with reasoning - e.g., 'increase water temp to 96°C to extract more fruit-forward notes']\n• **For [more body/sweetness/etc.]**: [specific adjustment with reasoning - e.g., 'use a slightly coarser grind and slower pour rate to build body']\n• **For [different characteristic]**: [specific adjustment with reasoning]\n\n**Technique Execution:**\n[Detailed execution instructions specific to the method]\n\n⚠️ POUR OVER REQUIREMENT: If pour over (V60, Chemex, Kalita), include detailed schedule:\n**Pouring Schedule:**\n• **Bloom**: [X]g water, wait [Y] seconds, [technique note]\n• **First Pour**: [X]g to [total]g, [timing], [technique note]\n• **Second Pour**: [X]g to [total]g, [timing], [technique note]\n• **Third Pour**: [X]g to [total]g, [timing], [technique note]\n• Target finish time: [time]\n\n⚠️ MILK DRINK REQUIREMENT: If milk-based drink, include:\n**Milk Preparation:**\n• Steam [X]ml of milk to [temp]°F ([temp]°C)\n• Texture: [detailed description]\n• Pour pattern: [assembly instructions]\n• Ratio: [espresso:milk ratio]\n\n⚠️ ESPRESSO REQUIREMENT: If espresso, include:\n**Shot Preparation:**\n• [Pre-infusion details if applicable]\n• [Pressure profiling if flow control available]\n• [Visual cues for timing - when to stop shot]\n• [Expected shot appearance and flow]\n\n**Common Pitfalls:**\n[2-3 common mistakes to avoid with this specific coffee and method combination. Be specific. Example: '1) Over-agitating during bloom can create channeling in light roasts - gentle swirl only. 2) Pouring too fast will under-extract the fruity notes, leaving a sour, thin cup. 3) Water below 93°C will struggle to extract sweetness from the dense light roast structure.']"
     }
   ],
   "equipment_suggestions": "CRITICAL: ONLY include this field if you have an ACTUAL recommendation to upgrade/add equipment. DO NOT include affirmations or 'equipment is fine' messages. If their gear is adequate, completely OMIT this field from the JSON response."
@@ -337,42 +330,24 @@ Read the image carefully and extract all visible information accurately. Use tec
 Read the image carefully and extract all visible information accurately. Provide only the top 2 most suitable techniques THAT MATCH THE USER'S EQUIPMENT. Use technical language. If info isn't visible, make educated estimates based on roast level and other visual clues.`;
         }
 
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': ANTHROPIC_API_KEY,
-                'anthropic-version': '2023-06-01'
-            },
-            body: JSON.stringify({
-                model: 'claude-3-haiku-20240307',
-                max_tokens: 2048,
-                messages: [{
-                    role: 'user',
-                    content: [
-                        {
-                            type: 'image',
-                            source: {
-                                type: 'base64',
-                                media_type: mediaType,
-                                data: image
-                            }
-                        },
-                        {
-                            type: 'text',
-                            text: promptText + jsonFormat
-                        }
-                    ]
-                }]
-            })
-        });
+        // Use the provider abstraction for image analysis
+        const provider = getProvider(aiProvider);
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error?.message || `API request failed with status ${response.status}`);
-        }
+        // Format the message content with image
+        const messageContent = provider.formatPrompt(promptText + jsonFormat, image);
 
-        const data = await response.json();
+        const result = await provider.sendMessage(
+            [{ role: 'user', content: messageContent }],
+            '', // No system prompt for image analysis
+            3500
+        );
+
+        // Format response to match expected structure
+        const data = {
+            content: [{ text: result.text }],
+            usage: result.usage
+        };
+
         res.status(200).json(data);
 
     } catch (error) {

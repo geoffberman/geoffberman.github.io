@@ -7,7 +7,8 @@ const state = {
     currentBrewMethod: null,
     currentRecipe: null,
     hiddenAiRecommendations: null,
-    currentImageHash: null
+    currentImageHash: null,
+    conversationThread: null  // { messages: [], coffeeContext: {}, recipeContext: {} }
 };
 
 // DOM elements
@@ -238,6 +239,29 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Format technique notes with rich markdown-style formatting
+function formatTechniqueNotes(notes) {
+    if (!notes) return '';
+
+    return notes
+        // Bold text
+        .replace(/\*\*(.*?)\*\*/g, '<strong style="color: var(--primary-color); font-weight: 600;">$1</strong>')
+        // Bullet points
+        .replace(/^• (.*?)$/gm, '<li style="margin: 5px 0; line-height: 1.6;">$1</li>')
+        // Group consecutive list items into ul
+        .replace(/(<li.*?<\/li>\n?)+/gs, match => {
+            const cleanedMatch = match.replace(/\n/g, '');
+            return `<ul style="margin: 12px 0; padding-left: 24px; list-style-type: disc;">${cleanedMatch}</ul>`;
+        })
+        // Paragraph breaks
+        .replace(/\n\n/g, '</p><p style="margin: 14px 0; line-height: 1.7;">')
+        // Single line breaks (but not before ul)
+        .replace(/\n/g, '<br>')
+        // Clean up spacing around ul elements
+        .replace(/<br>\s*<ul/g, '<ul')
+        .replace(/<\/ul>\s*<br>/g, '</ul>');
+}
+
 // Fetch user's most recent saved recipes (across all coffees)
 async function getRecentSavedRecipes(limit = 5) {
     let allRecipes = [];
@@ -405,6 +429,252 @@ async function loadSavedRecipeDirectly(recipeData) {
         console.error('Failed to load saved recipe:', error);
         showError('Failed to load saved recipe. Please try again.');
     }
+}
+
+// ===== Conversation Functions =====
+
+/**
+ * Start a new conversation with initial feedback
+ */
+async function startConversation(initialMessage, rating = null) {
+    if (!state.currentCoffeeAnalysis || !state.currentRecipe) {
+        console.error('Cannot start conversation without coffee analysis and recipe');
+        return;
+    }
+
+    // Initialize conversation thread
+    state.conversationThread = {
+        messages: [],
+        coffeeContext: state.currentCoffeeAnalysis,
+        recipeContext: state.currentRecipe
+    };
+
+    // Show conversation UI
+    const conversationDiv = document.getElementById('conversation-thread');
+    const messagesDiv = document.getElementById('conversation-messages');
+
+    if (conversationDiv) {
+        conversationDiv.classList.remove('hidden');
+        messagesDiv.innerHTML = ''; // Clear previous messages
+    }
+
+    // Send the initial message
+    await sendConversationMessage(initialMessage, rating);
+}
+
+/**
+ * Send a message in the conversation
+ */
+async function sendConversationMessage(message, rating = null) {
+    if (!state.conversationThread) {
+        console.error('No active conversation thread');
+        return;
+    }
+
+    const messagesDiv = document.getElementById('conversation-messages');
+    const conversationInput = document.getElementById('conversation-input');
+    const sendBtn = document.getElementById('send-conversation-btn');
+
+    if (!messagesDiv) return;
+
+    // Build the full message with rating context if provided
+    let fullMessage = message;
+    if (rating !== null) {
+        const ratingText = rating < -1 ? 'too sour' : rating > 1 ? 'too bitter' : rating < 0 ? 'slightly sour' : rating > 0 ? 'slightly bitter' : 'perfect';
+        fullMessage = `I rated the brew as "${ratingText}". ${message}`;
+    }
+
+    // Add user message to thread
+    const userMessage = {
+        role: 'user',
+        content: fullMessage,
+        timestamp: new Date().toISOString()
+    };
+    state.conversationThread.messages.push(userMessage);
+
+    // Display user message
+    displayConversationMessage(userMessage);
+
+    // Clear input and disable send button
+    if (conversationInput) conversationInput.value = '';
+    if (sendBtn) sendBtn.disabled = true;
+
+    // Show loading indicator
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'conversation-loading';
+    loadingDiv.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px; padding: 12px; background: #f0f0f0; border-radius: 8px; margin-bottom: 10px;">
+            <div style="width: 8px; height: 8px; background: var(--primary-color); border-radius: 50%; animation: pulse 1.5s ease-in-out infinite;"></div>
+            <div style="color: var(--secondary-color); font-size: 0.85rem;">Brewing a response...</div>
+        </div>
+    `;
+    messagesDiv.appendChild(loadingDiv);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+    try {
+        // Get AI provider preference
+        const aiProvider = state.equipment?.ai_provider || 'anthropic';
+
+        // Send to conversation API
+        const response = await fetch('/api/conversation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: fullMessage,
+                conversationHistory: state.conversationThread.messages.slice(0, -1), // Exclude the message we just added
+                coffeeContext: state.conversationThread.coffeeContext,
+                recipeContext: state.conversationThread.recipeContext,
+                aiProvider: aiProvider
+            })
+        });
+
+        // Remove loading indicator
+        messagesDiv.removeChild(loadingDiv);
+
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Add assistant message to thread
+        const assistantMessage = {
+            role: 'assistant',
+            content: data.response,
+            timestamp: data.timestamp
+        };
+        state.conversationThread.messages.push(assistantMessage);
+
+        // Display assistant message
+        displayConversationMessage(assistantMessage);
+
+        // Save conversation to storage
+        saveConversationToStorage();
+
+        // Re-enable send button
+        if (sendBtn) sendBtn.disabled = false;
+
+    } catch (error) {
+        console.error('Conversation error:', error);
+
+        // Remove loading indicator
+        if (loadingDiv.parentNode) {
+            messagesDiv.removeChild(loadingDiv);
+        }
+
+        // Show error message
+        const errorDiv = document.createElement('div');
+        errorDiv.innerHTML = `
+            <div style="padding: 12px; background: #fee; border: 1px solid #fcc; border-radius: 8px; margin-bottom: 10px; color: #c33;">
+                <strong>Error:</strong> Failed to get response. Please try again.
+            </div>
+        `;
+        messagesDiv.appendChild(errorDiv);
+
+        // Re-enable send button
+        if (sendBtn) sendBtn.disabled = false;
+    }
+}
+
+/**
+ * Display a conversation message in the UI
+ */
+function displayConversationMessage(message) {
+    const messagesDiv = document.getElementById('conversation-messages');
+    if (!messagesDiv) return;
+
+    const isUser = message.role === 'user';
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `conversation-message ${message.role}`;
+
+    const timestamp = new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    messageDiv.innerHTML = `
+        <div style="display: flex; flex-direction: column; margin-bottom: 12px; align-items: ${isUser ? 'flex-end' : 'flex-start'};">
+            <div style="max-width: 80%; padding: 12px; border-radius: 12px; background: ${isUser ? '#4A90E2' : '#f0f0f0'}; color: ${isUser ? '#ffffff' : '#333'};">
+                <div style="font-size: 0.85rem; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(message.content)}</div>
+            </div>
+            <div style="font-size: 0.7rem; color: var(--secondary-color); margin-top: 4px; padding: 0 4px;">
+                ${isUser ? 'You' : 'Coffee Expert'} • ${timestamp}
+            </div>
+        </div>
+    `;
+
+    messagesDiv.appendChild(messageDiv);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+/**
+ * Save conversation to localStorage
+ */
+function saveConversationToStorage() {
+    if (!state.conversationThread) return;
+
+    try {
+        const conversationData = {
+            messages: state.conversationThread.messages,
+            coffeeHash: state.currentImageHash,
+            brewMethod: state.currentBrewMethod,
+            timestamp: new Date().toISOString()
+        };
+
+        localStorage.setItem('current_conversation', JSON.stringify(conversationData));
+    } catch (error) {
+        console.error('Failed to save conversation:', error);
+    }
+}
+
+/**
+ * Toggle conversation view (collapse/expand)
+ */
+function toggleConversationView() {
+    const messagesDiv = document.getElementById('conversation-messages');
+    const toggleBtn = document.getElementById('toggle-conversation-btn');
+
+    if (!messagesDiv || !toggleBtn) return;
+
+    const isCollapsed = messagesDiv.style.display === 'none';
+
+    if (isCollapsed) {
+        messagesDiv.style.display = 'block';
+        toggleBtn.textContent = 'Collapse';
+    } else {
+        messagesDiv.style.display = 'none';
+        toggleBtn.textContent = 'Expand';
+    }
+}
+
+/**
+ * Start a new conversation (reset current thread)
+ */
+function startNewConversation() {
+    if (!state.currentCoffeeAnalysis || !state.currentRecipe) {
+        return;
+    }
+
+    // Reset conversation thread
+    state.conversationThread = {
+        messages: [],
+        coffeeContext: state.currentCoffeeAnalysis,
+        recipeContext: state.currentRecipe
+    };
+
+    // Clear messages display
+    const messagesDiv = document.getElementById('conversation-messages');
+    if (messagesDiv) {
+        messagesDiv.innerHTML = '';
+    }
+
+    // Clear conversation input
+    const conversationInput = document.getElementById('conversation-input');
+    if (conversationInput) {
+        conversationInput.value = '';
+    }
+
+    // Clear from storage
+    localStorage.removeItem('current_conversation');
+
+    console.log('Started new conversation');
 }
 
 // Initialize app
@@ -781,6 +1051,51 @@ function setupEventListeners() {
     elements.signinForRecipesBtn.addEventListener('click', () => {
         showAuthModal();
     });
+
+    // Conversation event listeners
+    const sendConversationBtn = document.getElementById('send-conversation-btn');
+    const conversationInput = document.getElementById('conversation-input');
+    const toggleConversationBtn = document.getElementById('toggle-conversation-btn');
+    const newConversationBtn = document.getElementById('new-conversation-btn');
+
+    if (sendConversationBtn && conversationInput) {
+        // Send conversation message button
+        sendConversationBtn.addEventListener('click', () => {
+            const message = conversationInput.value.trim();
+            if (message && state.conversationThread) {
+                sendConversationMessage(message);
+            }
+        });
+
+        // Enter key to send message
+        conversationInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                const message = conversationInput.value.trim();
+                if (message && state.conversationThread) {
+                    sendConversationMessage(message);
+                }
+            }
+        });
+
+        // Enable send button when text is entered
+        conversationInput.addEventListener('input', () => {
+            const hasText = conversationInput.value.trim().length > 0;
+            sendConversationBtn.disabled = !hasText || !state.conversationThread;
+        });
+    }
+
+    if (toggleConversationBtn) {
+        toggleConversationBtn.addEventListener('click', toggleConversationView);
+    }
+
+    if (newConversationBtn) {
+        newConversationBtn.addEventListener('click', () => {
+            if (confirm('Start a new conversation? This will clear the current conversation history.')) {
+                startNewConversation();
+            }
+        });
+    }
 }
 
 // Handle image upload
@@ -1227,15 +1542,13 @@ function displayResults(data) {
                         <div style="margin: 0; line-height: 1.6; color: var(--secondary-color); font-size: 0.85rem; white-space: pre-wrap; font-family: inherit;">${escapeHtml(technique.saved_notes)}</div>
                     </div>` : ''}
 
-                    ${technique.technique_notes ? `<div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 3px solid var(--accent-color); border-radius: 4px;">
-                        <div style="margin: 0; line-height: 1.6; color: var(--secondary-color); font-size: 0.9rem;">${technique.technique_notes
-                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                            .replace(/^• (.*?)$/gm, '<li style="margin: 0; padding: 0; line-height: 1.0;">$1</li>')
-                            .replace(/(<li.*?<\/li>\n?)+/gs, match => `<ul style="margin: 0; margin-bottom: 0; padding-left: 20px; list-style-position: outside; line-height: 1.0;">${match.replace(/\n/g, '')}</ul>`)
-                            .replace(/\n\n/g, '</p><p style="margin: 10px 0;">')
-                            .replace(/\n/g, '<br>')
-                            .replace(/<br>\s*<ul/g, '<ul')
-                        }</div>
+                    ${technique.technique_notes ? `<div class="technique-notes-expanded" style="margin-top: 20px; padding: 20px; background: linear-gradient(135deg, #f9f9f9 0%, #ffffff 100%); border: 1px solid #e0e0e0; border-left: 4px solid var(--accent-color); border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                        <h4 style="margin: 0 0 15px 0; color: var(--primary-color); font-size: 1rem; font-weight: 600; display: flex; align-items: center;">
+                            <span style="margin-right: 8px;">☕</span> Brewing Guide
+                        </h4>
+                        <div style="margin: 0; line-height: 1.8; color: var(--secondary-color); font-size: 0.9rem;">
+                            <p style="margin: 14px 0 0 0; line-height: 1.7;">${formatTechniqueNotes(technique.technique_notes)}</p>
+                        </div>
                     </div>` : ''}
                 </div>
             </div>
@@ -2720,6 +3033,9 @@ async function submitFeedbackOnly() {
         elements.userFeedback.value = '';
         elements.submitFeedbackBtn.classList.add('hidden');
 
+        // Start conversation with this feedback
+        await startConversation(userFeedback);
+
     } catch (error) {
         console.error('Failed to submit feedback:', error);
         elements.adjustmentFeedback.classList.remove('hidden');
@@ -2999,6 +3315,12 @@ async function adjustRecipeBasedOnRating(rating) {
         if (saveBtn) {
             saveBtn.addEventListener('click', saveAdjustedBrew);
         }
+
+        // Start conversation with the adjustment feedback
+        const conversationMessage = userFeedback
+            ? `I made adjustments based on your recommendations. ${userFeedback}`
+            : "I've made adjustments to the recipe based on your recommendations.";
+        await startConversation(conversationMessage, rating);
 
         // Reset button
         elements.adjustRecipeBtn.textContent = 'Adjust Recipe Based on Rating';
