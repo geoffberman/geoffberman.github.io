@@ -232,6 +232,26 @@
                         <textarea id="additional-equipment" rows="2" placeholder="e.g., Gooseneck kettle, Scale, Temperature-controlled kettle"></textarea>
                     </div>
 
+                    <div class="form-group">
+                        <label>AI Provider Preference</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="ai-provider" value="anthropic" checked />
+                                <div>
+                                    <strong>Claude (Anthropic)</strong>
+                                    <small>Recommended - Optimized for detailed coffee guidance</small>
+                                </div>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="ai-provider" value="gemini" />
+                                <div>
+                                    <strong>Gemini (Google)</strong>
+                                    <small>Fast and cost-effective alternative</small>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
                     <p style="font-size: 0.85rem; color: var(--secondary-color); margin-bottom: 15px;">
                         <span style="color: #C74B50;">*</span> Required: Enter at least one brewing method and specify your grinder (or check "no grinder")
                     </p>
@@ -406,6 +426,34 @@
                         <div id="adjustment-feedback" class="hidden" style="margin-top: 10px; padding: 10px; background: rgba(107, 68, 35, 0.1); border-radius: 4px;">
                             <p style="margin: 0; color: var(--secondary-color); font-size: 0.8rem;"></p>
                         </div>
+                    </div>
+
+                    <!-- Conversation Thread UI -->
+                    <div id="conversation-thread" class="card hidden" style="margin-top: 15px; background: linear-gradient(135deg, #F0F8FF 0%, #E6F3FF 100%); border: 2px solid #4A90E2; padding: 15px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <h4 style="margin: 0; color: var(--primary-color); font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
+                                💬 Brew Dialogue
+                            </h4>
+                            <button id="toggle-conversation-btn" class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.7rem;">
+                                Collapse
+                            </button>
+                        </div>
+
+                        <div id="conversation-messages" style="max-height: 400px; overflow-y: auto; margin-bottom: 15px; padding: 12px; background: #ffffff; border-radius: 8px; border: 1px solid #d0e4f7;">
+                            <!-- Messages will be dynamically inserted here -->
+                        </div>
+
+                        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                            <textarea id="conversation-input" rows="2" placeholder="Ask a follow-up question or describe your results..."
+                                style="flex: 1; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; resize: vertical; font-family: inherit; font-size: 0.85rem;"></textarea>
+                            <button id="send-conversation-btn" class="btn btn-primary" style="padding: 8px 16px; white-space: nowrap; align-self: flex-end; font-size: 0.8rem;">
+                                Send
+                            </button>
+                        </div>
+
+                        <button id="new-conversation-btn" class="btn btn-secondary" style="font-size: 0.75rem; width: 100%; padding: 6px;">
+                            🔄 Start New Conversation
+                        </button>
                     </div>
 
                     <div id="alt-brew-card" class="card" style="background: linear-gradient(135deg, #FFFCF7 0%, #FFF8ED 100%); border: 2px solid var(--accent-color); padding: 10px 15px;">
