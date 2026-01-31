@@ -123,8 +123,8 @@ class GeminiProvider extends AIProvider {
   constructor() {
     super();
     this.apiKey = process.env.GEMINI_API_KEY;
-    this.model = 'gemini-1.5-flash';
-    this.endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent`;
+    this.model = 'gemini-1.5-flash-latest';
+    this.endpoint = `https://generativelanguage.googleapis.com/v1/models/${this.model}:generateContent`;
   }
 
   formatPrompt(prompt, imageData = null) {
