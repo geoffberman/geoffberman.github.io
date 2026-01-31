@@ -1196,7 +1196,8 @@ async function analyzeImage(specificMethod = null) {
         const requestBody = {
             image: base64Image,
             mediaType: mediaType,
-            equipment: equipmentDescription
+            equipment: equipmentDescription,
+            aiProvider: state.equipment?.ai_provider || 'anthropic'
         };
 
         // Add specific method if provided
@@ -1691,7 +1692,8 @@ async function saveEquipment() {
         otherMethods: Array.from(document.querySelectorAll('input[name="other-methods"]:checked')).map(cb => cb.value),
         customBrewMethods: Array.from(document.querySelectorAll('input[name="custom-brew-methods"]:checked')).map(cb => cb.value),
         otherEquipment: document.getElementById('other-equipment').value.trim(),
-        additionalEquipment: document.getElementById('additional-equipment').value.trim()
+        additionalEquipment: document.getElementById('additional-equipment').value.trim(),
+        ai_provider: document.querySelector('input[name="ai-provider"]:checked')?.value || 'anthropic'
     };
 
     console.log('Saving equipment with customBrewMethods:', equipment.customBrewMethods);
@@ -1774,6 +1776,14 @@ function loadEquipment() {
                 }
                 if (equipment.additionalEquipment) {
                     document.getElementById('additional-equipment').value = equipment.additionalEquipment;
+                }
+
+                // Restore AI provider selection
+                if (equipment.ai_provider) {
+                    const providerRadio = document.querySelector(`input[name="ai-provider"][value="${equipment.ai_provider}"]`);
+                    if (providerRadio) {
+                        providerRadio.checked = true;
+                    }
                 }
 
                 // Check appropriate checkboxes
@@ -2590,7 +2600,8 @@ async function loadEquipmentFromDatabase() {
                 otherMethods: data.other_methods || [],
                 customBrewMethods: data.custom_brew_methods || [],
                 otherEquipment: data.other_equipment || '',
-                additionalEquipment: data.additional_equipment || ''
+                additionalEquipment: data.additional_equipment || '',
+                ai_provider: data.ai_provider || 'anthropic'
             };
 
             // Populate the form
@@ -2611,6 +2622,14 @@ async function loadEquipmentFromDatabase() {
             }
             if (state.equipment.additionalEquipment) {
                 document.getElementById('additional-equipment').value = state.equipment.additionalEquipment;
+            }
+
+            // Restore AI provider selection
+            if (state.equipment.ai_provider) {
+                const providerRadio = document.querySelector(`input[name="ai-provider"][value="${state.equipment.ai_provider}"]`);
+                if (providerRadio) {
+                    providerRadio.checked = true;
+                }
             }
 
             // Check boxes
@@ -2670,6 +2689,7 @@ async function saveEquipmentToDatabase(equipment) {
             custom_brew_methods: equipment.customBrewMethods || [],
             other_equipment: equipment.otherEquipment,
             additional_equipment: equipment.additionalEquipment,
+            ai_provider: equipment.ai_provider || 'anthropic',
             updated_at: new Date().toISOString()
         };
 
@@ -3024,7 +3044,8 @@ async function submitFeedbackOnly() {
             body: JSON.stringify({
                 equipment: equipmentDescription,
                 adjustmentRequest: `User feedback: ${userFeedback}`,
-                previousAnalysis: state.currentCoffeeAnalysis
+                previousAnalysis: state.currentCoffeeAnalysis,
+                aiProvider: state.equipment?.ai_provider || 'anthropic'
             })
         });
 
@@ -3118,7 +3139,8 @@ async function adjustRecipeBasedOnRating(rating) {
                 equipment: equipmentDescription,
                 currentBrewMethod: state.currentBrewMethod,
                 adjustmentRequest: adjustmentGuidance,
-                previousAnalysis: state.currentCoffeeAnalysis
+                previousAnalysis: state.currentCoffeeAnalysis,
+                aiProvider: state.equipment?.ai_provider || 'anthropic'
             })
         });
 
