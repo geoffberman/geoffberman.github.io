@@ -3892,7 +3892,9 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
             const updateData = {
                 recipe: recipeData,
                 times_brewed: existing.times_brewed + 1,
-                last_brewed: new Date().toISOString()
+                last_brewed: new Date().toISOString(),
+                // Always preserve existing notes
+                notes: existing.notes || null
             };
 
             // Append new notes to existing notes if provided
