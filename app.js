@@ -898,6 +898,43 @@ function setupEventListeners() {
         }
     });
 
+    // Custom filter toggle
+    const otherFilterToggle = document.getElementById('other-filter-toggle');
+    const customFilterInput = document.getElementById('custom-filter-input');
+    const addCustomFilterBtn = document.getElementById('add-custom-filter');
+
+    otherFilterToggle.addEventListener('change', () => {
+        if (otherFilterToggle.checked) {
+            customFilterInput.classList.remove('hidden');
+            addCustomFilterBtn.classList.remove('hidden');
+            customFilterInput.focus();
+        } else {
+            customFilterInput.classList.add('hidden');
+            addCustomFilterBtn.classList.add('hidden');
+            customFilterInput.value = '';
+        }
+    });
+
+    // Add custom filter
+    addCustomFilterBtn.addEventListener('click', () => {
+        const filterName = customFilterInput.value.trim();
+        if (filterName) {
+            addCustomFilter(filterName);
+            customFilterInput.value = '';
+            otherFilterToggle.checked = false;
+            customFilterInput.classList.add('hidden');
+            addCustomFilterBtn.classList.add('hidden');
+        }
+    });
+
+    // Allow Enter key to add custom filter
+    customFilterInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addCustomFilterBtn.click();
+        }
+    });
+
     // Auth event listeners
     // Tab switching
     elements.tabSignin.addEventListener('click', () => {
@@ -1670,15 +1707,16 @@ function isPourOver(techniqueName) {
 
 // Helper function to check if user has filters
 function hasFilters() {
-    return state.equipment && state.equipment.filters && state.equipment.filters.length > 0;
+    return state.equipment && ((state.equipment.filters && state.equipment.filters.length > 0) || (state.equipment.customFilters && state.equipment.customFilters.length > 0));
 }
 
 // Helper function to get filter options HTML
 function getFilterOptions() {
-    if (!state.equipment || !state.equipment.filters) return '<option>No filters configured</option>';
+    const allFilters = [...(state.equipment?.filters || []), ...(state.equipment?.customFilters || [])];
+    if (allFilters.length === 0) return '<option>No filters configured</option>';
 
     let options = '';
-    state.equipment.filters.forEach(filter => {
+    allFilters.forEach(filter => {
         options += `<option value="${filter}">${filter}</option>`;
     });
     return options;
@@ -1733,6 +1771,7 @@ async function saveEquipment() {
         flowControl: document.getElementById('flow-control').checked,
         pourOver: Array.from(document.querySelectorAll('input[name="pour-over"]:checked')).map(cb => cb.value),
         filters: Array.from(document.querySelectorAll('input[name="filters"]:checked')).map(cb => cb.value),
+        customFilters: Array.from(document.querySelectorAll('input[name="custom-filters"]:checked')).map(cb => cb.value),
         podMachines: Array.from(document.querySelectorAll('input[name="pod-machines"]:checked')).map(cb => cb.value),
         grinder: document.getElementById('grinder').value.trim(),
         noGrinder: document.getElementById('no-grinder').checked,
@@ -1859,6 +1898,11 @@ function loadEquipment() {
                     renderCustomBrewMethods(equipment.customBrewMethods);
                 }
 
+                // Render and check custom filters
+                if (equipment.customFilters && equipment.customFilters.length > 0) {
+                    renderCustomFilters(equipment.customFilters);
+                }
+
                 // Show summary view if equipment is loaded
                 showEquipmentSummary();
             }
@@ -1976,6 +2020,12 @@ function clearEquipment() {
             customMethodsContainer.innerHTML = '';
         }
 
+        // Clear custom filters display
+        const customFiltersContainer = document.getElementById('custom-filters');
+        if (customFiltersContainer) {
+            customFiltersContainer.innerHTML = '';
+        }
+
         // Clear localStorage
         localStorage.removeItem('coffee_equipment');
         state.equipment = null;
@@ -2081,6 +2131,90 @@ function removeCustomBrewMethod(methodName) {
     }
 }
 
+// Add a custom filter
+function addCustomFilter(filterName) {
+    // Get current custom filters from localStorage or initialize empty array
+    const savedEquipment = localStorage.getItem('coffee_equipment');
+    const equipment = savedEquipment ? JSON.parse(savedEquipment) : {};
+
+    if (!equipment.customFilters) {
+        equipment.customFilters = [];
+    }
+
+    // Check if filter already exists
+    if (equipment.customFilters.includes(filterName)) {
+        alert('This filter type already exists!');
+        return;
+    }
+
+    // Add the new filter
+    equipment.customFilters.push(filterName);
+
+    // Save to localStorage
+    localStorage.setItem('coffee_equipment', JSON.stringify(equipment));
+    state.equipment = equipment;
+
+    // Render the updated list
+    renderCustomFilters(equipment.customFilters);
+
+    console.log('Added custom filter:', filterName);
+}
+
+// Render custom filters as checkboxes
+function renderCustomFilters(customFilters) {
+    const container = document.getElementById('custom-filters');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    customFilters.forEach(filter => {
+        const label = document.createElement('label');
+        label.className = 'checkbox-label';
+        label.style.display = 'flex';
+        label.style.alignItems = 'center';
+        label.style.gap = '8px';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.name = 'custom-filters';
+        checkbox.value = filter;
+        checkbox.checked = true; // Auto-check newly added filters
+
+        const text = document.createTextNode(filter);
+
+        // Add a small remove button
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.textContent = '×';
+        removeBtn.style.cssText = 'margin-left: auto; padding: 2px 6px; font-size: 1.2rem; color: #C74B50; background: none; border: 1px solid #C74B50; border-radius: 3px; cursor: pointer; line-height: 1;';
+        removeBtn.title = 'Remove this filter';
+        removeBtn.onclick = () => removeCustomFilter(filter);
+
+        label.appendChild(checkbox);
+        label.appendChild(text);
+        label.appendChild(removeBtn);
+        container.appendChild(label);
+    });
+}
+
+// Remove a custom filter
+function removeCustomFilter(filterName) {
+    if (!confirm(`Remove "${filterName}" from your filters?`)) {
+        return;
+    }
+
+    const savedEquipment = localStorage.getItem('coffee_equipment');
+    const equipment = savedEquipment ? JSON.parse(savedEquipment) : {};
+
+    if (equipment.customFilters) {
+        equipment.customFilters = equipment.customFilters.filter(f => f !== filterName);
+        localStorage.setItem('coffee_equipment', JSON.stringify(equipment));
+        state.equipment = equipment;
+        renderCustomFilters(equipment.customFilters);
+        console.log('Removed custom filter:', filterName);
+    }
+}
+
 function getEquipmentDescription() {
     if (!state.equipment) return null;
 
@@ -2094,8 +2228,9 @@ function getEquipmentDescription() {
         parts.push(`Pour Over: ${state.equipment.pourOver.join(', ')}`);
     }
 
-    if (state.equipment.filters && state.equipment.filters.length > 0) {
-        parts.push(`Filters: ${state.equipment.filters.join(', ')}`);
+    if ((state.equipment.filters && state.equipment.filters.length > 0) || (state.equipment.customFilters && state.equipment.customFilters.length > 0)) {
+        const allFilters = [...(state.equipment.filters || []), ...(state.equipment.customFilters || [])];
+        parts.push(`Filters: ${allFilters.join(', ')}`);
     }
 
     if (state.equipment.podMachines && state.equipment.podMachines.length > 0) {
@@ -2223,11 +2358,12 @@ function showEquipmentSummary() {
         `;
     }
 
-    if (state.equipment.filters && state.equipment.filters.length > 0) {
+    if ((state.equipment.filters && state.equipment.filters.length > 0) || (state.equipment.customFilters && state.equipment.customFilters.length > 0)) {
+        const allFilters = [...(state.equipment.filters || []), ...(state.equipment.customFilters || [])];
         summaryHTML += `
             <div class="equipment-summary-item">
                 <strong>Coffee Filters</strong>
-                <span>${state.equipment.filters.join(', ')}</span>
+                <span>${allFilters.join(', ')}</span>
             </div>
         `;
     }
@@ -2366,6 +2502,11 @@ function showEquipmentForm() {
             const checkbox = document.querySelector(`input[name="filters"][value="${value}"]`);
             if (checkbox) checkbox.checked = true;
         });
+
+        // Render custom filters
+        if (state.equipment.customFilters && state.equipment.customFilters.length > 0) {
+            renderCustomFilters(state.equipment.customFilters);
+        }
     }
 }
 
@@ -2717,6 +2858,7 @@ async function loadEquipmentFromDatabase() {
                 flowControl: data.flow_control || false,
                 pourOver: data.pour_over || [],
                 filters: data.filters || [],
+                customFilters: data.custom_filters || [],
                 podMachines: data.pod_machines || [],
                 grinder: data.grinder || '',
                 noGrinder: data.no_grinder || false,
@@ -2781,6 +2923,11 @@ async function loadEquipmentFromDatabase() {
                 renderCustomBrewMethods(state.equipment.customBrewMethods);
             }
 
+            // Render and check custom filters
+            if (state.equipment.customFilters && state.equipment.customFilters.length > 0) {
+                renderCustomFilters(state.equipment.customFilters);
+            }
+
             // Show summary
             showEquipmentSummary();
             console.log('Equipment loaded from database');
@@ -2811,6 +2958,7 @@ async function saveEquipmentToDatabase(equipment) {
             flow_control: equipment.flowControl,
             pour_over: equipment.pourOver,
             filters: equipment.filters || [],
+            custom_filters: equipment.customFilters || [],
             pod_machines: equipment.podMachines,
             grinder: equipment.grinder,
             no_grinder: equipment.noGrinder,

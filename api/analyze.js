@@ -169,6 +169,26 @@ If the user's equipment includes specific filter types, tailor pour over recomme
   * Recommend thorough pre-rinse with hot water
   * Similar characteristics to white paper otherwise
   * Slightly more eco-friendly option
+- **Sibarist Fast**:
+  * Premium specialty filter with very fast flow rate
+  * Extremely clean cup with high clarity
+  * Allows finer grind without choking - grind 1-2 clicks finer than regular paper
+  * Minimal resistance → need to adjust pour technique (slower pours)
+  * Best for light roasts and delicate coffees where clarity is paramount
+  * Expensive but produces exceptional results
+- **Sibarist B3**:
+  * Sibarist's standard flow filter (medium speed)
+  * Balance between fast flow and adequate resistance
+  * Grind similar to standard paper or slightly finer
+  * Produces ultra-clean cup with great clarity
+  * Versatile for various roast levels
+- **Cafec**:
+  * Japanese specialty filter with crepe texture
+  * Medium flow rate, similar to standard paper
+  * Abaca fiber construction for durability and clean taste
+  * Known for consistent results and minimal papery taste
+  * Produces clean cup with good clarity
+  * Standard grind size applies
 - **Metal (reusable)**:
   * Allows more oils and fines through → fuller body, less clarity
   * Grind slightly coarser to prevent clogging and over-extraction
@@ -182,7 +202,7 @@ If the user's equipment includes specific filter types, tailor pour over recomme
   * Grind similar to paper but may need slight adjustment
   * Produces clean yet full-bodied cup
 
-When multiple filter types are available, recommend the most appropriate one for the coffee's characteristics.
+When multiple filter types are available, recommend the most appropriate one for the coffee's characteristics. Premium filters like Sibarist Fast work exceptionally well for light roasts and competition-style brewing.
 
 GRINDER-SPECIFIC SETTINGS:
 When recommending grind sizes, if you see equipment mentions specific grinders, tailor your advice:

@@ -171,11 +171,34 @@
                                 <input type="checkbox" name="filters" value="Paper - Natural" /> Paper - Natural (unbleached)
                             </label>
                             <label class="checkbox-label">
+                                <input type="checkbox" name="filters" value="Sibarist Fast" /> Sibarist Fast
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="filters" value="Sibarist B3" /> Sibarist B3
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="filters" value="Cafec" /> Cafec
+                            </label>
+                            <label class="checkbox-label">
                                 <input type="checkbox" name="filters" value="Metal" /> Metal (reusable)
                             </label>
                             <label class="checkbox-label">
                                 <input type="checkbox" name="filters" value="Cloth" /> Cloth
                             </label>
+
+                            <!-- Custom filters container -->
+                            <div id="custom-filters"></div>
+
+                            <!-- Add custom filter -->
+                            <div style="display: flex; gap: 8px; align-items: center; margin-top: 10px;">
+                                <label class="checkbox-label" style="margin: 0;">
+                                    <input type="checkbox" id="other-filter-toggle" /> Other
+                                </label>
+                                <input type="text" id="custom-filter-input" class="hidden" placeholder="Enter filter type" style="flex: 1; padding: 6px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.9rem;" />
+                                <button type="button" id="add-custom-filter" class="btn btn-secondary hidden" style="padding: 6px 12px; font-size: 0.85rem; white-space: nowrap;">
+                                    + Add
+                                </button>
+                            </div>
                         </div>
                     </div>
 
