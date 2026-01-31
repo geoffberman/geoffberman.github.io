@@ -150,11 +150,12 @@ class GeminiProvider extends AIProvider {
   }
 
   async sendMessage(messages, systemPrompt, maxTokens) {
-    // Gemini uses "contents" format with system instruction separate
+    // Gemini uses "contents" format
     const contents = [];
 
     // Convert messages to Gemini format
-    for (const msg of messages) {
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
       let parts;
 
       if (typeof msg.content === 'string') {
@@ -165,6 +166,13 @@ class GeminiProvider extends AIProvider {
         parts = [{ text: JSON.stringify(msg.content) }];
       }
 
+      // Prepend system prompt to the first user message
+      if (i === 0 && msg.role === 'user' && systemPrompt) {
+        parts = [
+          { text: systemPrompt + '\n\n' + parts[0].text }
+        ];
+      }
+
       contents.push({
         role: msg.role === 'assistant' ? 'model' : 'user',
         parts: parts
@@ -173,9 +181,6 @@ class GeminiProvider extends AIProvider {
 
     const requestBody = {
       contents: contents,
-      systemInstruction: {
-        parts: [{ text: systemPrompt }]
-      },
       generationConfig: {
         maxOutputTokens: maxTokens,
         temperature: 0.7,
