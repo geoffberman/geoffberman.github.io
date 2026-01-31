@@ -234,6 +234,14 @@ function formatGrindSize(grindSize, userGrinder) {
 
 // Utility: Escape HTML to prevent XSS and formatting issues
 function escapeHtml(text) {
+    // Handle non-string inputs
+    if (text === null || text === undefined) {
+        return '';
+    }
+    if (typeof text !== 'string') {
+        text = String(text);
+    }
+
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
@@ -242,6 +250,11 @@ function escapeHtml(text) {
 // Format technique notes with rich markdown-style formatting
 function formatTechniqueNotes(notes) {
     if (!notes) return '';
+
+    // Ensure notes is a string
+    if (typeof notes !== 'string') {
+        notes = String(notes);
+    }
 
     return notes
         // Bold text
