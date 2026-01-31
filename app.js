@@ -1478,6 +1478,16 @@ function displayResults(data) {
 
                 <p style="margin-bottom: 15px; line-height: 1.5; font-size: 0.9rem; color: var(--secondary-color);">${technique.reasoning}</p>
 
+                ${isPourOver(technique.technique_name) && hasFilters() ? `
+                    <div style="margin-bottom: 15px; padding: 12px; background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%); border: 2px solid var(--success-color); border-radius: 8px;">
+                        <label style="display: block; font-weight: bold; color: var(--primary-color); margin-bottom: 6px; font-size: 0.85rem;">Filter Type:</label>
+                        <select class="filter-selector" data-technique-index="${index}" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.85rem;">
+                            ${getFilterOptions()}
+                        </select>
+                        <small style="display: block; margin-top: 6px; color: var(--secondary-color); font-size: 0.75rem;">Filter type affects extraction and flavor profile</small>
+                    </div>
+                ` : ''}
+
                 <button class="btn btn-primary use-this-show-recipe-btn" data-technique-index="${index}" style="width: 100%; padding: 10px; font-size: 0.9rem;">
                     📌 Use This and Show Recipe
                 </button>
@@ -1629,6 +1639,20 @@ function displayResults(data) {
         });
     });
 
+    // Add event listeners for filter selectors
+    document.querySelectorAll('.filter-selector').forEach(select => {
+        select.addEventListener('change', function() {
+            const techniqueIndex = parseInt(this.getAttribute('data-technique-index'));
+            const selectedFilter = this.value;
+            console.log(`Filter selected for technique ${techniqueIndex}: ${selectedFilter}`);
+            // Store in state for later use
+            if (!state.selectedFilters) {
+                state.selectedFilters = {};
+            }
+            state.selectedFilters[techniqueIndex] = selectedFilter;
+        });
+    });
+
     // Add event listener for reveal AI recommendations button
     const revealBtn = document.getElementById('reveal-ai-recommendations-btn');
     if (revealBtn) {
@@ -1636,6 +1660,28 @@ function displayResults(data) {
             revealAiRecommendations();
         });
     }
+}
+
+// Helper function to check if a technique is pour over
+function isPourOver(techniqueName) {
+    const pourOverKeywords = ['v60', 'chemex', 'kalita', 'pour over', 'bee house', 'melitta'];
+    return pourOverKeywords.some(keyword => techniqueName.toLowerCase().includes(keyword));
+}
+
+// Helper function to check if user has filters
+function hasFilters() {
+    return state.equipment && state.equipment.filters && state.equipment.filters.length > 0;
+}
+
+// Helper function to get filter options HTML
+function getFilterOptions() {
+    if (!state.equipment || !state.equipment.filters) return '<option>No filters configured</option>';
+
+    let options = '';
+    state.equipment.filters.forEach(filter => {
+        options += `<option value="${filter}">${filter}</option>`;
+    });
+    return options;
 }
 
 // Reveal hidden AI recommendations
@@ -1686,6 +1732,7 @@ async function saveEquipment() {
         espressoMachine: document.getElementById('espresso-machine').value.trim(),
         flowControl: document.getElementById('flow-control').checked,
         pourOver: Array.from(document.querySelectorAll('input[name="pour-over"]:checked')).map(cb => cb.value),
+        filters: Array.from(document.querySelectorAll('input[name="filters"]:checked')).map(cb => cb.value),
         podMachines: Array.from(document.querySelectorAll('input[name="pod-machines"]:checked')).map(cb => cb.value),
         grinder: document.getElementById('grinder').value.trim(),
         noGrinder: document.getElementById('no-grinder').checked,
@@ -1799,6 +1846,11 @@ function loadEquipment() {
 
                 equipment.otherMethods?.forEach(value => {
                     const checkbox = document.querySelector(`input[name="other-methods"][value="${value}"]`);
+                    if (checkbox) checkbox.checked = true;
+                });
+
+                equipment.filters?.forEach(value => {
+                    const checkbox = document.querySelector(`input[name="filters"][value="${value}"]`);
                     if (checkbox) checkbox.checked = true;
                 });
 
@@ -2042,6 +2094,10 @@ function getEquipmentDescription() {
         parts.push(`Pour Over: ${state.equipment.pourOver.join(', ')}`);
     }
 
+    if (state.equipment.filters && state.equipment.filters.length > 0) {
+        parts.push(`Filters: ${state.equipment.filters.join(', ')}`);
+    }
+
     if (state.equipment.podMachines && state.equipment.podMachines.length > 0) {
         parts.push(`Pod/Capsule Machines: ${state.equipment.podMachines.join(', ')}`);
     }
@@ -2167,6 +2223,15 @@ function showEquipmentSummary() {
         `;
     }
 
+    if (state.equipment.filters && state.equipment.filters.length > 0) {
+        summaryHTML += `
+            <div class="equipment-summary-item">
+                <strong>Coffee Filters</strong>
+                <span>${state.equipment.filters.join(', ')}</span>
+            </div>
+        `;
+    }
+
     if (state.equipment.podMachines && state.equipment.podMachines.length > 0) {
         summaryHTML += `
             <div class="equipment-summary-item">
@@ -2245,6 +2310,63 @@ function showEquipmentSummary() {
 function showEquipmentForm() {
     elements.equipmentSummary.classList.add('hidden');
     elements.equipmentFormContainer.classList.remove('hidden');
+
+    // Repopulate form fields from state.equipment if it exists
+    if (state.equipment) {
+        // Text inputs
+        if (state.equipment.espressoMachine) {
+            document.getElementById('espresso-machine').value = state.equipment.espressoMachine;
+        }
+        if (state.equipment.grinder) {
+            document.getElementById('grinder').value = state.equipment.grinder;
+        }
+        if (state.equipment.otherEquipment) {
+            document.getElementById('other-equipment').value = state.equipment.otherEquipment;
+        }
+        if (state.equipment.additionalEquipment) {
+            document.getElementById('additional-equipment').value = state.equipment.additionalEquipment;
+        }
+
+        // Checkboxes
+        document.getElementById('flow-control').checked = state.equipment.flowControl || false;
+        document.getElementById('no-grinder').checked = state.equipment.noGrinder || false;
+
+        // AI provider radio buttons
+        if (state.equipment.ai_provider) {
+            const providerRadio = document.querySelector(`input[name="ai-provider"][value="${state.equipment.ai_provider}"]`);
+            if (providerRadio) {
+                providerRadio.checked = true;
+            }
+        }
+
+        // Pour over checkboxes
+        document.querySelectorAll('input[name="pour-over"]').forEach(cb => cb.checked = false);
+        state.equipment.pourOver?.forEach(value => {
+            const checkbox = document.querySelector(`input[name="pour-over"][value="${value}"]`);
+            if (checkbox) checkbox.checked = true;
+        });
+
+        // Pod machines checkboxes
+        document.querySelectorAll('input[name="pod-machines"]').forEach(cb => cb.checked = false);
+        state.equipment.podMachines?.forEach(value => {
+            const checkbox = document.querySelector(`input[name="pod-machines"][value="${value}"]`);
+            if (checkbox) checkbox.checked = true;
+        });
+
+        // Other methods checkboxes
+        document.querySelectorAll('input[name="other-methods"]').forEach(cb => cb.checked = false);
+        state.equipment.otherMethods?.forEach(value => {
+            const checkbox = document.querySelector(`input[name="other-methods"][value="${value}"]`);
+            if (checkbox) checkbox.checked = true;
+        });
+
+        // Filters checkboxes
+        document.querySelectorAll('input[name="filters"]').forEach(cb => cb.checked = false);
+        state.equipment.filters?.forEach(value => {
+            const checkbox = document.querySelector(`input[name="filters"][value="${value}"]`);
+            if (checkbox) checkbox.checked = true;
+        });
+    }
 }
 
 function updateEquipmentButton() {
@@ -2594,6 +2716,7 @@ async function loadEquipmentFromDatabase() {
                 espressoMachine: data.espresso_machine || '',
                 flowControl: data.flow_control || false,
                 pourOver: data.pour_over || [],
+                filters: data.filters || [],
                 podMachines: data.pod_machines || [],
                 grinder: data.grinder || '',
                 noGrinder: data.no_grinder || false,
@@ -2648,6 +2771,11 @@ async function loadEquipmentFromDatabase() {
                 if (checkbox) checkbox.checked = true;
             });
 
+            state.equipment.filters.forEach(value => {
+                const checkbox = document.querySelector(`input[name="filters"][value="${value}"]`);
+                if (checkbox) checkbox.checked = true;
+            });
+
             // Render and check custom brew methods
             if (state.equipment.customBrewMethods && state.equipment.customBrewMethods.length > 0) {
                 renderCustomBrewMethods(state.equipment.customBrewMethods);
@@ -2682,6 +2810,7 @@ async function saveEquipmentToDatabase(equipment) {
             espresso_machine: equipment.espressoMachine,
             flow_control: equipment.flowControl,
             pour_over: equipment.pourOver,
+            filters: equipment.filters || [],
             pod_machines: equipment.podMachines,
             grinder: equipment.grinder,
             no_grinder: equipment.noGrinder,

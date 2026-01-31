@@ -157,6 +157,33 @@ For Pour Over (V60, etc):
 - Focus on even extraction and drawdown times
 - Modern pour patterns (center pours, swirling)
 
+FILTER TYPE CONSIDERATIONS:
+If the user's equipment includes specific filter types, tailor pour over recommendations accordingly:
+- **Paper - White (bleached)**:
+  * Cleanest, most neutral flavor profile
+  * No need to rinse as thoroughly
+  * May need slightly finer grind for adequate resistance
+  * Best for highlighting delicate, nuanced flavors
+- **Paper - Natural (unbleached)**:
+  * Can impart subtle papery taste if not rinsed well
+  * Recommend thorough pre-rinse with hot water
+  * Similar characteristics to white paper otherwise
+  * Slightly more eco-friendly option
+- **Metal (reusable)**:
+  * Allows more oils and fines through → fuller body, less clarity
+  * Grind slightly coarser to prevent clogging and over-extraction
+  * Produces richer, more textured cup similar to French Press
+  * Better for darker roasts that benefit from body
+  * Drawdown time is faster - adjust grind accordingly
+- **Cloth**:
+  * Middle ground between paper and metal
+  * Retains some oils but filters most fines
+  * Requires proper care (rinsing, storage in water)
+  * Grind similar to paper but may need slight adjustment
+  * Produces clean yet full-bodied cup
+
+When multiple filter types are available, recommend the most appropriate one for the coffee's characteristics.
+
 GRINDER-SPECIFIC SETTINGS:
 When recommending grind sizes, if you see equipment mentions specific grinders, tailor your advice:
 - **Ceado E37SD / E37S**: Dial goes from 0 (finest) to 9 (coarsest) with micro-adjustments between each number
@@ -203,7 +230,8 @@ IMPORTANT CONSTRAINTS:
 1. You MUST ONLY recommend brewing methods that the user can perform with their EXISTING equipment listed above
 2. DO NOT suggest methods they don't have equipment for
 3. If the user has an espresso machine, recommend espresso techniques. If they have a V60, recommend V60 techniques. If they have a French Press, recommend French Press. Match recommendations to their actual gear.
-4. If their equipment is NOT IDEAL for this specific coffee (e.g., they only have a French Press but this is a delicate Ethiopian light roast that would shine more with pour over), you MUST include an "equipment_suggestions" field in your JSON response explaining:
+4. **FILTER TYPES**: If the equipment list includes specific filter types (Paper - White, Paper - Natural, Metal, Cloth), mention in the technique_notes which filter type is best for this coffee and why. If they have multiple filter options, recommend the most appropriate one based on the coffee's characteristics (paper for clarity/delicate flavors, metal for body/darker roasts).
+5. If their equipment is NOT IDEAL for this specific coffee (e.g., they only have a French Press but this is a delicate Ethiopian light roast that would shine more with pour over), you MUST include an "equipment_suggestions" field in your JSON response explaining:
    - Why their current equipment isn't ideal for THIS coffee
    - What specific additional equipment would unlock better results (be specific: "Hario V60" not just "pour over")
    - Why that equipment would work better for this coffee's characteristics
