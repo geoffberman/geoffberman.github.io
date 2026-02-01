@@ -1,5 +1,37 @@
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
+// Rate limiting - persists across warm invocations of the same serverless instance
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const RATE_LIMIT_MAX_REQUESTS = 30; // max requests per IP per window
+const rateLimitStore = new Map();
+
+function checkRateLimit(ip) {
+    const now = Date.now();
+    const record = rateLimitStore.get(ip);
+
+    // Clean up expired entries periodically (every 100 checks)
+    if (Math.random() < 0.01) {
+        for (const [key, val] of rateLimitStore) {
+            if (now - val.windowStart > RATE_LIMIT_WINDOW_MS) {
+                rateLimitStore.delete(key);
+            }
+        }
+    }
+
+    if (!record || now - record.windowStart > RATE_LIMIT_WINDOW_MS) {
+        rateLimitStore.set(ip, { windowStart: now, count: 1 });
+        return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - 1 };
+    }
+
+    record.count++;
+    if (record.count > RATE_LIMIT_MAX_REQUESTS) {
+        const retryAfter = Math.ceil((record.windowStart + RATE_LIMIT_WINDOW_MS - now) / 1000);
+        return { allowed: false, remaining: 0, retryAfter };
+    }
+
+    return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - record.count };
+}
+
 // Using Claude 3 Haiku for API compatibility
 module.exports = async function handler(req, res) {
     // Enable CORS
@@ -15,6 +47,17 @@ module.exports = async function handler(req, res) {
 
     if (req.method !== 'POST') {
         res.status(405).json({ error: 'Method not allowed' });
+        return;
+    }
+
+    // Rate limiting
+    const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+    const rateLimit = checkRateLimit(clientIp);
+    res.setHeader('X-RateLimit-Limit', RATE_LIMIT_MAX_REQUESTS);
+    res.setHeader('X-RateLimit-Remaining', rateLimit.remaining);
+    if (!rateLimit.allowed) {
+        res.setHeader('Retry-After', rateLimit.retryAfter);
+        res.status(429).json({ error: 'Too many requests. Please try again later.' });
         return;
     }
 
