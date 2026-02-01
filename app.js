@@ -264,19 +264,24 @@ async function getRecentSavedRecipes(limit = 5) {
         }
     }
 
-    // Fallback to localStorage if no Supabase results
-    if (allRecipes.length === 0) {
-        try {
-            const localRecipes = localStorage.getItem('saved_recipes');
-            if (localRecipes) {
-                const parsed = JSON.parse(localRecipes);
-                // Sort by last_brewed descending
+    // Also load localStorage recipes (may have more recent data if Supabase save failed)
+    let localRecipeMap = new Map();
+    try {
+        const localRecipes = localStorage.getItem('saved_recipes');
+        if (localRecipes) {
+            const parsed = JSON.parse(localRecipes);
+            parsed.forEach(r => {
+                const key = `${r.coffee_hash}_${r.brew_method}`;
+                localRecipeMap.set(key, r);
+            });
+            // If no Supabase results, use localStorage as primary source
+            if (allRecipes.length === 0) {
                 parsed.sort((a, b) => new Date(b.last_brewed) - new Date(a.last_brewed));
                 allRecipes.push(...parsed);
             }
-        } catch (error) {
-            console.error('Failed to fetch recent recipes from localStorage:', error);
         }
+    } catch (error) {
+        console.error('Failed to fetch recent recipes from localStorage:', error);
     }
 
     // Deduplicate by coffee_hash + brew_method, keeping only the most recent
@@ -284,6 +289,24 @@ async function getRecentSavedRecipes(limit = 5) {
     for (const recipe of allRecipes) {
         const key = `${recipe.coffee_hash}_${recipe.brew_method}`;
         if (!uniqueRecipes.has(key)) {
+            // Merge notes from localStorage if Supabase recipe is missing them
+            const localRecipe = localRecipeMap.get(key);
+            if (localRecipe) {
+                const recipeParams = recipe.recipe || {};
+                const localParams = localRecipe.recipe || {};
+                // If Supabase recipe params don't have notes but localStorage does, merge them
+                if (!recipeParams.notes && localParams.notes) {
+                    if (typeof recipe.recipe === 'object' && recipe.recipe !== null) {
+                        recipe.recipe.notes = localParams.notes;
+                    }
+                }
+                // Also check top-level notes field (old format)
+                if (!recipeParams.notes && !recipe.notes && localRecipe.notes) {
+                    if (typeof recipe.recipe === 'object' && recipe.recipe !== null) {
+                        recipe.recipe.notes = localRecipe.notes;
+                    }
+                }
+            }
             uniqueRecipes.set(key, recipe);
         }
     }
@@ -380,6 +403,22 @@ async function loadSavedRecipeDirectly(recipeData) {
         const recipeParams = recipeData.recipe || {};
         if (!recipeParams.notes && recipeData.notes) {
             recipeParams.notes = recipeData.notes;
+        }
+
+        console.log('[LOAD] Loading saved recipe:', recipeData.coffee_name, '-', recipeData.brew_method);
+        console.log('[LOAD] recipeData.recipe:', JSON.stringify(recipeData.recipe));
+        console.log('[LOAD] recipeParams.notes:', JSON.stringify(recipeParams.notes));
+        console.log('[LOAD] recipeData.notes (top-level):', JSON.stringify(recipeData.notes));
+
+        // Ensure recipe field is parsed if it was stored as a string
+        if (typeof recipeData.recipe === 'string') {
+            try {
+                const parsed = JSON.parse(recipeData.recipe);
+                Object.assign(recipeParams, parsed);
+                console.log('[LOAD] Parsed recipe string into object, notes:', parsed.notes);
+            } catch (e) {
+                console.error('[LOAD] Failed to parse recipe string:', e);
+            }
         }
 
         // Create analysis data structure matching API response format
@@ -1112,7 +1151,7 @@ function displayResults(data) {
     state.currentCoffeeAnalysis = analysis;
     state.currentCoffeeAnalysis.recommended_techniques = techniques; // Store techniques for later access
     state.currentBrewMethod = techniques[0]?.technique_name || 'Unknown';
-    state.currentRecipe = data;
+    state.currentRecipe = techniques[0]?.parameters || {};
 
     // Coffee Analysis
     let analysisHTML = '';
@@ -2471,6 +2510,20 @@ async function loadEquipmentFromDatabase() {
                 additionalEquipment: data.additional_equipment || ''
             };
 
+            // Merge filter data from localStorage if database doesn't have it
+            // (handles case where database schema doesn't have filters/custom_filters columns yet)
+            try {
+                const localEquipment = JSON.parse(localStorage.getItem('coffee_equipment') || '{}');
+                if ((!state.equipment.filters || state.equipment.filters.length === 0) && localEquipment.filters && localEquipment.filters.length > 0) {
+                    state.equipment.filters = localEquipment.filters;
+                }
+                if ((!state.equipment.customFilters || state.equipment.customFilters.length === 0) && localEquipment.customFilters && localEquipment.customFilters.length > 0) {
+                    state.equipment.customFilters = localEquipment.customFilters;
+                }
+            } catch (e) {
+                console.error('Failed to merge localStorage filter data:', e);
+            }
+
             // Populate the form
             if (state.equipment.espressoMachine) {
                 document.getElementById('espresso-machine').value = state.equipment.espressoMachine;
@@ -2725,14 +2778,16 @@ async function saveAsPreferredRecipe(notes = null) {
     };
 
     try {
-        // Check if recipe already exists
-        const { data: existing } = await supabase
+        // Check if recipe already exists (use limit(1) instead of maybeSingle to handle duplicates gracefully)
+        const { data: existingArr } = await supabase
             .from('saved_recipes')
             .select('id, times_brewed, notes')
             .eq('user_id', userId)
             .eq('coffee_hash', coffeeHash)
             .eq('brew_method', state.currentBrewMethod)
-            .maybeSingle();
+            .order('last_brewed', { ascending: false })
+            .limit(1);
+        const existing = existingArr && existingArr.length > 0 ? existingArr[0] : null;
 
         if (existing) {
             // Update existing recipe and append notes
@@ -3336,8 +3391,11 @@ async function saveInlineAdjustments(technique, techniqueIndex) {
         const adjustedParams = {};
         table.querySelectorAll('.param-input').forEach(input => {
             const param = input.getAttribute('data-param');
-            adjustedParams[param] = input.value;
+            adjustedParams[param] = input.tagName === 'TEXTAREA' ? input.value : input.value;
         });
+
+        console.log('[SAVE] Collected adjustedParams:', JSON.stringify(adjustedParams));
+        console.log('[SAVE] Notes value:', JSON.stringify(adjustedParams.notes));
 
         // Save as preferred recipe (handles both localStorage and database)
         await saveAsPreferredRecipeWithData(technique.technique_name, adjustedParams);
@@ -3698,6 +3756,10 @@ async function saveAdjustedBrew() {
 
 // Helper function to save preferred recipe with specific data
 async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = null) {
+    console.log('[SAVE-PREF] Saving preferred recipe:', brewMethod);
+    console.log('[SAVE-PREF] recipeData.notes:', recipeData?.notes);
+    console.log('[SAVE-PREF] coffee_hash:', state.currentCoffeeAnalysis?.coffee_hash);
+
     // Always save to localStorage as backup
     saveRecipeToLocalStorage(
         state.currentCoffeeAnalysis,
@@ -3738,14 +3800,16 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
     };
 
     try {
-        // Check if recipe already exists
-        const { data: existing } = await supabase
+        // Check if recipe already exists (use limit(1) instead of maybeSingle to handle duplicates gracefully)
+        const { data: existingArr } = await supabase
             .from('saved_recipes')
             .select('id, times_brewed, notes')
             .eq('user_id', userId)
             .eq('coffee_hash', coffeeHash)
             .eq('brew_method', brewMethod)
-            .maybeSingle();
+            .order('last_brewed', { ascending: false })
+            .limit(1);
+        const existing = existingArr && existingArr.length > 0 ? existingArr[0] : null;
 
         if (existing) {
             // Update existing recipe and append notes
@@ -3770,7 +3834,8 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
                 .eq('id', existing.id);
 
             if (error) throw error;
-            console.log('Updated existing preferred recipe');
+            console.log('[SAVE-DB] Updated existing preferred recipe, id:', existing.id);
+            console.log('[SAVE-DB] Update data recipe.notes:', recipeData?.notes);
         } else {
             // Insert new preferred recipe
             if (notes && notes.trim()) {
@@ -3783,12 +3848,12 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
                 .insert([preferredRecipe]);
 
             if (error) throw error;
-            console.log('Inserted new preferred recipe');
+            console.log('[SAVE-DB] Inserted new preferred recipe');
         }
 
-        console.log('Saved as preferred recipe');
+        console.log('[SAVE-DB] Saved as preferred recipe successfully');
     } catch (error) {
-        console.error('Failed to save preferred recipe:', error);
+        console.error('[SAVE-DB] Failed to save preferred recipe:', error);
     }
 }
 
@@ -4000,7 +4065,10 @@ function saveRecipeToLocalStorage(coffeeAnalysis, brewMethod, recipeData, notes 
         }
 
         localStorage.setItem('saved_recipes', JSON.stringify(savedRecipes));
-        console.log('Recipe saved to localStorage');
+        console.log('[SAVE-LS] Recipe saved to localStorage');
+        console.log('[SAVE-LS] Hash:', coffeeHash, 'Method:', brewMethod);
+        console.log('[SAVE-LS] recipe.notes inside recipeData:', recipeData?.notes);
+        console.log('[SAVE-LS] Existing index:', existingIndex);
     } catch (error) {
         console.error('Failed to save recipe to localStorage:', error);
     }
