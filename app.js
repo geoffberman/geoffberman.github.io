@@ -3032,8 +3032,126 @@ async function submitFeedbackOnly() {
         // Display AI response
         const responseText = data.content?.[0]?.text || 'Thank you for your feedback!';
 
-        elements.adjustmentFeedback.classList.remove('hidden');
-        elements.adjustmentFeedback.querySelector('p').innerHTML = responseText.replace(/\n/g, '<br>');
+        // Try to parse as JSON recipe adjustment
+        let adjustedData = null;
+        try {
+            adjustedData = JSON.parse(responseText);
+        } catch (e1) {
+            try {
+                let cleanText = responseText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+                const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+                if (jsonMatch) adjustedData = JSON.parse(jsonMatch[0]);
+            } catch (e2) { /* not JSON, that's fine */ }
+        }
+
+        if (adjustedData && adjustedData.adjusted_parameters) {
+            // Render as recipe table (same format as adjustRecipeBasedOnRating)
+            const params = adjustedData.adjusted_parameters;
+            const explanations = (adjustedData.adjustments_explained || '')
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+            elements.methodContent.innerHTML = `
+                <div class="adjustment-notice" style="background: #FFF3CD; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
+                    <strong>📊 Recipe Adjusted Based on Your Feedback</strong>
+                </div>
+
+                <h4 style="margin-top: 20px; margin-bottom: 15px;">Adjusted Recipe Parameters</h4>
+                <p style="margin-bottom: 15px; color: var(--secondary-color); font-size: 0.9rem;">
+                    Review the adjusted parameters below and edit any values to match what you actually used.
+                </p>
+                <table class="brew-parameters-table editable-parameters">
+                    <thead>
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Adjusted Recommendation</th>
+                            <th style="width: 180px;">My Adjustments</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Dose</td>
+                            <td>${params.dose}</td>
+                            <td><input type="text" class="param-input" data-param="dose" placeholder="Your dose" value="${params.dose}"></td>
+                        </tr>
+                        <tr>
+                            <td>Yield</td>
+                            <td>${params.yield}</td>
+                            <td><input type="text" class="param-input" data-param="yield" placeholder="Your yield" value="${params.yield}"></td>
+                        </tr>
+                        <tr>
+                            <td>Ratio</td>
+                            <td>${params.ratio}</td>
+                            <td><input type="text" class="param-input" data-param="ratio" placeholder="Your ratio" value="${params.ratio}"></td>
+                        </tr>
+                        <tr>
+                            <td>Water Temp</td>
+                            <td>${params.water_temp}</td>
+                            <td><input type="text" class="param-input" data-param="water_temp" placeholder="Your temp" value="${params.water_temp}"></td>
+                        </tr>
+                        <tr>
+                            <td>Grind Size</td>
+                            <td>${formatGrindSize(params.grind_size, state.equipment?.grinder)}</td>
+                            <td><input type="text" class="param-input" data-param="grind_size" placeholder="Your grind" value="${formatGrindSize(params.grind_size, state.equipment?.grinder)}"></td>
+                        </tr>
+                        <tr>
+                            <td>Brew Time</td>
+                            <td>${params.brew_time}</td>
+                            <td><input type="text" class="param-input" data-param="brew_time" placeholder="Your time" value="${params.brew_time}"></td>
+                        </tr>
+                        <tr>
+                            <td>Pressure</td>
+                            <td>${params.pressure}</td>
+                            <td><input type="text" class="param-input" data-param="pressure" placeholder="Your pressure" value="${params.pressure}"></td>
+                        </tr>
+                        <tr>
+                            <td>Flow Control</td>
+                            <td>${params.flow_control}</td>
+                            <td><input type="text" class="param-input" data-param="flow_control" placeholder="Your profile" value="${params.flow_control}"></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div style="margin-top: 20px;">
+                    <div style="margin-bottom: 15px;">
+                        <label for="adjusted-recipe-notes" style="display: block; font-weight: bold; color: var(--primary-color); margin-bottom: 8px; font-size: 0.9rem;">Notes (optional)</label>
+                        <textarea id="adjusted-recipe-notes" rows="3" placeholder="What changed? How did it taste? Any observations..." style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; resize: vertical; font-size: 0.85rem;"></textarea>
+                        <small style="color: var(--secondary-color); font-size: 0.75rem; display: block; margin-top: 4px;">These notes will appear when you load this recipe in the future</small>
+                    </div>
+                    <div style="text-align: center;">
+                        <button id="save-adjusted-recipe-btn" class="btn btn-primary" style="background: #28a745; min-width: 250px;">
+                            💾 Save My Brew
+                        </button>
+                    </div>
+                </div>
+
+                <h4 style="margin-top: 25px; margin-bottom: 15px;">What Changed and Why</h4>
+                <div style="line-height: 1.6;"><p>${explanations}</p></div>
+            `;
+
+            // Update state with structured data
+            state.currentRecipe = params;
+            state.adjustedRecipeData = adjustedData;
+
+            // Add event listeners for inputs and save button
+            setupAdjustedRecipeListeners();
+            const saveBtn = document.getElementById('save-adjusted-recipe-btn');
+            if (saveBtn) {
+                saveBtn.addEventListener('click', saveAdjustedBrew);
+            }
+
+            elements.adjustmentFeedback.classList.remove('hidden');
+            elements.adjustmentFeedback.querySelector('p').textContent = '✓ Recipe adjusted based on your feedback';
+        } else {
+            // Plain text / conversational response — display as before
+            elements.adjustmentFeedback.classList.remove('hidden');
+            elements.adjustmentFeedback.querySelector('p').innerHTML = responseText
+                .replace(/\n/g, '<br>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>');
+        }
 
         // Reset button
         elements.submitFeedbackBtn.textContent = '💬 Submit Feedback';
