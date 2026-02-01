@@ -12,6 +12,10 @@ const state = {
     selectedFilters: {}
 };
 
+// Equipment wizard state
+let wizardStep = 1;
+const WIZARD_TOTAL_STEPS = 4;
+
 // DOM elements
 const elements = {
     uploadSection: document.getElementById('upload-section'),
@@ -458,6 +462,7 @@ async function loadSavedRecipeDirectly(recipeData) {
 // Initialize app
 async function init() {
     setupEventListeners();
+    initWizard();
 
     console.log('=== App Initialization Started ===');
 
@@ -2223,6 +2228,67 @@ function showEquipmentSummary() {
 function showEquipmentForm() {
     elements.equipmentSummary.classList.add('hidden');
     elements.equipmentFormContainer.classList.remove('hidden');
+    // Reset wizard to step 1 when opening the form
+    wizardStep = 1;
+    updateWizardUI();
+}
+
+// Equipment wizard navigation
+function initWizard() {
+    document.getElementById('wizard-next')?.addEventListener('click', wizardNext);
+    document.getElementById('wizard-prev')?.addEventListener('click', wizardPrev);
+    updateWizardUI();
+}
+
+function wizardNext() {
+    let nextStep = wizardStep + 1;
+    // Skip filters step if no pour-over devices selected
+    if (nextStep === 2 && !hasPourOverSelected()) {
+        nextStep = 3;
+    }
+    if (nextStep <= WIZARD_TOTAL_STEPS) {
+        wizardStep = nextStep;
+        updateWizardUI();
+    }
+}
+
+function wizardPrev() {
+    let prevStep = wizardStep - 1;
+    // Skip filters step if no pour-over devices selected
+    if (prevStep === 2 && !hasPourOverSelected()) {
+        prevStep = 1;
+    }
+    if (prevStep >= 1) {
+        wizardStep = prevStep;
+        updateWizardUI();
+    }
+}
+
+function hasPourOverSelected() {
+    return document.querySelectorAll('input[name="pour-over"]:checked').length > 0;
+}
+
+function updateWizardUI() {
+    // Update step content visibility
+    document.querySelectorAll('.wizard-step-content').forEach(el => {
+        el.classList.toggle('active', parseInt(el.dataset.step) === wizardStep);
+    });
+
+    // Update progress indicators
+    document.querySelectorAll('.wizard-progress .wizard-step').forEach(el => {
+        const step = parseInt(el.dataset.step);
+        el.classList.toggle('active', step === wizardStep);
+        el.classList.toggle('completed', step < wizardStep);
+    });
+
+    // Update navigation buttons
+    const prevBtn = document.getElementById('wizard-prev');
+    const nextBtn = document.getElementById('wizard-next');
+    const saveBtn = document.getElementById('wizard-save');
+
+    if (prevBtn) prevBtn.style.display = wizardStep > 1 ? '' : 'none';
+    if (nextBtn) nextBtn.style.display = wizardStep < WIZARD_TOTAL_STEPS ? '' : 'none';
+    if (saveBtn) saveBtn.style.display = wizardStep === WIZARD_TOTAL_STEPS ? '' : 'none';
 }
 
 function updateEquipmentButton() {
@@ -2950,6 +3016,8 @@ async function submitFeedbackOnly() {
             },
             body: JSON.stringify({
                 equipment: equipmentDescription,
+                currentBrewMethod: state.currentBrewMethod,
+                currentRecipe: state.currentRecipe,
                 adjustmentRequest: `User feedback: ${userFeedback}`,
                 previousAnalysis: state.currentCoffeeAnalysis
             })
@@ -3041,6 +3109,7 @@ async function adjustRecipeBasedOnRating(rating) {
             body: JSON.stringify({
                 equipment: equipmentDescription,
                 currentBrewMethod: state.currentBrewMethod,
+                currentRecipe: state.currentRecipe,
                 adjustmentRequest: adjustmentGuidance,
                 previousAnalysis: state.currentCoffeeAnalysis
             })

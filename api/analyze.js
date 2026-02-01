@@ -62,7 +62,7 @@ module.exports = async function handler(req, res) {
     }
 
     try {
-        const { image, mediaType, equipment, specificMethod, currentBrewMethod, adjustmentRequest, previousAnalysis } = req.body;
+        const { image, mediaType, equipment, specificMethod, currentBrewMethod, currentRecipe, adjustmentRequest, previousAnalysis } = req.body;
 
         // Handle recipe adjustment requests
         if (adjustmentRequest && previousAnalysis) {
@@ -80,6 +80,11 @@ Previous coffee details:
 Brew Method Used: ${currentBrewMethod || 'Unknown'}
 
 Equipment: ${equipment}
+
+Current Recipe Parameters (what the user actually brewed with):
+${currentRecipe ? Object.entries(currentRecipe).filter(([k,v]) => v && v !== 'N/A').map(([k,v]) => `- ${k}: ${v}`).join('\n') : 'No specific parameters available'}
+
+⚠️ IMPORTANT: When providing adjustments, reference the SPECIFIC current values above and explain what to change them TO. For example: "Increase dose from 18g to 20g" or "Grind finer from setting 4.0 to 3.5" rather than just "increase dose" or "grind finer".
 
 ⚠️ CRITICAL: The user brewed this coffee using "${currentBrewMethod}". You MUST provide adjustments for the SAME brew method (${currentBrewMethod}). DO NOT switch to a different brew method.
 
