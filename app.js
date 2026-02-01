@@ -1256,26 +1256,19 @@ function displayResults(data) {
                         </tbody>
                     </table>
 
+                    <div id="saved-notes-display-${index}" ${technique.saved_notes ? '' : 'class="hidden"'} style="margin-top: 15px; padding: 12px; background: linear-gradient(135deg, #FFF8ED 0%, #FFEDDA 100%); border: 1px solid var(--accent-color); border-radius: 6px;">
+                        <strong style="color: var(--primary-color); font-size: 0.85rem;">Notes:</strong>
+                        <div id="saved-notes-content-${index}" style="margin-top: 4px; line-height: 1.5; color: var(--secondary-color); font-size: 0.85rem; white-space: pre-wrap; font-family: inherit;">${technique.saved_notes ? escapeHtml(technique.saved_notes) : ''}</div>
+                    </div>
+
                     <div id="save-adjustments-${index}" class="hidden" style="margin-top: 20px;">
+                        <div style="margin-bottom: 15px;">
+                            <label for="adjustment-notes-${index}" style="display: block; font-weight: bold; color: var(--primary-color); margin-bottom: 8px; font-size: 0.9rem;">Notes (optional)</label>
+                            <textarea id="adjustment-notes-${index}" class="adjustment-notes" rows="3" placeholder="How did it taste? Any observations..." style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; resize: vertical; font-size: 0.85rem;"></textarea>
+                        </div>
                         <div style="text-align: center;">
                             <button class="btn btn-primary save-adjustments-btn" data-technique-index="${index}" style="min-width: 200px;">
                                 💾 Save My Adjustments
-                            </button>
-                        </div>
-                    </div>
-
-                    <div id="saved-notes-display-${index}" ${technique.saved_notes ? '' : 'class="hidden"'} style="margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #FFF8ED 0%, #FFEDDA 100%); border: 2px solid var(--accent-color); border-radius: 8px;">
-                        <h4 style="margin: 0 0 10px 0; color: var(--primary-color); font-size: 0.95rem;">Notes from Previous Cups</h4>
-                        <div id="saved-notes-content-${index}" style="margin: 0; line-height: 1.6; color: var(--secondary-color); font-size: 0.85rem; white-space: pre-wrap; font-family: inherit;">${technique.saved_notes ? escapeHtml(technique.saved_notes) : ''}</div>
-                    </div>
-
-                    <div style="margin-top: 20px;">
-                        <label for="recipe-notes-${index}" style="display: block; font-weight: bold; color: var(--primary-color); margin-bottom: 8px; font-size: 0.9rem;">Add a Note</label>
-                        <textarea id="recipe-notes-${index}" rows="3" placeholder="How did it taste? Any observations..." style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; resize: vertical; font-size: 0.85rem;"></textarea>
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-                            <small style="color: var(--secondary-color); font-size: 0.75rem;">This note will appear when you load this recipe in the future</small>
-                            <button class="btn btn-primary save-note-btn" data-technique-index="${index}" style="padding: 6px 16px; font-size: 0.85rem; white-space: nowrap;">
-                                💾 Save Note
                             </button>
                         </div>
                     </div>
@@ -1350,71 +1343,6 @@ function displayResults(data) {
             const techniqueIndex = parseInt(this.getAttribute('data-technique-index'));
             const technique = data.recommended_techniques[techniqueIndex];
             await saveInlineAdjustments(technique, techniqueIndex);
-        });
-    });
-
-    // Add event listeners for "Save Note" buttons
-    document.querySelectorAll('.save-note-btn').forEach(btn => {
-        btn.addEventListener('click', async function() {
-            const techniqueIndex = parseInt(this.getAttribute('data-technique-index'));
-            const technique = data.recommended_techniques[techniqueIndex];
-            const notesTextarea = document.getElementById(`recipe-notes-${techniqueIndex}`);
-            const notes = notesTextarea ? notesTextarea.value.trim() : null;
-
-            if (!notes) {
-                return; // Nothing to save
-            }
-
-            this.disabled = true;
-            this.textContent = 'Saving...';
-
-            try {
-                // Get current recipe params from the table (use current values, not adjusted)
-                const table = document.getElementById(`recipe-table-${techniqueIndex}`);
-                const currentParams = {};
-                table.querySelectorAll('td:nth-child(2)').forEach((td, i) => {
-                    // Skip header row
-                });
-                // Use the technique's existing parameters
-                const recipeParams = technique.parameters;
-
-                // Save the note with the current recipe
-                await saveAsPreferredRecipeWithData(technique.technique_name, recipeParams, notes);
-
-                // Update the "Notes from Previous Cups" display immediately
-                const timestamp = new Date().toLocaleString();
-                const newNote = `[${timestamp}] ${notes}`;
-                const notesDisplay = document.getElementById(`saved-notes-display-${techniqueIndex}`);
-                const notesContent = document.getElementById(`saved-notes-content-${techniqueIndex}`);
-                if (notesDisplay && notesContent) {
-                    const existingText = notesContent.textContent.trim();
-                    const fullNotes = existingText ? `${existingText}\n\n${newNote}` : newNote;
-                    notesContent.textContent = fullNotes;
-                    notesDisplay.classList.remove('hidden');
-                }
-
-                // Clear textarea
-                notesTextarea.value = '';
-
-                this.textContent = '✓ Saved!';
-                this.style.backgroundColor = 'var(--success-color)';
-
-                setTimeout(() => {
-                    this.textContent = '💾 Save Note';
-                    this.style.backgroundColor = '';
-                    this.disabled = false;
-                }, 2000);
-
-                // Refresh dropdown
-                populateSavedRecipesDropdown();
-            } catch (error) {
-                console.error('Failed to save note:', error);
-                this.textContent = '❌ Failed';
-                setTimeout(() => {
-                    this.textContent = '💾 Save Note';
-                    this.disabled = false;
-                }, 2000);
-            }
         });
     });
 
@@ -3408,8 +3336,8 @@ async function saveInlineAdjustments(technique, techniqueIndex) {
             adjustedParams[param] = input.value;
         });
 
-        // Collect notes from the always-visible notes textarea
-        const notesTextarea = document.getElementById(`recipe-notes-${techniqueIndex}`);
+        // Collect notes
+        const notesTextarea = document.getElementById(`adjustment-notes-${techniqueIndex}`);
         const notes = notesTextarea ? notesTextarea.value.trim() : null;
 
         // Save as preferred recipe (handles both localStorage and database)
