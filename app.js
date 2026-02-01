@@ -628,6 +628,43 @@ function setupEventListeners() {
         }
     });
 
+    // Custom filter toggle
+    const otherFilterToggle = document.getElementById('other-filter-toggle');
+    const customFilterInput = document.getElementById('custom-filter-input');
+    const addCustomFilterBtn = document.getElementById('add-custom-filter');
+
+    otherFilterToggle.addEventListener('change', () => {
+        if (otherFilterToggle.checked) {
+            customFilterInput.classList.remove('hidden');
+            addCustomFilterBtn.classList.remove('hidden');
+            customFilterInput.focus();
+        } else {
+            customFilterInput.classList.add('hidden');
+            addCustomFilterBtn.classList.add('hidden');
+            customFilterInput.value = '';
+        }
+    });
+
+    // Add custom filter
+    addCustomFilterBtn.addEventListener('click', () => {
+        const filterName = customFilterInput.value.trim();
+        if (filterName) {
+            addCustomFilter(filterName);
+            customFilterInput.value = '';
+            otherFilterToggle.checked = false;
+            customFilterInput.classList.add('hidden');
+            addCustomFilterBtn.classList.add('hidden');
+        }
+    });
+
+    // Allow Enter key to add custom filter
+    customFilterInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addCustomFilterBtn.click();
+        }
+    });
+
     // Auth event listeners
     // Tab switching
     elements.tabSignin.addEventListener('click', () => {
@@ -1147,6 +1184,16 @@ function displayResults(data) {
 
                 <p style="margin-bottom: 15px; line-height: 1.5; font-size: 0.9rem; color: var(--secondary-color);">${technique.reasoning}</p>
 
+                ${isPourOver(technique.technique_name) && hasFilters() ? `
+                    <div style="margin-bottom: 15px; padding: 12px; background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%); border: 2px solid var(--success-color); border-radius: 8px;">
+                        <label style="display: block; font-weight: bold; color: var(--primary-color); margin-bottom: 6px; font-size: 0.85rem;">Filter Type:</label>
+                        <select class="filter-selector" data-technique-index="${index}" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.85rem;">
+                            ${getFilterOptions()}
+                        </select>
+                        <small style="display: block; margin-top: 6px; color: var(--secondary-color); font-size: 0.75rem;">Filter type affects extraction and flavor profile</small>
+                    </div>
+                ` : ''}
+
                 <button class="btn btn-primary use-this-show-recipe-btn" data-technique-index="${index}" style="width: 100%; padding: 10px; font-size: 0.9rem;">
                     📌 Use This and Show Recipe
                 </button>
@@ -1300,6 +1347,20 @@ function displayResults(data) {
         });
     });
 
+    // Add event listeners for filter selectors
+    document.querySelectorAll('.filter-selector').forEach(select => {
+        select.addEventListener('change', function() {
+            const techniqueIndex = parseInt(this.getAttribute('data-technique-index'));
+            const selectedFilter = this.value;
+            console.log(`Filter selected for technique ${techniqueIndex}: ${selectedFilter}`);
+            // Store in state for later use
+            if (!state.selectedFilters) {
+                state.selectedFilters = {};
+            }
+            state.selectedFilters[techniqueIndex] = selectedFilter;
+        });
+    });
+
     // Add event listener for reveal AI recommendations button
     const revealBtn = document.getElementById('reveal-ai-recommendations-btn');
     if (revealBtn) {
@@ -1357,6 +1418,8 @@ async function saveEquipment() {
         espressoMachine: document.getElementById('espresso-machine').value.trim(),
         flowControl: document.getElementById('flow-control').checked,
         pourOver: Array.from(document.querySelectorAll('input[name="pour-over"]:checked')).map(cb => cb.value),
+        filters: Array.from(document.querySelectorAll('input[name="filters"]:checked')).map(cb => cb.value),
+        customFilters: Array.from(document.querySelectorAll('input[name="custom-filters"]:checked')).map(cb => cb.value),
         podMachines: Array.from(document.querySelectorAll('input[name="pod-machines"]:checked')).map(cb => cb.value),
         grinder: document.getElementById('grinder').value.trim(),
         noGrinder: document.getElementById('no-grinder').checked,
@@ -1464,6 +1527,16 @@ function loadEquipment() {
                     if (checkbox) checkbox.checked = true;
                 });
 
+                equipment.filters?.forEach(value => {
+                    const checkbox = document.querySelector(`input[name="filters"][value="${value}"]`);
+                    if (checkbox) checkbox.checked = true;
+                });
+
+                // Render and check custom filters
+                if (equipment.customFilters && equipment.customFilters.length > 0) {
+                    renderCustomFilters(equipment.customFilters);
+                }
+
                 // Render and check custom brew methods
                 if (equipment.customBrewMethods && equipment.customBrewMethods.length > 0) {
                     renderCustomBrewMethods(equipment.customBrewMethods);
@@ -1504,7 +1577,8 @@ function updateBrewMethodDropdown() {
         'Aeropress',
         'Moka Pot',
         'Cold Brew',
-        'Kalita Wave'
+        'Kalita Wave',
+        'Oxo Rapid Brew Cup (Soup)'
     ];
 
     // Keep the "Search All Methods" option
@@ -1548,7 +1622,8 @@ function updateAltBrewMethodDropdown() {
         'French Press',
         'Aeropress',
         'Chemex',
-        'Moka Pot'
+        'Moka Pot',
+        'Oxo Rapid Brew Cup (Soup)'
     ];
 
     // Keep the "Choose Method" option
@@ -1584,6 +1659,12 @@ function clearEquipment() {
         const customMethodsContainer = document.getElementById('custom-brew-methods');
         if (customMethodsContainer) {
             customMethodsContainer.innerHTML = '';
+        }
+
+        // Clear custom filters display
+        const customFiltersContainer = document.getElementById('custom-filters');
+        if (customFiltersContainer) {
+            customFiltersContainer.innerHTML = '';
         }
 
         // Clear localStorage
@@ -1691,6 +1772,112 @@ function removeCustomBrewMethod(methodName) {
     }
 }
 
+function addCustomFilter(filterName) {
+    // Get current custom filters from localStorage or initialize empty array
+    const savedEquipment = localStorage.getItem('coffee_equipment');
+    const equipment = savedEquipment ? JSON.parse(savedEquipment) : {};
+
+    if (!equipment.customFilters) {
+        equipment.customFilters = [];
+    }
+
+    // Check if filter already exists
+    if (equipment.customFilters.includes(filterName)) {
+        alert('This filter type already exists!');
+        return;
+    }
+
+    // Add the new filter
+    equipment.customFilters.push(filterName);
+
+    // Save to localStorage
+    localStorage.setItem('coffee_equipment', JSON.stringify(equipment));
+    state.equipment = equipment;
+
+    // Render the updated list
+    renderCustomFilters(equipment.customFilters);
+
+    console.log('Added custom filter:', filterName);
+}
+
+// Render custom filters as checkboxes
+function renderCustomFilters(customFilters) {
+    const container = document.getElementById('custom-filters');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    customFilters.forEach(filter => {
+        const label = document.createElement('label');
+        label.className = 'checkbox-label';
+        label.style.display = 'flex';
+        label.style.alignItems = 'center';
+        label.style.gap = '8px';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.name = 'custom-filters';
+        checkbox.value = filter;
+        checkbox.checked = true; // Auto-check newly added filters
+
+        const text = document.createTextNode(filter);
+
+        // Add a small remove button
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.textContent = '×';
+        removeBtn.style.cssText = 'margin-left: auto; padding: 2px 6px; font-size: 1.2rem; color: #C74B50; background: none; border: 1px solid #C74B50; border-radius: 3px; cursor: pointer; line-height: 1;';
+        removeBtn.title = 'Remove this filter';
+        removeBtn.onclick = () => removeCustomFilter(filter);
+
+        label.appendChild(checkbox);
+        label.appendChild(text);
+        label.appendChild(removeBtn);
+        container.appendChild(label);
+    });
+}
+
+// Remove a custom filter
+function removeCustomFilter(filterName) {
+    if (!confirm(`Remove "${filterName}" from your filters?`)) {
+        return;
+    }
+
+    const savedEquipment = localStorage.getItem('coffee_equipment');
+    const equipment = savedEquipment ? JSON.parse(savedEquipment) : {};
+
+    if (equipment.customFilters) {
+        equipment.customFilters = equipment.customFilters.filter(f => f !== filterName);
+        localStorage.setItem('coffee_equipment', JSON.stringify(equipment));
+        state.equipment = equipment;
+        renderCustomFilters(equipment.customFilters);
+        console.log('Removed custom filter:', filterName);
+    }
+}
+
+// Helper function to check if a technique is pour over
+function isPourOver(techniqueName) {
+    const pourOverKeywords = ['v60', 'chemex', 'kalita', 'pour over', 'bee house', 'melitta'];
+    return pourOverKeywords.some(keyword => techniqueName.toLowerCase().includes(keyword));
+}
+
+// Helper function to check if user has filters
+function hasFilters() {
+    return state.equipment && ((state.equipment.filters && state.equipment.filters.length > 0) || (state.equipment.customFilters && state.equipment.customFilters.length > 0));
+}
+
+// Helper function to get filter options HTML
+function getFilterOptions() {
+    const allFilters = [...(state.equipment?.filters || []), ...(state.equipment?.customFilters || [])];
+    if (allFilters.length === 0) return '<option>No filters configured</option>';
+
+    let options = '';
+    allFilters.forEach(filter => {
+        options += `<option value="${filter}">${filter}</option>`;
+    });
+    return options;
+}
+
 function getEquipmentDescription() {
     if (!state.equipment) return null;
 
@@ -1702,6 +1889,11 @@ function getEquipmentDescription() {
 
     if (state.equipment.pourOver && state.equipment.pourOver.length > 0) {
         parts.push(`Pour Over: ${state.equipment.pourOver.join(', ')}`);
+    }
+
+    if ((state.equipment.filters && state.equipment.filters.length > 0) || (state.equipment.customFilters && state.equipment.customFilters.length > 0)) {
+        const allFilters = [...(state.equipment.filters || []), ...(state.equipment.customFilters || [])];
+        parts.push(`Filters: ${allFilters.join(', ')}`);
     }
 
     if (state.equipment.podMachines && state.equipment.podMachines.length > 0) {
@@ -1825,6 +2017,16 @@ function showEquipmentSummary() {
             <div class="equipment-summary-item">
                 <strong>Pour Over Devices</strong>
                 <span>${state.equipment.pourOver.join(', ')}</span>
+            </div>
+        `;
+    }
+
+    if ((state.equipment.filters && state.equipment.filters.length > 0) || (state.equipment.customFilters && state.equipment.customFilters.length > 0)) {
+        const allFilters = [...(state.equipment.filters || []), ...(state.equipment.customFilters || [])];
+        summaryHTML += `
+            <div class="equipment-summary-item">
+                <strong>Coffee Filters</strong>
+                <span>${allFilters.join(', ')}</span>
             </div>
         `;
     }
@@ -2256,6 +2458,8 @@ async function loadEquipmentFromDatabase() {
                 espressoMachine: data.espresso_machine || '',
                 flowControl: data.flow_control || false,
                 pourOver: data.pour_over || [],
+                filters: data.filters || [],
+                customFilters: data.custom_filters || [],
                 podMachines: data.pod_machines || [],
                 grinder: data.grinder || '',
                 noGrinder: data.no_grinder || false,
@@ -2301,9 +2505,19 @@ async function loadEquipmentFromDatabase() {
                 if (checkbox) checkbox.checked = true;
             });
 
+            state.equipment.filters.forEach(value => {
+                const checkbox = document.querySelector(`input[name="filters"][value="${value}"]`);
+                if (checkbox) checkbox.checked = true;
+            });
+
             // Render and check custom brew methods
             if (state.equipment.customBrewMethods && state.equipment.customBrewMethods.length > 0) {
                 renderCustomBrewMethods(state.equipment.customBrewMethods);
+            }
+
+            // Render and check custom filters
+            if (state.equipment.customFilters && state.equipment.customFilters.length > 0) {
+                renderCustomFilters(state.equipment.customFilters);
             }
 
             // Show summary
@@ -2335,6 +2549,8 @@ async function saveEquipmentToDatabase(equipment) {
             espresso_machine: equipment.espressoMachine,
             flow_control: equipment.flowControl,
             pour_over: equipment.pourOver,
+            filters: equipment.filters || [],
+            custom_filters: equipment.customFilters || [],
             pod_machines: equipment.podMachines,
             grinder: equipment.grinder,
             no_grinder: equipment.noGrinder,
@@ -3680,7 +3896,8 @@ async function integrateSavedRecipes(analysisData) {
                     `You previously saved this recipe for this coffee (brewed ${saved.times_brewed || 1} time${saved.times_brewed > 1 ? 's' : ''}). Using your preferred parameters.`,
                 parameters: savedRecipe,
                 technique_notes: aiTechnique?.technique_notes || '',
-                is_saved_recipe: true // Flag to indicate this is a saved recipe
+                is_saved_recipe: true, // Flag to indicate this is a saved recipe
+                saved_notes: saved.notes || null
             };
 
             console.log('Adding saved recipe to techniques:', brewMethod, 'is_saved_recipe:', technique.is_saved_recipe);
