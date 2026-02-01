@@ -134,7 +134,17 @@
                 <div id="equipment-form-container">
                     <p style="margin-bottom: 20px; color: var(--secondary-color);">Tell us what equipment you have, and we'll recommend brew methods that work with your gear!</p>
 
+                    <div id="wizard-progress" class="wizard-progress">
+                        <div class="wizard-step active" data-step="1"><span>1</span> Brew Methods</div>
+                        <div class="wizard-step" data-step="2"><span>2</span> Filters</div>
+                        <div class="wizard-step" data-step="3"><span>3</span> Grinder</div>
+                        <div class="wizard-step" data-step="4"><span>4</span> Other</div>
+                    </div>
+
                     <form id="equipment-form">
+
+                    <!-- Step 1: Brew Methods -->
+                    <div class="wizard-step-content active" data-step="1">
                     <div class="form-group">
                         <label>Espresso Machine</label>
                         <input type="text" id="espresso-machine" placeholder="e.g., Breville Barista Express, Gaggia Classic" />
@@ -161,6 +171,24 @@
                         </div>
                     </div>
 
+                    <div class="form-group">
+                        <label>Pod/Capsule Machines</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="pod-machines" value="Nespresso" /> Nespresso
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="pod-machines" value="Keurig" /> Keurig (K-Cup)
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="pod-machines" value="Other Pods" /> Other Pod System
+                            </label>
+                        </div>
+                    </div>
+                    </div>
+
+                    <!-- Step 2: Coffee Filters -->
+                    <div class="wizard-step-content" data-step="2">
                     <div class="form-group">
                         <label>Coffee Filters</label>
                         <div class="checkbox-group">
@@ -201,22 +229,10 @@
                             </div>
                         </div>
                     </div>
-
-                    <div class="form-group">
-                        <label>Pod/Capsule Machines</label>
-                        <div class="checkbox-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="pod-machines" value="Nespresso" /> Nespresso
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="pod-machines" value="Keurig" /> Keurig (K-Cup)
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="pod-machines" value="Other Pods" /> Other Pod System
-                            </label>
-                        </div>
                     </div>
 
+                    <!-- Step 3: Grinder -->
+                    <div class="wizard-step-content" data-step="3">
                     <div class="form-group">
                         <label>Grinder <span style="color: #C74B50;">*</span></label>
                         <input type="text" id="grinder" placeholder="e.g., Baratza Encore, Hand grinder, Blade grinder" />
@@ -224,7 +240,10 @@
                             <input type="checkbox" id="no-grinder" /> I don't have a grinder (using pre-ground coffee)
                         </label>
                     </div>
+                    </div>
 
+                    <!-- Step 4: Other Equipment -->
+                    <div class="wizard-step-content" data-step="4">
                     <div class="form-group">
                         <label>Other Brewing Methods</label>
                         <div class="checkbox-group">
@@ -276,9 +295,12 @@
                     <p style="font-size: 0.85rem; color: var(--secondary-color); margin-bottom: 15px;">
                         <span style="color: #C74B50;">*</span> Required: Enter at least one brewing method and specify your grinder (or check "no grinder")
                     </p>
+                    </div>
 
-                    <div class="button-group">
-                        <button type="submit" class="btn btn-primary">Save Equipment</button>
+                    <div class="wizard-nav">
+                        <button type="button" id="wizard-prev" class="btn btn-secondary" style="display: none;">Back</button>
+                        <button type="button" id="wizard-next" class="btn btn-primary">Next</button>
+                        <button type="submit" id="wizard-save" class="btn btn-primary" style="display: none;">Save Equipment</button>
                         <button type="button" id="clear-equipment-btn" class="btn btn-secondary">Clear All</button>
                     </div>
                 </form>
