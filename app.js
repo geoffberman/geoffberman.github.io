@@ -1253,19 +1253,15 @@ function displayResults(data) {
                                 <td>${params.flow_control}</td>
                                 <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="flow_control" placeholder="Your profile" value="${params.flow_control}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
                             </tr>
+                            <tr>
+                                <td>Notes</td>
+                                <td style="white-space: pre-wrap;">${params.notes || ''}</td>
+                                <td class="adjustment-column hidden"><textarea class="param-input" data-param="notes" rows="3" placeholder="How did it taste? Any observations..." style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; resize: vertical;">${params.notes || ''}</textarea></td>
+                            </tr>
                         </tbody>
                     </table>
 
-                    <div id="saved-notes-display-${index}" ${technique.saved_notes ? '' : 'class="hidden"'} style="margin-top: 15px; padding: 12px; background: linear-gradient(135deg, #FFF8ED 0%, #FFEDDA 100%); border: 1px solid var(--accent-color); border-radius: 6px;">
-                        <strong style="color: var(--primary-color); font-size: 0.85rem;">Notes:</strong>
-                        <div id="saved-notes-content-${index}" style="margin-top: 4px; line-height: 1.5; color: var(--secondary-color); font-size: 0.85rem; white-space: pre-wrap; font-family: inherit;">${technique.saved_notes ? escapeHtml(technique.saved_notes) : ''}</div>
-                    </div>
-
                     <div id="save-adjustments-${index}" class="hidden" style="margin-top: 20px;">
-                        <div style="margin-bottom: 15px;">
-                            <label for="adjustment-notes-${index}" style="display: block; font-weight: bold; color: var(--primary-color); margin-bottom: 8px; font-size: 0.9rem;">Notes (optional)</label>
-                            <textarea id="adjustment-notes-${index}" class="adjustment-notes" rows="3" placeholder="How did it taste? Any observations..." style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; resize: vertical; font-size: 0.85rem;"></textarea>
-                        </div>
                         <div style="text-align: center;">
                             <button class="btn btn-primary save-adjustments-btn" data-technique-index="${index}" style="min-width: 200px;">
                                 💾 Save My Adjustments
@@ -3328,7 +3324,7 @@ async function saveInlineAdjustments(technique, techniqueIndex) {
         btn.disabled = true;
         btn.textContent = 'Saving...';
 
-        // Collect adjustments from the table inputs
+        // Collect adjustments from the table inputs (includes notes as a param row)
         const table = document.getElementById(`recipe-table-${techniqueIndex}`);
         const adjustedParams = {};
         table.querySelectorAll('.param-input').forEach(input => {
@@ -3336,12 +3332,8 @@ async function saveInlineAdjustments(technique, techniqueIndex) {
             adjustedParams[param] = input.value;
         });
 
-        // Collect notes
-        const notesTextarea = document.getElementById(`adjustment-notes-${techniqueIndex}`);
-        const notes = notesTextarea ? notesTextarea.value.trim() : null;
-
         // Save as preferred recipe (handles both localStorage and database)
-        await saveAsPreferredRecipeWithData(technique.technique_name, adjustedParams, notes);
+        await saveAsPreferredRecipeWithData(technique.technique_name, adjustedParams);
 
         // If authenticated, also save brew session
         if (window.auth && window.auth.isAuthenticated()) {
@@ -3370,23 +3362,11 @@ async function saveInlineAdjustments(technique, techniqueIndex) {
             if (error) throw error;
         }
 
-        // Update the "Notes from Previous Cups" display immediately
-        if (notes) {
-            const timestamp = new Date().toLocaleString();
-            const newNote = `[${timestamp}] ${notes}`;
-            const notesDisplay = document.getElementById(`saved-notes-display-${techniqueIndex}`);
-            const notesContent = document.getElementById(`saved-notes-content-${techniqueIndex}`);
-            if (notesDisplay && notesContent) {
-                const existingText = notesContent.textContent.trim();
-                const fullNotes = existingText ? `${existingText}\n\n${newNote}` : newNote;
-                notesContent.textContent = fullNotes;
-                notesDisplay.classList.remove('hidden');
-            }
-        }
-
-        // Clear the notes textarea after successful save
-        if (notesTextarea) {
-            notesTextarea.value = '';
+        // Update the static notes cell in the table to show saved value
+        const notesCell = table.querySelector('tr:last-child td:nth-child(2)');
+        if (notesCell && adjustedParams.notes) {
+            notesCell.textContent = adjustedParams.notes;
+            notesCell.style.whiteSpace = 'pre-wrap';
         }
 
         btn.textContent = '✓ Saved!';
