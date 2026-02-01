@@ -374,6 +374,12 @@ async function loadSavedRecipeDirectly(recipeData) {
             flavor_notes: recipeData.flavor_notes || []
         };
 
+        // Ensure notes are inside recipe params (migrate from old separate notes field)
+        const recipeParams = recipeData.recipe || {};
+        if (!recipeParams.notes && recipeData.notes) {
+            recipeParams.notes = recipeData.notes;
+        }
+
         // Create analysis data structure matching API response format
         const analysisData = {
             coffee_analysis: coffeeAnalysis,
@@ -381,10 +387,9 @@ async function loadSavedRecipeDirectly(recipeData) {
                 {
                     technique_name: recipeData.brew_method,
                     reasoning: `This is your saved recipe for this coffee. You've brewed it ${recipeData.times_brewed || 1} time${recipeData.times_brewed > 1 ? 's' : ''}.`,
-                    parameters: recipeData.recipe,
+                    parameters: recipeParams,
                     technique_notes: '',
-                    is_saved_recipe: true,
-                    saved_notes: recipeData.notes || null
+                    is_saved_recipe: true
                 }
             ]
         };
@@ -3880,7 +3885,12 @@ async function integrateSavedRecipes(analysisData) {
         // Add saved recipes first (prioritized)
         savedRecipes.forEach(saved => {
             const brewMethod = saved.brew_method;
-            const savedRecipe = saved.recipe;
+            const savedRecipe = saved.recipe || {};
+
+            // Ensure notes are inside recipe params (migrate from old separate notes field)
+            if (!savedRecipe.notes && saved.notes) {
+                savedRecipe.notes = saved.notes;
+            }
 
             // Check if AI also recommended this method
             const aiTechnique = aiTechniqueMap[brewMethod];
@@ -3892,8 +3902,7 @@ async function integrateSavedRecipes(analysisData) {
                     `You previously saved this recipe for this coffee (brewed ${saved.times_brewed || 1} time${saved.times_brewed > 1 ? 's' : ''}). Using your preferred parameters.`,
                 parameters: savedRecipe,
                 technique_notes: aiTechnique?.technique_notes || '',
-                is_saved_recipe: true, // Flag to indicate this is a saved recipe
-                saved_notes: saved.notes || null
+                is_saved_recipe: true
             };
 
             console.log('Adding saved recipe to techniques:', brewMethod, 'is_saved_recipe:', technique.is_saved_recipe);
