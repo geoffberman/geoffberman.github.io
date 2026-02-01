@@ -10,6 +10,10 @@ const state = {
     currentImageHash: null
 };
 
+// Equipment wizard state
+let wizardStep = 1;
+const WIZARD_TOTAL_STEPS = 4;
+
 // DOM elements
 const elements = {
     uploadSection: document.getElementById('upload-section'),
@@ -410,6 +414,8 @@ async function loadSavedRecipeDirectly(recipeData) {
 // Initialize app
 async function init() {
     setupEventListeners();
+    initWizard();
+    initBrewHistory();
 
     console.log('=== App Initialization Started ===');
 
@@ -2180,6 +2186,8 @@ function showEquipmentSummary() {
 function showEquipmentForm() {
     elements.equipmentSummary.classList.add('hidden');
     elements.equipmentFormContainer.classList.remove('hidden');
+    wizardStep = 1;
+    updateWizardUI();
 }
 
 function updateEquipmentButton() {
@@ -4084,6 +4092,228 @@ function saveRecipeToLocalStorage(coffeeAnalysis, brewMethod, recipeData, notes 
     } catch (error) {
         console.error('Failed to save recipe to localStorage:', error);
     }
+}
+
+// ============ Equipment Wizard ============
+
+function initWizard() {
+    document.getElementById('wizard-next')?.addEventListener('click', wizardNext);
+    document.getElementById('wizard-prev')?.addEventListener('click', wizardPrev);
+    updateWizardUI();
+}
+
+function wizardNext() {
+    let nextStep = wizardStep + 1;
+    // Skip filters step if no pour-over devices selected
+    if (nextStep === 2 && !hasPourOverSelected()) {
+        nextStep = 3;
+    }
+    if (nextStep <= WIZARD_TOTAL_STEPS) {
+        wizardStep = nextStep;
+        updateWizardUI();
+    }
+}
+
+function wizardPrev() {
+    let prevStep = wizardStep - 1;
+    // Skip filters step if no pour-over devices selected
+    if (prevStep === 2 && !hasPourOverSelected()) {
+        prevStep = 1;
+    }
+    if (prevStep >= 1) {
+        wizardStep = prevStep;
+        updateWizardUI();
+    }
+}
+
+function hasPourOverSelected() {
+    return document.querySelectorAll('input[name="pour-over"]:checked').length > 0;
+}
+
+function updateWizardUI() {
+    // Update step content visibility
+    document.querySelectorAll('.wizard-step-content').forEach(el => {
+        el.classList.toggle('active', parseInt(el.dataset.step) === wizardStep);
+    });
+
+    // Update progress indicators
+    document.querySelectorAll('.wizard-progress .wizard-step').forEach(el => {
+        const step = parseInt(el.dataset.step);
+        el.classList.toggle('active', step === wizardStep);
+        el.classList.toggle('completed', step < wizardStep);
+    });
+
+    // Update navigation buttons
+    const prevBtn = document.getElementById('wizard-prev');
+    const nextBtn = document.getElementById('wizard-next');
+    const saveBtn = document.getElementById('wizard-save');
+
+    if (prevBtn) prevBtn.style.display = wizardStep > 1 ? '' : 'none';
+    if (nextBtn) nextBtn.style.display = wizardStep < WIZARD_TOTAL_STEPS ? '' : 'none';
+    if (saveBtn) saveBtn.style.display = wizardStep === WIZARD_TOTAL_STEPS ? '' : 'none';
+}
+
+// ============ Brew History ============
+
+function initBrewHistory() {
+    document.getElementById('brew-history-btn')?.addEventListener('click', toggleBrewHistory);
+    document.getElementById('close-history-btn')?.addEventListener('click', () => {
+        document.getElementById('brew-history-section')?.classList.add('hidden');
+    });
+}
+
+async function toggleBrewHistory() {
+    const section = document.getElementById('brew-history-section');
+    if (!section) return;
+
+    // Close user dropdown
+    document.getElementById('user-dropdown')?.classList.add('hidden');
+
+    const isHidden = section.classList.contains('hidden');
+    if (isHidden) {
+        section.classList.remove('hidden');
+        await renderBrewHistory();
+    } else {
+        section.classList.add('hidden');
+    }
+}
+
+async function renderBrewHistory() {
+    const content = document.getElementById('brew-history-content');
+    const empty = document.getElementById('brew-history-empty');
+    const loading = document.getElementById('brew-history-loading');
+    if (!content) return;
+
+    // Show loading
+    content.innerHTML = '';
+    empty?.classList.add('hidden');
+    loading?.classList.remove('hidden');
+
+    const sessions = await loadBrewHistory();
+
+    loading?.classList.add('hidden');
+
+    if (!sessions || sessions.length === 0) {
+        empty?.classList.remove('hidden');
+        return;
+    }
+
+    content.innerHTML = renderBrewHistoryCards(sessions);
+}
+
+async function loadBrewHistory(limit = 20) {
+    const supabase = window.getSupabase();
+    if (!supabase || !window.auth?.isAuthenticated()) return [];
+
+    const userId = window.auth.getUserId();
+    try {
+        const { data, error } = await supabase
+            .from('brew_sessions')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(limit);
+
+        if (error) {
+            console.error('Failed to load brew history:', error);
+            return [];
+        }
+        return data || [];
+    } catch (err) {
+        console.error('Brew history fetch error:', err);
+        return [];
+    }
+}
+
+function renderBrewHistoryCards(sessions) {
+    return sessions.map(session => {
+        const date = new Date(session.created_at).toLocaleDateString('en-US', {
+            month: 'short', day: 'numeric', year: 'numeric'
+        });
+        const ratingClass = session.rating === 'perfect' ? 'perfect'
+            : session.rating === 'too_sour' ? 'sour' : 'bitter';
+        const ratingLabel = session.rating === 'perfect' ? '✓'
+            : session.rating === 'too_sour' ? '↓' : '↑';
+        const params = session.actual_brew || session.original_recipe || {};
+        const summaryParts = [params.dose, params.yield, params.ratio, params.brew_time].filter(Boolean);
+        const summary = summaryParts.join(' · ');
+
+        return `<div class="brew-history-card rating-${ratingClass}" data-session-id="${session.id}">
+            <div class="brew-history-header">
+                <div>
+                    <strong>${escapeHtml(session.coffee_name || 'Unknown Coffee')}</strong>
+                    ${session.roaster ? `<span class="brew-history-roaster"> — ${escapeHtml(session.roaster)}</span>` : ''}
+                </div>
+                <span class="rating-badge rating-${ratingClass}">${ratingLabel}</span>
+            </div>
+            <div class="brew-history-meta">
+                ${escapeHtml(session.brew_method || 'Unknown method')} · ${date}
+            </div>
+            ${summary ? `<div class="brew-history-params">${escapeHtml(summary)}</div>` : ''}
+            <button class="brew-history-expand" onclick="toggleHistoryDetail('${session.id}')">Show Details</button>
+            <div class="brew-history-detail hidden" id="detail-${session.id}">
+                ${renderHistoryDetail(session)}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function renderHistoryDetail(session) {
+    let html = '';
+    const recipe = session.actual_brew || session.original_recipe;
+    if (recipe) {
+        html += '<table>';
+        const labels = {
+            dose: 'Dose', yield: 'Yield', ratio: 'Ratio',
+            water_temp: 'Water Temp', grind_size: 'Grind Size',
+            brew_time: 'Brew Time', pressure: 'Pressure', flow_control: 'Flow Control'
+        };
+        for (const [key, label] of Object.entries(labels)) {
+            if (recipe[key] && recipe[key] !== 'N/A') {
+                html += `<tr><td>${label}</td><td>${escapeHtml(String(recipe[key]))}</td></tr>`;
+            }
+        }
+        html += '</table>';
+    }
+
+    // Show adjusted recipe if different
+    if (session.adjusted_recipe && session.adjusted_recipe.adjusted_parameters) {
+        const adj = session.adjusted_recipe.adjusted_parameters;
+        html += '<p style="font-weight: 600; color: var(--primary-color); margin-top: 10px; font-size: 0.8rem;">Adjusted Recipe:</p>';
+        html += '<table>';
+        const labels = {
+            dose: 'Dose', yield: 'Yield', ratio: 'Ratio',
+            water_temp: 'Water Temp', grind_size: 'Grind Size',
+            brew_time: 'Brew Time'
+        };
+        for (const [key, label] of Object.entries(labels)) {
+            if (adj[key] && adj[key] !== 'N/A') {
+                html += `<tr><td>${label}</td><td>${escapeHtml(String(adj[key]))}</td></tr>`;
+            }
+        }
+        html += '</table>';
+    }
+
+    return html;
+}
+
+function toggleHistoryDetail(sessionId) {
+    const detail = document.getElementById(`detail-${sessionId}`);
+    if (!detail) return;
+    const btn = detail.previousElementSibling;
+    if (detail.classList.contains('hidden')) {
+        detail.classList.remove('hidden');
+        if (btn) btn.textContent = 'Hide Details';
+    } else {
+        detail.classList.add('hidden');
+        if (btn) btn.textContent = 'Show Details';
+    }
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
 }
 
 // Initialize app when DOM is ready
