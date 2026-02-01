@@ -1269,10 +1269,10 @@ function displayResults(data) {
                         </div>
                     </div>
 
-                    ${technique.saved_notes ? `<div style="margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #FFF8ED 0%, #FFEDDA 100%); border: 2px solid var(--accent-color); border-radius: 8px;">
+                    <div id="saved-notes-display-${index}" ${technique.saved_notes ? '' : 'class="hidden"'} style="margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #FFF8ED 0%, #FFEDDA 100%); border: 2px solid var(--accent-color); border-radius: 8px;">
                         <h4 style="margin: 0 0 10px 0; color: var(--primary-color); font-size: 0.95rem;">Notes from Previous Cups</h4>
-                        <div style="margin: 0; line-height: 1.6; color: var(--secondary-color); font-size: 0.85rem; white-space: pre-wrap; font-family: inherit;">${escapeHtml(technique.saved_notes)}</div>
-                    </div>` : ''}
+                        <div id="saved-notes-content-${index}" style="margin: 0; line-height: 1.6; color: var(--secondary-color); font-size: 0.85rem; white-space: pre-wrap; font-family: inherit;">${technique.saved_notes ? escapeHtml(technique.saved_notes) : ''}</div>
+                    </div>
 
                     ${technique.technique_notes ? `<div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 3px solid var(--accent-color); border-radius: 4px;">
                         <div style="margin: 0; line-height: 1.6; color: var(--secondary-color); font-size: 0.9rem;">${technique.technique_notes
@@ -3371,6 +3371,20 @@ async function saveInlineAdjustments(technique, techniqueIndex) {
             if (error) throw error;
         }
 
+        // Update the "Notes from Previous Cups" display immediately
+        if (notes) {
+            const timestamp = new Date().toLocaleString();
+            const newNote = `[${timestamp}] ${notes}`;
+            const notesDisplay = document.getElementById(`saved-notes-display-${techniqueIndex}`);
+            const notesContent = document.getElementById(`saved-notes-content-${techniqueIndex}`);
+            if (notesDisplay && notesContent) {
+                const existingText = notesContent.textContent.trim();
+                const fullNotes = existingText ? `${existingText}\n\n${newNote}` : newNote;
+                notesContent.textContent = fullNotes;
+                notesDisplay.classList.remove('hidden');
+            }
+        }
+
         // Clear the notes textarea after successful save
         if (notesTextarea) {
             notesTextarea.value = '';
@@ -3384,6 +3398,9 @@ async function saveInlineAdjustments(technique, techniqueIndex) {
             btn.style.backgroundColor = '';
             btn.disabled = false;
         }, 2000);
+
+        // Refresh the saved recipes dropdown so it has the latest data
+        populateSavedRecipesDropdown();
 
         console.log('Inline adjustments saved successfully');
 
@@ -3958,6 +3975,10 @@ function saveRecipeToLocalStorage(coffeeAnalysis, brewMethod, recipeData, notes 
             coffee_hash: coffeeHash,
             coffee_name: coffeeAnalysis.name || 'Unknown',
             roaster: coffeeAnalysis.roaster || 'Unknown',
+            roast_level: coffeeAnalysis.roast_level || 'Unknown',
+            origin: coffeeAnalysis.origin || 'Unknown',
+            processing: coffeeAnalysis.processing || 'Unknown',
+            flavor_notes: coffeeAnalysis.flavor_notes || [],
             brew_method: brewMethod,
             recipe: recipeData,
             times_brewed: 1,
