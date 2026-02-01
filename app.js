@@ -365,7 +365,9 @@ async function populateSavedRecipesDropdown() {
 async function loadSavedRecipeDirectly(recipeData) {
     try {
         // Reconstruct the coffee analysis from saved data
+        // Preserve the original coffee_hash so re-saves update the same entry
         const coffeeAnalysis = {
+            coffee_hash: recipeData.coffee_hash,
             name: recipeData.coffee_name || 'Unknown',
             roaster: recipeData.roaster || 'Unknown',
             roast_level: recipeData.roast_level || 'Unknown',
@@ -2699,8 +2701,8 @@ async function saveAsPreferredRecipe(notes = null) {
     const supabase = window.getSupabase();
     const userId = window.auth.getUserId();
 
-    // Create a hash from coffee characteristics
-    const coffeeHash = createCoffeeHash(
+    // Use preserved hash if available (from loaded saved recipes), otherwise compute
+    const coffeeHash = state.currentCoffeeAnalysis.coffee_hash || createCoffeeHash(
         state.currentCoffeeAnalysis.name,
         state.currentCoffeeAnalysis.roaster,
         state.currentCoffeeAnalysis.roast_level,
@@ -3712,8 +3714,8 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
     const supabase = window.getSupabase();
     const userId = window.auth.getUserId();
 
-    // Create a hash from coffee characteristics
-    const coffeeHash = createCoffeeHash(
+    // Use preserved hash if available (from loaded saved recipes), otherwise compute
+    const coffeeHash = state.currentCoffeeAnalysis.coffee_hash || createCoffeeHash(
         state.currentCoffeeAnalysis.name,
         state.currentCoffeeAnalysis.roaster,
         state.currentCoffeeAnalysis.roast_level,
@@ -3941,7 +3943,8 @@ async function integrateSavedRecipes(analysisData) {
 // Save recipe to localStorage for non-authenticated users
 function saveRecipeToLocalStorage(coffeeAnalysis, brewMethod, recipeData, notes = null) {
     try {
-        const coffeeHash = createCoffeeHash(
+        // Use preserved hash if available (from loaded saved recipes), otherwise compute
+        const coffeeHash = coffeeAnalysis.coffee_hash || createCoffeeHash(
             coffeeAnalysis.name,
             coffeeAnalysis.roaster,
             coffeeAnalysis.roast_level,
