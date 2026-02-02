@@ -812,6 +812,82 @@ footer {
     transform: scale(1.2);
 }
 
+/* Equipment Wizard */
+.wizard-progress {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 25px;
+    padding: 0 10px;
+}
+
+.wizard-progress .wizard-step {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: var(--secondary-color);
+    opacity: 0.5;
+    transition: all 0.3s ease;
+}
+
+.wizard-progress .wizard-step.active {
+    opacity: 1;
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.wizard-progress .wizard-step.completed {
+    opacity: 1;
+    color: var(--success-color);
+}
+
+.wizard-progress .wizard-step span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--border-color);
+    color: var(--secondary-color);
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.wizard-progress .wizard-step.active span {
+    background: var(--primary-color);
+    color: white;
+}
+
+.wizard-progress .wizard-step.completed span {
+    background: var(--success-color);
+    color: white;
+}
+
+.wizard-step-content {
+    display: none;
+}
+
+.wizard-step-content.active {
+    display: block;
+}
+
+.wizard-nav {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 600px) {
+    .wizard-progress .wizard-step {
+        font-size: 0.7rem;
+        flex-direction: column;
+        text-align: center;
+    }
+}
+
 /* Responsive layout for brew recommendations */
 @media (max-width: 768px) {
     #method-content > div {
