@@ -7,7 +7,9 @@ const state = {
     currentBrewMethod: null,
     currentRecipe: null,
     hiddenAiRecommendations: null,
-    currentImageHash: null
+    currentImageHash: null,
+    analysisInProgress: false,
+    selectedFilters: {}
 };
 
 // Equipment wizard state
@@ -268,19 +270,24 @@ async function getRecentSavedRecipes(limit = 5) {
         }
     }
 
-    // Fallback to localStorage if no Supabase results
-    if (allRecipes.length === 0) {
-        try {
-            const localRecipes = localStorage.getItem('saved_recipes');
-            if (localRecipes) {
-                const parsed = JSON.parse(localRecipes);
-                // Sort by last_brewed descending
+    // Also load localStorage recipes (may have more recent data if Supabase save failed)
+    let localRecipeMap = new Map();
+    try {
+        const localRecipes = localStorage.getItem('saved_recipes');
+        if (localRecipes) {
+            const parsed = JSON.parse(localRecipes);
+            parsed.forEach(r => {
+                const key = `${r.coffee_hash}_${r.brew_method}`;
+                localRecipeMap.set(key, r);
+            });
+            // If no Supabase results, use localStorage as primary source
+            if (allRecipes.length === 0) {
                 parsed.sort((a, b) => new Date(b.last_brewed) - new Date(a.last_brewed));
                 allRecipes.push(...parsed);
             }
-        } catch (error) {
-            console.error('Failed to fetch recent recipes from localStorage:', error);
         }
+    } catch (error) {
+        console.error('Failed to fetch recent recipes from localStorage:', error);
     }
 
     // Deduplicate by coffee_hash + brew_method, keeping only the most recent
@@ -288,6 +295,24 @@ async function getRecentSavedRecipes(limit = 5) {
     for (const recipe of allRecipes) {
         const key = `${recipe.coffee_hash}_${recipe.brew_method}`;
         if (!uniqueRecipes.has(key)) {
+            // Merge notes from localStorage if Supabase recipe is missing them
+            const localRecipe = localRecipeMap.get(key);
+            if (localRecipe) {
+                const recipeParams = recipe.recipe || {};
+                const localParams = localRecipe.recipe || {};
+                // If Supabase recipe params don't have notes but localStorage does, merge them
+                if (!recipeParams.notes && localParams.notes) {
+                    if (typeof recipe.recipe === 'object' && recipe.recipe !== null) {
+                        recipe.recipe.notes = localParams.notes;
+                    }
+                }
+                // Also check top-level notes field (old format)
+                if (!recipeParams.notes && !recipe.notes && localRecipe.notes) {
+                    if (typeof recipe.recipe === 'object' && recipe.recipe !== null) {
+                        recipe.recipe.notes = localRecipe.notes;
+                    }
+                }
+            }
             uniqueRecipes.set(key, recipe);
         }
     }
@@ -369,7 +394,9 @@ async function populateSavedRecipesDropdown() {
 async function loadSavedRecipeDirectly(recipeData) {
     try {
         // Reconstruct the coffee analysis from saved data
+        // Preserve the original coffee_hash so re-saves update the same entry
         const coffeeAnalysis = {
+            coffee_hash: recipeData.coffee_hash,
             name: recipeData.coffee_name || 'Unknown',
             roaster: recipeData.roaster || 'Unknown',
             roast_level: recipeData.roast_level || 'Unknown',
@@ -378,6 +405,28 @@ async function loadSavedRecipeDirectly(recipeData) {
             flavor_notes: recipeData.flavor_notes || []
         };
 
+        // Ensure notes are inside recipe params (migrate from old separate notes field)
+        const recipeParams = recipeData.recipe || {};
+        if (!recipeParams.notes && recipeData.notes) {
+            recipeParams.notes = recipeData.notes;
+        }
+
+        console.log('[LOAD] Loading saved recipe:', recipeData.coffee_name, '-', recipeData.brew_method);
+        console.log('[LOAD] recipeData.recipe:', JSON.stringify(recipeData.recipe));
+        console.log('[LOAD] recipeParams.notes:', JSON.stringify(recipeParams.notes));
+        console.log('[LOAD] recipeData.notes (top-level):', JSON.stringify(recipeData.notes));
+
+        // Ensure recipe field is parsed if it was stored as a string
+        if (typeof recipeData.recipe === 'string') {
+            try {
+                const parsed = JSON.parse(recipeData.recipe);
+                Object.assign(recipeParams, parsed);
+                console.log('[LOAD] Parsed recipe string into object, notes:', parsed.notes);
+            } catch (e) {
+                console.error('[LOAD] Failed to parse recipe string:', e);
+            }
+        }
+
         // Create analysis data structure matching API response format
         const analysisData = {
             coffee_analysis: coffeeAnalysis,
@@ -385,10 +434,9 @@ async function loadSavedRecipeDirectly(recipeData) {
                 {
                     technique_name: recipeData.brew_method,
                     reasoning: `This is your saved recipe for this coffee. You've brewed it ${recipeData.times_brewed || 1} time${recipeData.times_brewed > 1 ? 's' : ''}.`,
-                    parameters: recipeData.recipe,
+                    parameters: recipeParams,
                     technique_notes: '',
-                    is_saved_recipe: true,
-                    saved_notes: recipeData.notes || null
+                    is_saved_recipe: true
                 }
             ]
         };
@@ -870,6 +918,55 @@ function showSection(section) {
     }
 }
 
+// Compress image client-side before upload to reduce payload size
+async function compressImage(file, maxDimension = 1200, quality = 0.7) {
+    return new Promise((resolve) => {
+        // Skip compression for small files (under 500KB)
+        if (file.size < 500 * 1024) {
+            console.log(`[IMG] File is ${(file.size / 1024).toFixed(0)}KB, skipping compression`);
+            resolve(file);
+            return;
+        }
+
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            let { width, height } = img;
+
+            // Scale down if larger than maxDimension
+            if (width > maxDimension || height > maxDimension) {
+                if (width > height) {
+                    height = Math.round(height * (maxDimension / width));
+                    width = maxDimension;
+                } else {
+                    width = Math.round(width * (maxDimension / height));
+                    height = maxDimension;
+                }
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            canvas.toBlob((blob) => {
+                const compressed = new File([blob], file.name, { type: 'image/jpeg' });
+                const ratio = ((1 - compressed.size / file.size) * 100).toFixed(0);
+                console.log(`[IMG] Compressed: ${(file.size / 1024).toFixed(0)}KB → ${(compressed.size / 1024).toFixed(0)}KB (${ratio}% reduction, ${width}x${height})`);
+                resolve(compressed);
+            }, 'image/jpeg', quality);
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            console.warn('[IMG] Compression failed, using original');
+            resolve(file);
+        };
+        img.src = url;
+    });
+}
+
 // Convert image to base64 without data URL prefix
 async function getBase64Image(file) {
     return new Promise((resolve, reject) => {
@@ -891,17 +988,26 @@ async function analyzeImage(specificMethod = null) {
         return;
     }
 
+    // Prevent duplicate requests
+    if (state.analysisInProgress) {
+        console.log('Analysis already in progress, ignoring duplicate request');
+        return;
+    }
+
     // Check if equipment is properly configured
     if (!state.equipment || !hasEquipment()) {
         showError('Please set up your equipment first before analyzing coffee. Click "Set Up Equipment" below to get started.');
         return;
     }
 
+    state.analysisInProgress = true;
     showSection('loading');
 
     try {
-        const base64Image = await getBase64Image(state.imageFile);
-        const mediaType = state.imageFile.type;
+        // Compress image before upload to reduce payload
+        const compressedFile = await compressImage(state.imageFile);
+        const base64Image = await getBase64Image(compressedFile);
+        const mediaType = compressedFile.type;
 
         // Create image hash for caching
         const imageHash = await createImageHash(base64Image);
@@ -1014,6 +1120,8 @@ async function analyzeImage(specificMethod = null) {
     } catch (error) {
         console.error('Analysis error:', error);
         showError(`Failed to analyze image: ${error.message}`);
+    } finally {
+        state.analysisInProgress = false;
     }
 }
 
@@ -1110,7 +1218,7 @@ function displayResults(data) {
     state.currentCoffeeAnalysis = analysis;
     state.currentCoffeeAnalysis.recommended_techniques = techniques; // Store techniques for later access
     state.currentBrewMethod = techniques[0]?.technique_name || 'Unknown';
-    state.currentRecipe = data;
+    state.currentRecipe = techniques[0]?.parameters || {};
 
     // Coffee Analysis
     let analysisHTML = '';
@@ -1193,7 +1301,7 @@ function displayResults(data) {
                     <div style="margin-bottom: 15px; padding: 12px; background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%); border: 2px solid var(--success-color); border-radius: 8px;">
                         <label style="display: block; font-weight: bold; color: var(--primary-color); margin-bottom: 6px; font-size: 0.85rem;">Filter Type:</label>
                         <select class="filter-selector" data-technique-index="${index}" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.85rem;">
-                            ${getFilterOptions()}
+                            ${getFilterOptions(params.filter_type || null)}
                         </select>
                         <small style="display: block; margin-top: 6px; color: var(--secondary-color); font-size: 0.75rem;">Filter type affects extraction and flavor profile</small>
                     </div>
@@ -1258,10 +1366,20 @@ function displayResults(data) {
                                 <td>${params.flow_control}</td>
                                 <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="flow_control" placeholder="Your profile" value="${params.flow_control}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
                             </tr>
+                            ${isPourOver(technique.technique_name) && hasFilters() ? `<tr>
+                                <td>Filter Type</td>
+                                <td>${params.filter_type || 'Not set'}</td>
+                                <td class="adjustment-column hidden">
+                                    <select class="param-input" data-param="filter_type" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;">
+                                        <option value="">Select filter...</option>
+                                        ${getFilterOptions(params.filter_type || null)}
+                                    </select>
+                                </td>
+                            </tr>` : ''}
                             <tr>
                                 <td>Notes</td>
-                                <td style="white-space: pre-wrap; font-size: 0.85rem;">${technique.saved_notes ? escapeHtml(technique.saved_notes) : ''}</td>
-                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="notes" placeholder="Add a note" value="" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                                <td style="white-space: pre-wrap; font-size: 0.85rem;">${technique.saved_notes || params.notes || ''}</td>
+                                <td class="adjustment-column hidden"><textarea class="param-input" data-param="notes" rows="3" placeholder="How did it taste? Any observations..." style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; resize: vertical;"></textarea></td>
                             </tr>
                         </tbody>
                     </table>
@@ -1867,13 +1985,14 @@ function hasFilters() {
 }
 
 // Helper function to get filter options HTML
-function getFilterOptions() {
+function getFilterOptions(selectedValue = null) {
     const allFilters = [...(state.equipment?.filters || []), ...(state.equipment?.customFilters || [])];
     if (allFilters.length === 0) return '<option>No filters configured</option>';
 
     let options = '';
     allFilters.forEach(filter => {
-        options += `<option value="${filter}">${filter}</option>`;
+        const selected = selectedValue && filter === selectedValue ? ' selected' : '';
+        options += `<option value="${filter}"${selected}>${filter}</option>`;
     });
     return options;
 }
@@ -2471,6 +2590,20 @@ async function loadEquipmentFromDatabase() {
                 additionalEquipment: data.additional_equipment || ''
             };
 
+            // Merge filter data from localStorage if database doesn't have it
+            // (handles case where database schema doesn't have filters/custom_filters columns yet)
+            try {
+                const localEquipment = JSON.parse(localStorage.getItem('coffee_equipment') || '{}');
+                if ((!state.equipment.filters || state.equipment.filters.length === 0) && localEquipment.filters && localEquipment.filters.length > 0) {
+                    state.equipment.filters = localEquipment.filters;
+                }
+                if ((!state.equipment.customFilters || state.equipment.customFilters.length === 0) && localEquipment.customFilters && localEquipment.customFilters.length > 0) {
+                    state.equipment.customFilters = localEquipment.customFilters;
+                }
+            } catch (e) {
+                console.error('Failed to merge localStorage filter data:', e);
+            }
+
             // Populate the form
             if (state.equipment.espressoMachine) {
                 document.getElementById('espresso-machine').value = state.equipment.espressoMachine;
@@ -2684,98 +2817,9 @@ async function saveBrewSession(rating) {
     }
 }
 
+// Thin wrapper — delegates to saveAsPreferredRecipeWithData using current state
 async function saveAsPreferredRecipe(notes = null) {
-    // Always save to localStorage as backup
-    saveRecipeToLocalStorage(
-        state.currentCoffeeAnalysis,
-        state.currentBrewMethod,
-        state.currentRecipe,
-        notes
-    );
-
-    // If authenticated, also save to database
-    if (!window.auth || !window.auth.isAuthenticated()) {
-        return;
-    }
-
-    const supabase = window.getSupabase();
-    const userId = window.auth.getUserId();
-
-    // Create a hash from coffee characteristics
-    const coffeeHash = createCoffeeHash(
-        state.currentCoffeeAnalysis.name,
-        state.currentCoffeeAnalysis.roaster,
-        state.currentCoffeeAnalysis.roast_level,
-        state.currentCoffeeAnalysis.origin
-    );
-
-    const preferredRecipe = {
-        user_id: userId,
-        coffee_hash: coffeeHash,
-        image_hash: state.currentImageHash,
-        coffee_name: state.currentCoffeeAnalysis.name || 'Unknown',
-        roaster: state.currentCoffeeAnalysis.roaster || 'Unknown',
-        roast_level: state.currentCoffeeAnalysis.roast_level || 'Unknown',
-        origin: state.currentCoffeeAnalysis.origin || 'Unknown',
-        flavor_notes: state.currentCoffeeAnalysis.flavor_notes || [],
-        processing: state.currentCoffeeAnalysis.processing || 'Unknown',
-        brew_method: state.currentBrewMethod,
-        recipe: state.currentRecipe,
-        last_brewed: new Date().toISOString()
-    };
-
-    try {
-        // Check if recipe already exists
-        const { data: existing } = await supabase
-            .from('saved_recipes')
-            .select('id, times_brewed, notes')
-            .eq('user_id', userId)
-            .eq('coffee_hash', coffeeHash)
-            .eq('brew_method', state.currentBrewMethod)
-            .maybeSingle();
-
-        if (existing) {
-            // Update existing recipe and append notes
-            const updateData = {
-                recipe: state.currentRecipe,
-                times_brewed: existing.times_brewed + 1,
-                last_brewed: new Date().toISOString()
-            };
-
-            // Append new notes to existing notes if provided
-            if (notes && notes.trim()) {
-                const timestamp = new Date().toLocaleString();
-                const newNote = `[${timestamp}] ${notes.trim()}`;
-                updateData.notes = existing.notes
-                    ? `${existing.notes}\n\n${newNote}`
-                    : newNote;
-            }
-
-            const { error } = await supabase
-                .from('saved_recipes')
-                .update(updateData)
-                .eq('id', existing.id);
-
-            if (error) throw error;
-        } else {
-            // Insert new preferred recipe
-            if (notes && notes.trim()) {
-                const timestamp = new Date().toLocaleString();
-                preferredRecipe.notes = `[${timestamp}] ${notes.trim()}`;
-            }
-
-            const { error } = await supabase
-                .from('saved_recipes')
-                .insert([preferredRecipe]);
-
-            if (error) throw error;
-        }
-
-        console.log('Saved as preferred recipe with coffee hash:', coffeeHash);
-        console.log('Brew method:', state.currentBrewMethod);
-    } catch (error) {
-        console.error('Failed to save preferred recipe:', error);
-    }
+    return saveAsPreferredRecipeWithData(state.currentBrewMethod, state.currentRecipe, notes);
 }
 
 function createCoffeeHash(name, roaster, roastLevel, origin) {
@@ -3331,7 +3375,7 @@ async function saveInlineAdjustments(technique, techniqueIndex) {
         btn.disabled = true;
         btn.textContent = 'Saving...';
 
-        // Collect adjustments from the table inputs
+        // Collect adjustments from the table inputs (includes notes as a param row)
         const table = document.getElementById(`recipe-table-${techniqueIndex}`);
         const adjustedParams = {};
         let notes = null;
@@ -3340,12 +3384,21 @@ async function saveInlineAdjustments(technique, techniqueIndex) {
             if (param === 'notes') {
                 notes = input.value.trim() || null;
             } else {
-                adjustedParams[param] = input.value;
+                adjustedParams[param] = input.tagName === 'TEXTAREA' ? input.value : input.value;
             }
         });
 
+        // Capture selected filter type if available
+        const filterSelector = document.querySelector(`.filter-selector[data-technique-index="${techniqueIndex}"]`);
+        if (filterSelector && filterSelector.value) {
+            adjustedParams.filter_type = filterSelector.value;
+        } else if (state.selectedFilters && state.selectedFilters[techniqueIndex]) {
+            adjustedParams.filter_type = state.selectedFilters[techniqueIndex];
+        }
+
+
         // Save as preferred recipe (handles both localStorage and database)
-        await saveAsPreferredRecipeWithData(technique.technique_name, adjustedParams, notes);
+        await saveAsPreferredRecipeWithData(technique.technique_name, adjustedParams);
 
         // If authenticated, also save brew session
         if (window.auth && window.auth.isAuthenticated()) {
@@ -3383,7 +3436,7 @@ async function saveInlineAdjustments(technique, techniqueIndex) {
                 const existingText = notesValueCell.textContent.trim();
                 notesValueCell.textContent = existingText ? `${existingText}\n\n${newNote}` : newNote;
             }
-            // Clear the notes input after save
+            // Clear the notes textarea after save
             const notesInput = table.querySelector('.param-input[data-param="notes"]');
             if (notesInput) notesInput.value = '';
         }
@@ -3710,6 +3763,10 @@ async function saveAdjustedBrew() {
 
 // Helper function to save preferred recipe with specific data
 async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = null) {
+    console.log('[SAVE-PREF] Saving preferred recipe:', brewMethod);
+    console.log('[SAVE-PREF] recipeData.notes:', recipeData?.notes);
+    console.log('[SAVE-PREF] coffee_hash:', state.currentCoffeeAnalysis?.coffee_hash);
+
     // Always save to localStorage as backup
     saveRecipeToLocalStorage(
         state.currentCoffeeAnalysis,
@@ -3726,8 +3783,8 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
     const supabase = window.getSupabase();
     const userId = window.auth.getUserId();
 
-    // Create a hash from coffee characteristics
-    const coffeeHash = createCoffeeHash(
+    // Use preserved hash if available (from loaded saved recipes), otherwise compute
+    const coffeeHash = state.currentCoffeeAnalysis.coffee_hash || createCoffeeHash(
         state.currentCoffeeAnalysis.name,
         state.currentCoffeeAnalysis.roaster,
         state.currentCoffeeAnalysis.roast_level,
@@ -3750,14 +3807,16 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
     };
 
     try {
-        // Check if recipe already exists
-        const { data: existing } = await supabase
+        // Check if recipe already exists (use limit(1) instead of maybeSingle to handle duplicates gracefully)
+        const { data: existingArr } = await supabase
             .from('saved_recipes')
             .select('id, times_brewed, notes')
             .eq('user_id', userId)
             .eq('coffee_hash', coffeeHash)
             .eq('brew_method', brewMethod)
-            .maybeSingle();
+            .order('last_brewed', { ascending: false })
+            .limit(1);
+        const existing = existingArr && existingArr.length > 0 ? existingArr[0] : null;
 
         if (existing) {
             // Update existing recipe and append notes
@@ -3782,7 +3841,8 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
                 .eq('id', existing.id);
 
             if (error) throw error;
-            console.log('Updated existing preferred recipe');
+            console.log('[SAVE-DB] Updated existing preferred recipe, id:', existing.id);
+            console.log('[SAVE-DB] Update data recipe.notes:', recipeData?.notes);
         } else {
             // Insert new preferred recipe
             if (notes && notes.trim()) {
@@ -3795,12 +3855,12 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
                 .insert([preferredRecipe]);
 
             if (error) throw error;
-            console.log('Inserted new preferred recipe');
+            console.log('[SAVE-DB] Inserted new preferred recipe');
         }
 
-        console.log('Saved as preferred recipe');
+        console.log('[SAVE-DB] Saved as preferred recipe successfully');
     } catch (error) {
-        console.error('Failed to save preferred recipe:', error);
+        console.error('[SAVE-DB] Failed to save preferred recipe:', error);
     }
 }
 
@@ -3899,7 +3959,12 @@ async function integrateSavedRecipes(analysisData) {
         // Add saved recipes first (prioritized)
         savedRecipes.forEach(saved => {
             const brewMethod = saved.brew_method;
-            const savedRecipe = saved.recipe;
+            const savedRecipe = saved.recipe || {};
+
+            // Ensure notes are inside recipe params (migrate from old separate notes field)
+            if (!savedRecipe.notes && saved.notes) {
+                savedRecipe.notes = saved.notes;
+            }
 
             // Check if AI also recommended this method
             const aiTechnique = aiTechniqueMap[brewMethod];
@@ -3911,8 +3976,7 @@ async function integrateSavedRecipes(analysisData) {
                     `You previously saved this recipe for this coffee (brewed ${saved.times_brewed || 1} time${saved.times_brewed > 1 ? 's' : ''}). Using your preferred parameters.`,
                 parameters: savedRecipe,
                 technique_notes: aiTechnique?.technique_notes || '',
-                is_saved_recipe: true, // Flag to indicate this is a saved recipe
-                saved_notes: saved.notes || null
+                is_saved_recipe: true
             };
 
             console.log('Adding saved recipe to techniques:', brewMethod, 'is_saved_recipe:', technique.is_saved_recipe);
@@ -3951,7 +4015,8 @@ async function integrateSavedRecipes(analysisData) {
 // Save recipe to localStorage for non-authenticated users
 function saveRecipeToLocalStorage(coffeeAnalysis, brewMethod, recipeData, notes = null) {
     try {
-        const coffeeHash = createCoffeeHash(
+        // Use preserved hash if available (from loaded saved recipes), otherwise compute
+        const coffeeHash = coffeeAnalysis.coffee_hash || createCoffeeHash(
             coffeeAnalysis.name,
             coffeeAnalysis.roaster,
             coffeeAnalysis.roast_level,
@@ -4007,7 +4072,10 @@ function saveRecipeToLocalStorage(coffeeAnalysis, brewMethod, recipeData, notes 
         }
 
         localStorage.setItem('saved_recipes', JSON.stringify(savedRecipes));
-        console.log('Recipe saved to localStorage');
+        console.log('[SAVE-LS] Recipe saved to localStorage');
+        console.log('[SAVE-LS] Hash:', coffeeHash, 'Method:', brewMethod);
+        console.log('[SAVE-LS] recipe.notes inside recipeData:', recipeData?.notes);
+        console.log('[SAVE-LS] Existing index:', existingIndex);
     } catch (error) {
         console.error('Failed to save recipe to localStorage:', error);
     }
