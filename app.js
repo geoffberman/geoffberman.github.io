@@ -1037,6 +1037,12 @@ async function analyzeImage(specificMethod = null) {
             requestBody.specificMethod = specificMethod;
         }
 
+        // Add selected filter type if available (for pour-over recipe tailoring)
+        const filterType = getSelectedFilterType();
+        if (filterType) {
+            requestBody.selectedFilterType = filterType;
+        }
+
         const response = await fetch('/api/analyze', {
             method: 'POST',
             headers: {
@@ -2044,6 +2050,20 @@ function getEquipmentDescription() {
     return parts.length > 0 ? parts.join('; ') : null;
 }
 
+function getSelectedFilterType() {
+    // Get filter from the active technique's filter selector dropdown
+    const idx = state.activeTechniqueIndex;
+    if (idx != null) {
+        const selector = document.querySelector(`.filter-selector[data-technique-index="${idx}"]`);
+        if (selector && selector.value) return selector.value;
+        if (state.selectedFilters && state.selectedFilters[idx]) return state.selectedFilters[idx];
+    }
+    // Fallback: check if any filter selector has a value
+    const anySelector = document.querySelector('.filter-selector');
+    if (anySelector && anySelector.value) return anySelector.value;
+    return null;
+}
+
 function checkForPoorEquipment() {
     if (!state.equipment) return null;
 
@@ -2957,6 +2977,8 @@ async function submitFeedbackOnly() {
             },
             body: JSON.stringify({
                 equipment: equipmentDescription,
+                currentBrewMethod: state.currentBrewMethod,
+                selectedFilterType: getSelectedFilterType(),
                 adjustmentRequest: `User feedback: ${userFeedback}`,
                 previousAnalysis: state.currentCoffeeAnalysis
             })
@@ -3048,6 +3070,7 @@ async function adjustRecipeBasedOnRating(rating) {
             body: JSON.stringify({
                 equipment: equipmentDescription,
                 currentBrewMethod: state.currentBrewMethod,
+                selectedFilterType: getSelectedFilterType(),
                 adjustmentRequest: adjustmentGuidance,
                 previousAnalysis: state.currentCoffeeAnalysis
             })

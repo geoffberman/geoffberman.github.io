@@ -62,7 +62,7 @@ module.exports = async function handler(req, res) {
     }
 
     try {
-        const { image, mediaType, equipment, specificMethod, currentBrewMethod, adjustmentRequest, previousAnalysis } = req.body;
+        const { image, mediaType, equipment, specificMethod, currentBrewMethod, selectedFilterType, adjustmentRequest, previousAnalysis } = req.body;
 
         // Handle recipe adjustment requests
         if (adjustmentRequest && previousAnalysis) {
@@ -80,7 +80,7 @@ Previous coffee details:
 Brew Method Used: ${currentBrewMethod || 'Unknown'}
 
 Equipment: ${equipment}
-
+${selectedFilterType ? `\nFilter Being Used: ${selectedFilterType}\n\n⚠️ FILTER-AWARE ADJUSTMENTS: The user is brewing with a "${selectedFilterType}" filter. Factor this into your adjusted parameters:\n- **Sibarist Fast / Sibarist B3**: Very fast flow rate — use finer grind to compensate, shorter total brew time expected, more aggressive pour schedule\n- **Paper - White (bleached)**: Standard flow rate, clean cup, neutral baseline\n- **Paper - Natural (unbleached)**: Slightly slower than white, can add papery taste if not rinsed well\n- **Cafec**: Medium-fast flow depending on model, typically clean cup similar to white paper\n- **Metal (reusable)**: Very fast flow, passes oils and fines — use finer grind, expect more body and sediment, shorter drawdown\n- **Cloth**: Medium-slow flow, produces very clean but full-bodied cup — slightly coarser grind than paper\nAdjust grind size, pour timing, and brew time recommendations based on this filter's flow characteristics.\n` : ''}
 ⚠️ CRITICAL: The user brewed this coffee using "${currentBrewMethod}". You MUST provide adjustments for the SAME brew method (${currentBrewMethod}). DO NOT switch to a different brew method.
 
 ⚠️ IMPORTANT: Analyze the user's feedback to determine the appropriate response:
@@ -207,6 +207,16 @@ For Pour Over (V60, etc):
 - Focus on even extraction and drawdown times
 - Modern pour patterns (center pours, swirling)
 
+⚠️ FILTER-SPECIFIC BREWING ADJUSTMENTS:
+If the user's equipment includes filters, tailor pour-over parameters based on filter type:
+- **Sibarist Fast**: Very fast drainage — grind FINER than normal (2-3 clicks finer), faster pours acceptable, expect 2:00-2:30 total brew time for V60. Produces very clean, tea-like cup.
+- **Sibarist B3**: Fast drainage (slightly slower than Fast) — grind 1-2 clicks finer, 2:15-2:45 brew time. Balanced clarity with some body.
+- **Paper - White (bleached)**: Standard baseline flow rate. Use normal V60 grind recommendations. 2:30-3:30 brew time.
+- **Paper - Natural (unbleached)**: Slightly slower than white paper — can grind slightly coarser. Rinse thoroughly to avoid papery taste.
+- **Cafec**: Medium-fast flow (depends on model) — similar to white paper but slightly faster. Grind 1 click finer than standard paper.
+- **Metal (reusable)**: Very fast flow, passes oils and fines — grind significantly FINER (3-4 clicks finer than paper). Produces full-bodied cup with oils. Shorter drawdown expected.
+- **Cloth**: Medium-slow flow — grind slightly COARSER than paper. Produces very clean but full-bodied cup. Longer drawdown, 3:00-3:45.
+
 GRINDER-SPECIFIC SETTINGS:
 When recommending grind sizes, if you see equipment mentions specific grinders, tailor your advice:
 - **Ceado E37SD / E37S**: Dial goes from 0 (finest) to 9 (coarsest) with micro-adjustments between each number
@@ -241,6 +251,10 @@ IMPORTANT: Only include information you can actually see or confidently infer fr
             // User wants a specific brew method
             promptText += `\n\nThe user specifically wants a recipe for: ${specificMethod}\n\nProvide ONLY one recommendation using this method. Tailor the parameters to this coffee based on what you can see.`;
 
+            if (selectedFilterType) {
+                promptText += `\n\n🔎 SELECTED FILTER: ${selectedFilterType}\nThe user is brewing with a "${selectedFilterType}" filter. If this is a pour-over method, you MUST adjust grind size, pour schedule, and brew time based on this filter's flow characteristics (see filter-specific adjustments above).`;
+            }
+
             // Special handling for milk-based drinks
             if (specificMethod.toLowerCase().includes('latte') || specificMethod.toLowerCase().includes('cappuccino') || specificMethod.toLowerCase().includes('cortado') || specificMethod.toLowerCase().includes('flat white')) {
                 promptText += `\n\n⚠️ MILK DRINK REQUIREMENT: This is a milk-based drink. You MUST provide:\n1. Espresso shot parameters (dose, yield, time, etc.)\n2. Milk steaming instructions (temperature, texture, volume)\n3. Assembly/ratio instructions (espresso:milk ratio)\n4. The technique_name should be "${specificMethod}" - do NOT change it to just "Espresso" or "Turbo Shot"`;
@@ -248,7 +262,7 @@ IMPORTANT: Only include information you can actually see or confidently infer fr
         } else if (equipment) {
             promptText += `\n\n⚠️ CRITICAL EQUIPMENT REQUIREMENT:
 User's available equipment: ${equipment}
-
+${selectedFilterType ? `\n🔎 SELECTED FILTER FOR THIS BREW: ${selectedFilterType}\nThe user has specifically chosen to brew with a "${selectedFilterType}" filter. For any pour-over recommendations, you MUST adjust grind size, pour schedule, and brew time based on this filter's flow characteristics (see filter-specific adjustments above).\n` : ''}
 IMPORTANT CONSTRAINTS:
 1. You MUST ONLY recommend brewing methods that the user can perform with their EXISTING equipment listed above
 2. DO NOT suggest methods they don't have equipment for
