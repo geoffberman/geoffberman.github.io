@@ -113,14 +113,8 @@ const elements = {
     savedRecipesLoginPrompt: document.getElementById('saved-recipes-login-prompt'),
     signinForRecipesBtn: document.getElementById('signin-for-recipes-btn'),
 
-    // Cancel and history
-    cancelAnalysisBtn: document.getElementById('cancel-analysis-btn'),
-    brewHistoryBtn: document.getElementById('brew-history-btn'),
-    brewHistorySection: document.getElementById('brew-history-section'),
-    brewHistoryContent: document.getElementById('brew-history-content'),
-    brewHistoryEmpty: document.getElementById('brew-history-empty'),
-    brewHistoryLoading: document.getElementById('brew-history-loading'),
-    closeHistoryBtn: document.getElementById('close-history-btn')
+    // Cancel button
+    cancelAnalysisBtn: document.getElementById('cancel-analysis-btn')
 };
 
 // Grinder settings mappings
@@ -581,10 +575,6 @@ async function init() {
     // Load saved recipes dropdown
     await populateSavedRecipesDropdown();
 
-    // Show brew history button if authenticated
-    if (window.auth && window.auth.isAuthenticated()) {
-        elements.brewHistoryBtn.classList.remove('hidden');
-    }
 }
 
 // Handle auth state changes
@@ -597,17 +587,11 @@ function handleAuthStateChange(event, session) {
         loadEquipmentFromDatabase();
         // Refresh saved recipes dropdown after sign in
         populateSavedRecipesDropdown();
-        elements.brewHistoryBtn.classList.remove('hidden');
     } else if (event === 'SIGNED_OUT') {
         hideUserProfile();
         showSignInButton();
         // Update saved recipes dropdown after sign out
         populateSavedRecipesDropdown();
-        elements.brewHistoryBtn.classList.add('hidden');
-        // Hide history section if open
-        if (elements.brewHistorySection) {
-            elements.brewHistorySection.classList.add('hidden');
-        }
     }
 }
 
@@ -953,15 +937,6 @@ function setupEventListeners() {
         if (state.currentAbortController) {
             state.currentAbortController.abort();
         }
-    });
-
-    // Brew history
-    elements.brewHistoryBtn.addEventListener('click', () => {
-        toggleBrewHistory();
-    });
-
-    elements.closeHistoryBtn.addEventListener('click', () => {
-        elements.brewHistorySection.classList.add('hidden');
     });
 
     elements.signinForRecipesBtn.addEventListener('click', () => {
@@ -4204,221 +4179,6 @@ function updateWizardUI() {
     if (prevBtn) prevBtn.style.display = wizardStep > 1 ? '' : 'none';
     if (nextBtn) nextBtn.style.display = wizardStep < WIZARD_TOTAL_STEPS ? '' : 'none';
     if (saveBtn) saveBtn.style.display = wizardStep === WIZARD_TOTAL_STEPS ? '' : 'none';
-}
-
-// ============================================
-// Brew History Functions
-// ============================================
-
-function toggleBrewHistory() {
-    const section = elements.brewHistorySection;
-    if (!section) return;
-
-    if (section.classList.contains('hidden')) {
-        // Show history section
-        section.classList.remove('hidden');
-        loadBrewHistory();
-    } else {
-        section.classList.add('hidden');
-    }
-}
-
-async function loadBrewHistory(limit = 20) {
-    if (!window.auth || !window.auth.isAuthenticated()) return;
-
-    const content = elements.brewHistoryContent;
-    const empty = elements.brewHistoryEmpty;
-    const loading = elements.brewHistoryLoading;
-
-    if (!content) return;
-
-    // Show loading
-    content.innerHTML = '';
-    if (empty) empty.classList.add('hidden');
-    if (loading) loading.classList.remove('hidden');
-
-    try {
-        const supabase = window.getSupabase();
-        const userId = window.auth.getUserId();
-
-        const { data, error } = await supabase
-            .from('brew_sessions')
-            .select('*')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false })
-            .limit(limit);
-
-        if (loading) loading.classList.add('hidden');
-
-        if (error) {
-            console.error('Failed to load brew history:', error);
-            content.innerHTML = '<p style="color: var(--error-color);">Failed to load brew history.</p>';
-            return;
-        }
-
-        if (!data || data.length === 0) {
-            if (empty) empty.classList.remove('hidden');
-            return;
-        }
-
-        renderBrewHistory(data);
-    } catch (err) {
-        console.error('Error loading brew history:', err);
-        if (loading) loading.classList.add('hidden');
-        content.innerHTML = '<p style="color: var(--error-color);">Failed to load brew history.</p>';
-    }
-}
-
-function renderBrewHistory(sessions) {
-    const content = elements.brewHistoryContent;
-    if (!content) return;
-
-    const html = sessions.map(session => {
-        const date = new Date(session.created_at);
-        const dateStr = date.toLocaleDateString('en-US', {
-            month: 'short', day: 'numeric', year: 'numeric'
-        });
-        const timeStr = date.toLocaleTimeString('en-US', {
-            hour: 'numeric', minute: '2-digit'
-        });
-
-        // Rating badge
-        let ratingClass = '';
-        let ratingText = '';
-        switch (session.rating) {
-            case 'perfect':
-                ratingClass = 'rating-perfect';
-                ratingText = 'Perfect';
-                break;
-            case 'too_sour':
-                ratingClass = 'rating-sour';
-                ratingText = 'Too Sour';
-                break;
-            case 'too_bitter':
-                ratingClass = 'rating-bitter';
-                ratingText = 'Too Bitter';
-                break;
-            case 'manual_adjustment':
-                ratingClass = 'rating-adjustment';
-                ratingText = 'Adjusted';
-                break;
-            default:
-                ratingClass = '';
-                ratingText = session.rating || 'Rated';
-        }
-
-        // Key params summary from original_recipe
-        const recipe = session.original_recipe || {};
-        const paramSummary = [];
-        if (recipe.dose) paramSummary.push(`Dose: ${recipe.dose}`);
-        if (recipe.grind_size) paramSummary.push(`Grind: ${recipe.grind_size}`);
-        if (recipe.water_temp) paramSummary.push(`Temp: ${recipe.water_temp}`);
-        if (recipe.brew_time) paramSummary.push(`Time: ${recipe.brew_time}`);
-
-        return `
-            <div class="brew-history-card ${ratingClass}" data-session-id="${session.id}">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; cursor: pointer;" onclick="toggleHistoryDetail('${session.id}')">
-                    <div>
-                        <strong>${session.coffee_name || 'Unknown Coffee'}</strong>
-                        <div style="font-size: 0.85rem; color: var(--secondary-color); margin-top: 2px;">
-                            ${session.brew_method || 'Unknown Method'}${session.roaster ? ` · ${session.roaster}` : ''}
-                        </div>
-                        <div style="font-size: 0.8rem; color: var(--secondary-color); margin-top: 2px;">
-                            ${dateStr} at ${timeStr}
-                        </div>
-                    </div>
-                    <span class="rating-badge ${ratingClass}">${ratingText}</span>
-                </div>
-                ${paramSummary.length > 0 ? `
-                    <div style="font-size: 0.8rem; color: var(--secondary-color); margin-top: 6px;">
-                        ${paramSummary.join(' · ')}
-                    </div>
-                ` : ''}
-                <div class="brew-history-detail hidden" id="history-detail-${session.id}">
-                    ${renderHistoryDetailContent(session)}
-                </div>
-            </div>
-        `;
-    }).join('');
-
-    content.innerHTML = html;
-}
-
-function renderHistoryDetailContent(session) {
-    let detailHtml = '';
-
-    // Original recipe parameters
-    if (session.original_recipe && typeof session.original_recipe === 'object') {
-        detailHtml += '<div style="margin-top: 8px;"><strong style="font-size: 0.85rem;">Original Recipe</strong>';
-        detailHtml += '<table class="brew-parameters-table" style="margin-top: 6px; font-size: 0.8rem;">';
-        detailHtml += '<thead><tr><th>Parameter</th><th>Value</th></tr></thead><tbody>';
-        for (const [key, value] of Object.entries(session.original_recipe)) {
-            if (value && typeof value !== 'object') {
-                const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                detailHtml += `<tr><td>${label}</td><td>${value}</td></tr>`;
-            }
-        }
-        detailHtml += '</tbody></table></div>';
-    }
-
-    // Actual brew if different from original
-    if (session.actual_brew && typeof session.actual_brew === 'object' &&
-        JSON.stringify(session.actual_brew) !== JSON.stringify(session.original_recipe)) {
-        detailHtml += '<div style="margin-top: 8px;"><strong style="font-size: 0.85rem;">Actual Brew</strong>';
-        detailHtml += '<table class="brew-parameters-table" style="margin-top: 6px; font-size: 0.8rem;">';
-        detailHtml += '<thead><tr><th>Parameter</th><th>Value</th></tr></thead><tbody>';
-        for (const [key, value] of Object.entries(session.actual_brew)) {
-            if (value && typeof value !== 'object') {
-                const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                detailHtml += `<tr><td>${label}</td><td>${value}</td></tr>`;
-            }
-        }
-        detailHtml += '</tbody></table></div>';
-    }
-
-    // Adjusted recipe if present
-    if (session.adjusted_recipe && typeof session.adjusted_recipe === 'object') {
-        detailHtml += '<div style="margin-top: 8px;"><strong style="font-size: 0.85rem;">Adjusted Recipe</strong>';
-        detailHtml += '<table class="brew-parameters-table" style="margin-top: 6px; font-size: 0.8rem;">';
-        detailHtml += '<thead><tr><th>Parameter</th><th>Value</th></tr></thead><tbody>';
-        for (const [key, value] of Object.entries(session.adjusted_recipe)) {
-            if (value && typeof value !== 'object') {
-                const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                detailHtml += `<tr><td>${label}</td><td>${value}</td></tr>`;
-            }
-        }
-        detailHtml += '</tbody></table></div>';
-    }
-
-    // User notes if present
-    if (session.user_notes) {
-        detailHtml += `<div style="margin-top: 8px;"><strong style="font-size: 0.85rem;">Notes</strong>
-            <p style="font-size: 0.85rem; margin-top: 4px; color: var(--secondary-color);">${session.user_notes}</p></div>`;
-    }
-
-    // Additional info
-    const meta = [];
-    if (session.roast_level && session.roast_level !== 'Unknown') meta.push(`Roast: ${session.roast_level}`);
-    if (session.origin && session.origin !== 'Unknown') meta.push(`Origin: ${session.origin}`);
-    if (session.processing && session.processing !== 'Unknown') meta.push(`Processing: ${session.processing}`);
-    if (session.flavor_notes && Array.isArray(session.flavor_notes) && session.flavor_notes.length > 0) {
-        meta.push(`Flavors: ${session.flavor_notes.join(', ')}`);
-    }
-
-    if (meta.length > 0) {
-        detailHtml += `<div style="margin-top: 8px; font-size: 0.8rem; color: var(--secondary-color);">
-            ${meta.join(' · ')}
-        </div>`;
-    }
-
-    return detailHtml || '<p style="font-size: 0.85rem; color: var(--secondary-color);">No detailed data available.</p>';
-}
-
-function toggleHistoryDetail(sessionId) {
-    const detail = document.getElementById(`history-detail-${sessionId}`);
-    if (detail) {
-        detail.classList.toggle('hidden');
-    }
 }
 
 // ============================================
