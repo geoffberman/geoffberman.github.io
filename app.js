@@ -3769,6 +3769,18 @@ async function saveAdjustedBrew() {
             actualBrew[param] = input.value.trim();
         });
 
+        // Capture selected filter type if available
+        const filterSelector = document.querySelector('.filter-selector');
+        if (filterSelector && filterSelector.value) {
+            actualBrew.filter_type = filterSelector.value;
+        } else if (state.selectedFilters) {
+            // Fall back to state if dropdown not found
+            const idx = Object.keys(state.selectedFilters)[0];
+            if (idx && state.selectedFilters[idx]) {
+                actualBrew.filter_type = state.selectedFilters[idx];
+            }
+        }
+
         // Collect notes
         const notesTextarea = document.getElementById('adjusted-recipe-notes');
         const notes = notesTextarea ? notesTextarea.value.trim() : null;
