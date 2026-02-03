@@ -1559,6 +1559,11 @@ function displayResults(data) {
                 state.selectedFilters = {};
             }
             state.selectedFilters[techniqueIndex] = selectedFilter;
+            // Also update the param-input filter select in the adjustment table
+            const paramInput = document.querySelector(`#recipe-table-${techniqueIndex} .param-input[data-param="filter_type"]`);
+            if (paramInput) {
+                paramInput.value = selectedFilter;
+            }
             // Show prompt to update recipe for this filter
             showFilterUpdatePrompt(techniqueIndex, selectedFilter);
         });
