@@ -4354,39 +4354,34 @@ async function updateRecipeForFilter(techniqueIndex, filterType) {
 function updateRecipeTableBody(tableBody, params, techniqueName) {
     if (!tableBody || !params) return;
 
-    // Build new rows from adjusted parameters
-    const rows = [];
-    const paramOrder = ['dose', 'yield', 'ratio', 'water_temp', 'grind_size', 'brew_time',
-                        'pressure', 'flow_control', 'total_water', 'bloom', 'pours',
-                        'technique', 'filter_type', 'notes'];
+    // Update existing rows in-place rather than replacing them,
+    // to preserve the adjustment column, notes textarea, and other interactive elements
+    const rows = tableBody.querySelectorAll('tr');
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length < 2) return;
 
-    const paramLabels = {
-        dose: 'Dose', yield: 'Yield', ratio: 'Ratio', water_temp: 'Water Temp',
-        grind_size: 'Grind Size', brew_time: 'Brew Time', pressure: 'Pressure',
-        flow_control: 'Flow Control', total_water: 'Total Water', bloom: 'Bloom',
-        pours: 'Pours', technique: 'Technique', filter_type: 'Filter Type', notes: 'Notes'
-    };
+        // Find which param this row represents by checking the input/textarea data-param
+        const input = row.querySelector('.param-input');
+        const paramKey = input ? input.getAttribute('data-param') : null;
 
-    // First add params in preferred order
-    for (const key of paramOrder) {
-        if (params[key] && params[key] !== 'N/A') {
-            let value = params[key];
-            if (key === 'grind_size') {
+        if (paramKey && params[paramKey] !== undefined) {
+            let value = params[paramKey];
+            if (paramKey === 'grind_size') {
                 value = formatGrindSize(value, state.equipment?.grinder);
             }
-            rows.push(`<tr><td>${paramLabels[key] || key}</td><td>${value}</td></tr>`);
+            // Update the display cell (second td)
+            if (paramKey === 'notes') {
+                cells[1].innerHTML = value || '';
+            } else {
+                cells[1].textContent = value;
+            }
+            // Update the input/textarea value too
+            if (input) {
+                input.value = value || '';
+            }
         }
-    }
-
-    // Then add any remaining params not in the order list
-    for (const [key, value] of Object.entries(params)) {
-        if (!paramOrder.includes(key) && value && value !== 'N/A' && typeof value !== 'object') {
-            const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-            rows.push(`<tr><td>${label}</td><td>${value}</td></tr>`);
-        }
-    }
-
-    tableBody.innerHTML = rows.join('');
+    });
 }
 
 // Initialize app when DOM is ready
