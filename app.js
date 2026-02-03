@@ -3100,7 +3100,13 @@ async function adjustRecipeBasedOnRating(rating) {
                 currentBrewMethod: state.currentBrewMethod,
                 selectedFilterType: getSelectedFilterType(),
                 adjustmentRequest: adjustmentGuidance,
-                previousAnalysis: state.currentCoffeeAnalysis
+                previousAnalysis: {
+                    name: state.currentCoffeeAnalysis.name || 'Unknown',
+                    roaster: state.currentCoffeeAnalysis.roaster || 'Unknown',
+                    roast_level: state.currentCoffeeAnalysis.roast_level || 'Unknown',
+                    origin: state.currentCoffeeAnalysis.origin || 'Unknown',
+                    processing: state.currentCoffeeAnalysis.processing || 'Unknown'
+                }
             })
         });
 
