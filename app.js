@@ -4247,26 +4247,28 @@ async function updateRecipeForFilter(techniqueIndex, filterType) {
     try {
         const equipmentDescription = getEquipmentDescription();
 
-        // Sanitize parameters to avoid control characters in JSON
-        const sanitizedParams = {};
+        // Build a flat, single-line adjustment guidance string to avoid control chars
+        const paramParts = [];
         if (technique.parameters && typeof technique.parameters === 'object') {
             for (const [key, value] of Object.entries(technique.parameters)) {
-                if (typeof value === 'string') {
-                    sanitizedParams[key] = value.replace(/[\n\r\t]/g, ' ').replace(/\s+/g, ' ').trim();
-                } else if (value != null && typeof value !== 'object') {
-                    sanitizedParams[key] = value;
+                if (value != null && typeof value !== 'object') {
+                    paramParts.push(key + ': ' + String(value).replace(/[\n\r\t]/g, ' ').replace(/\s+/g, ' ').trim());
                 }
             }
         }
 
-        const adjustmentGuidance = `The user changed their filter to "${filterType}". Please adjust the recipe parameters (especially grind size, brew time, and pour schedule/technique) to optimize for this filter type. Keep the same coffee, dose, and brew method but adjust extraction parameters for the filter characteristics.
+        const adjustmentGuidance = 'The user changed their filter to "' + filterType + '". Please adjust the recipe parameters (especially grind size, brew time, and pour schedule/technique) to optimize for this filter type. Keep the same coffee, dose, and brew method but adjust extraction parameters for the filter characteristics. ' +
+            'Filter info: Paper filters (Sibarist Fast, standard white) = clean cup, fast-flow allows finer grinds. Metal/mesh = fuller body, slightly coarser grind. Cloth = between paper and metal. ' +
+            'Current recipe parameters: ' + paramParts.join('; ');
 
-Filter characteristics to consider:
-- Paper filters (like Sibarist Fast, Fellow/standard white): Clean cup, absorb oils. Fast-flow filters allow finer grinds and faster pours.
-- Metal/mesh filters: Allow oils and some fines through for fuller body. May need slightly coarser grind.
-- Cloth filters: Between paper and metal. Good clarity with some body.
-
-Current recipe parameters: ${JSON.stringify(sanitizedParams)}`;
+        // Only send the fields the server actually uses from previousAnalysis
+        const slimAnalysis = {
+            name: state.currentCoffeeAnalysis.name || 'Unknown',
+            roaster: state.currentCoffeeAnalysis.roaster || 'Unknown',
+            roast_level: state.currentCoffeeAnalysis.roast_level || 'Unknown',
+            origin: state.currentCoffeeAnalysis.origin || 'Unknown',
+            processing: state.currentCoffeeAnalysis.processing || 'Unknown'
+        };
 
         const response = await fetch('/api/analyze', {
             method: 'POST',
@@ -4278,7 +4280,7 @@ Current recipe parameters: ${JSON.stringify(sanitizedParams)}`;
                 currentBrewMethod: technique.technique_name,
                 selectedFilterType: filterType,
                 adjustmentRequest: adjustmentGuidance,
-                previousAnalysis: state.currentCoffeeAnalysis
+                previousAnalysis: slimAnalysis
             })
         });
 
