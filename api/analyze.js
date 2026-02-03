@@ -38,6 +38,7 @@ module.exports = async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Expose-Headers', 'Retry-After, X-RateLimit-Limit, X-RateLimit-Remaining');
 
     // Handle preflight request
     if (req.method === 'OPTIONS') {
@@ -135,7 +136,18 @@ Make the adjusted_parameters complete and ready to display in a table. The adjus
             }
 
             const adjustmentData = await adjustmentResponse.json();
-            res.status(200).json(adjustmentData);
+            // Sanitize response to remove control characters that break client JSON parsing
+            const sanitizedData = JSON.parse(JSON.stringify(adjustmentData, (key, value) => {
+                if (typeof value === 'string') {
+                    return value.replace(/[\x00-\x1f]/g, (ch) => {
+                        const code = ch.charCodeAt(0);
+                        if (code === 9 || code === 10 || code === 13) return ' '; // tab, newline, CR -> space
+                        return ''; // remove other control chars
+                    });
+                }
+                return value;
+            }));
+            res.status(200).json(sanitizedData);
             return;
         }
 
@@ -430,7 +442,18 @@ Read the image carefully and extract all visible information accurately. Provide
         }
 
         const data = await response.json();
-        res.status(200).json(data);
+        // Sanitize response to remove control characters that break client JSON parsing
+        const sanitizedData = JSON.parse(JSON.stringify(data, (key, value) => {
+            if (typeof value === 'string') {
+                return value.replace(/[\x00-\x1f]/g, (ch) => {
+                    const code = ch.charCodeAt(0);
+                    if (code === 9 || code === 10 || code === 13) return ' '; // tab, newline, CR -> space
+                    return ''; // remove other control chars
+                });
+            }
+            return value;
+        }));
+        res.status(200).json(sanitizedData);
 
     } catch (error) {
         console.error('Analysis error:', error);

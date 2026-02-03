@@ -888,6 +888,67 @@ footer {
     }
 }
 
+/* Recipe table mobile overflow */
+@media (max-width: 600px) {
+    .brew-parameters-table .adjustment-column {
+        min-width: 120px;
+    }
+    .brew-parameters-table .param-input {
+        font-size: 0.8rem;
+        padding: 4px 6px;
+    }
+}
+
+@media (max-width: 480px) {
+    .brew-parameters-table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .brew-parameters-table th,
+    .brew-parameters-table td {
+        padding: 8px;
+        font-size: 0.85rem;
+        min-width: 80px;
+    }
+    .brew-parameters-table td:first-child {
+        min-width: 70px;
+        width: auto;
+    }
+}
+
+@media (max-width: 360px) {
+    .brew-parameters-table th,
+    .brew-parameters-table td {
+        padding: 6px;
+        font-size: 0.8rem;
+    }
+}
+
+/* Searchable saved recipes dropdown */
+.saved-recipes-dropdown {
+    max-height: 300px;
+    overflow-y: auto;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.saved-recipes-dropdown .recipe-option {
+    padding: 10px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 0.9rem;
+}
+.saved-recipes-dropdown .recipe-option:hover {
+    background: #f5f0eb;
+}
+.saved-recipes-dropdown .recipe-option .recipe-meta {
+    font-size: 0.75rem;
+    color: var(--secondary-color);
+    margin-top: 2px;
+}
+
 /* Responsive layout for brew recommendations */
 @media (max-width: 768px) {
     #method-content > div {
