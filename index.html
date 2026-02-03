@@ -31,6 +31,9 @@
                 </svg>
                 My Equipment
             </button>
+            <button id="brew-history-btn" class="btn btn-secondary hidden" style="margin-top: 8px;">
+                📋 Brew History
+            </button>
         </header>
 
         <!-- Authentication Modal -->
@@ -352,19 +355,21 @@
                 <!-- Saved Recipes Dropdown -->
                 <div id="saved-recipes-section" class="hidden" style="margin-top: 30px; padding-top: 20px; border-top: 2px solid var(--border-color);">
                     <h3 style="text-align: center; color: var(--secondary-color); font-size: 1rem; margin-bottom: 12px;">
-                        Quick Access to Recent Recipes
+                        Quick Access to Saved Recipes
                     </h3>
-                    <div style="display: flex; gap: 8px; align-items: center; max-width: 600px; margin: 0 auto;">
-                        <select id="saved-recipes-select" class="btn" style="flex: 1; height: 50px; font-size: 0.95rem; cursor: pointer;">
-                            <option value="">Choose from your recent recipes...</option>
-                            <!-- Options populated dynamically -->
-                        </select>
-                        <button id="load-saved-recipe-btn" class="btn btn-primary" disabled style="width: 40px; height: 40px; font-size: 1.3rem; padding: 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; min-width: 40px;">
-                            →
-                        </button>
+                    <div style="position: relative; max-width: 600px; margin: 0 auto;">
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="text" id="saved-recipes-input" class="btn" placeholder="Choose from recent recipes or search by name..." autocomplete="off" style="flex: 1; height: 50px; font-size: 0.95rem; text-align: left; cursor: text;" />
+                            <button id="load-saved-recipe-btn" class="btn btn-primary" disabled style="width: 40px; height: 40px; font-size: 1.3rem; padding: 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; min-width: 40px;">
+                                →
+                            </button>
+                        </div>
+                        <div id="saved-recipes-dropdown" class="saved-recipes-dropdown hidden">
+                            <!-- Populated dynamically with recipe items -->
+                        </div>
                     </div>
                     <p style="text-align: center; margin-top: 10px; font-size: 0.85rem; color: var(--secondary-color);">
-                        💾 Your 5 most recent saved recipes
+                        💾 Search by coffee name or pick from recent recipes
                     </p>
                 </div>
 
@@ -401,6 +406,7 @@
             <div id="loading-section" class="section hidden">
                 <div class="loading-spinner"></div>
                 <p class="loading-text">Analyzing your coffee...</p>
+                <button id="cancel-analysis-btn" class="btn btn-secondary" style="margin-top: 20px;">Cancel</button>
             </div>
 
             <div id="results-section" class="section hidden">
@@ -451,13 +457,8 @@
 
                         <div class="form-group" style="margin-top: 12px;">
                             <label for="user-feedback" style="font-weight: bold; color: var(--primary-color); font-size: 0.8rem;">Additional Feedback (Optional)</label>
-                            <div style="display: flex; gap: 8px; align-items: flex-start; margin-top: 6px;">
-                                <textarea id="user-feedback" rows="2" placeholder="anything you want to say about the taste or the recommendations?" style="width: 66%; padding: 6px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; resize: vertical; font-size: 0.8rem;"></textarea>
-                                <button id="submit-feedback-btn" class="btn btn-secondary hidden" style="padding: 6px 10px; font-size: 0.75rem; white-space: nowrap;">
-                                    Submit
-                                </button>
-                            </div>
-                            <small style="color: var(--secondary-color); font-size: 0.7rem; display: block; margin-top: 4px;">Use this to correct any misidentifications or provide specific feedback about the recipe</small>
+                            <textarea id="user-feedback" rows="2" placeholder="anything you want to say about the taste or the recommendations?" style="width: 100%; padding: 6px 8px; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; resize: vertical; font-size: 0.8rem; margin-top: 6px;"></textarea>
+                            <small style="color: var(--secondary-color); font-size: 0.7rem; display: block; margin-top: 4px;">Included when you click Adjust Recipe or Perfect As-Is</small>
                         </div>
 
                         <div style="display: flex; gap: 8px; margin-top: 12px;">
@@ -506,6 +507,22 @@
                     <p class="error-icon">⚠️</p>
                     <p class="error-message" id="error-message"></p>
                     <button id="retry-btn" class="btn btn-primary">Try Again</button>
+                </div>
+            </div>
+
+            <div id="brew-history-section" class="section hidden">
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3 style="margin: 0;">Brew History</h3>
+                        <button id="close-history-btn" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;">Close</button>
+                    </div>
+                    <div id="brew-history-content"></div>
+                    <div id="brew-history-empty" class="hidden" style="text-align: center; padding: 20px; color: var(--secondary-color);">
+                        <p>No brew sessions recorded yet. Rate a brew to start tracking!</p>
+                    </div>
+                    <div id="brew-history-loading" class="hidden" style="text-align: center; padding: 20px; color: var(--secondary-color);">
+                        <p>Loading brew history...</p>
+                    </div>
                 </div>
             </div>
         </main>

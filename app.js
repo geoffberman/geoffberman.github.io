@@ -9,7 +9,10 @@ const state = {
     hiddenAiRecommendations: null,
     currentImageHash: null,
     analysisInProgress: false,
-    selectedFilters: {}
+    selectedFilters: {},
+    currentAbortController: null,
+    selectedRecipeData: null,
+    recentRecipes: []
 };
 
 // Equipment wizard state
@@ -90,7 +93,7 @@ const elements = {
     tasteRating: document.getElementById('taste-rating'),
     ratingLabel: document.getElementById('rating-label'),
     userFeedback: document.getElementById('user-feedback'),
-    submitFeedbackBtn: document.getElementById('submit-feedback-btn'),
+    // submitFeedbackBtn removed - feedback included with rating actions
     adjustRecipeBtn: document.getElementById('adjust-recipe-btn'),
     adjustmentFeedback: document.getElementById('adjustment-feedback'),
     saveRecipeBtn: document.getElementById('save-recipe-btn'),
@@ -104,10 +107,20 @@ const elements = {
 
     // Saved recipes dropdown elements
     savedRecipesSection: document.getElementById('saved-recipes-section'),
-    savedRecipesSelect: document.getElementById('saved-recipes-select'),
+    savedRecipesInput: document.getElementById('saved-recipes-input'),
+    savedRecipesDropdown: document.getElementById('saved-recipes-dropdown'),
     loadSavedRecipeBtn: document.getElementById('load-saved-recipe-btn'),
     savedRecipesLoginPrompt: document.getElementById('saved-recipes-login-prompt'),
-    signinForRecipesBtn: document.getElementById('signin-for-recipes-btn')
+    signinForRecipesBtn: document.getElementById('signin-for-recipes-btn'),
+
+    // Cancel and history
+    cancelAnalysisBtn: document.getElementById('cancel-analysis-btn'),
+    brewHistoryBtn: document.getElementById('brew-history-btn'),
+    brewHistorySection: document.getElementById('brew-history-section'),
+    brewHistoryContent: document.getElementById('brew-history-content'),
+    brewHistoryEmpty: document.getElementById('brew-history-empty'),
+    brewHistoryLoading: document.getElementById('brew-history-loading'),
+    closeHistoryBtn: document.getElementById('close-history-btn')
 };
 
 // Grinder settings mappings
@@ -327,7 +340,6 @@ async function getRecentSavedRecipes(limit = 5) {
 
 // Populate the saved recipes dropdown with recent recipes
 async function populateSavedRecipesDropdown() {
-    const select = elements.savedRecipesSelect;
     const section = elements.savedRecipesSection;
     const loginPrompt = elements.savedRecipesLoginPrompt;
 
@@ -336,7 +348,6 @@ async function populateSavedRecipesDropdown() {
         // Check localStorage for recipes
         const localRecipes = localStorage.getItem('saved_recipes');
         if (!localRecipes || JSON.parse(localRecipes).length === 0) {
-            // No recipes and not logged in - show login prompt
             section.classList.add('hidden');
             loginPrompt.classList.remove('hidden');
             return;
@@ -347,47 +358,94 @@ async function populateSavedRecipesDropdown() {
     const recipes = await getRecentSavedRecipes(5);
 
     if (recipes.length === 0) {
-        // No saved recipes - hide dropdown
         section.classList.add('hidden');
         loginPrompt.classList.add('hidden');
         return;
     }
 
-    // Clear existing options (except first placeholder)
-    select.innerHTML = '<option value="">Choose from your recent recipes...</option>';
-
-    // Add recipe options
-    recipes.forEach((recipe, index) => {
-        const option = document.createElement('option');
-        option.value = index; // Use index as value
-
-        // Create label: "Coffee Name - Brew Method (Roaster)"
-        let label = '';
-        if (recipe.coffee_name && recipe.coffee_name !== 'Unknown') {
-            label = recipe.coffee_name;
-        } else {
-            label = 'Coffee Recipe';
-        }
-
-        label += ` - ${recipe.brew_method}`;
-
-        if (recipe.roaster && recipe.roaster !== 'Unknown') {
-            label += ` (${recipe.roaster})`;
-        }
-
-        // Add times brewed if > 1
-        if (recipe.times_brewed && recipe.times_brewed > 1) {
-            label += ` [${recipe.times_brewed}x]`;
-        }
-
-        option.textContent = label;
-        option.dataset.recipeData = JSON.stringify(recipe); // Store full recipe data
-        select.appendChild(option);
-    });
+    // Store recent recipes for quick access on focus
+    state.recentRecipes = recipes;
 
     // Show the dropdown section
     section.classList.remove('hidden');
     loginPrompt.classList.add('hidden');
+}
+
+// Search saved recipes by coffee name
+async function searchSavedRecipes(query) {
+    // Try Supabase first
+    if (window.auth && window.auth.isAuthenticated()) {
+        try {
+            const supabase = window.getSupabase();
+            const userId = window.auth.getUserId();
+            const { data, error } = await supabase
+                .from('saved_recipes')
+                .select('*')
+                .eq('user_id', userId)
+                .ilike('coffee_name', `%${query}%`)
+                .order('last_brewed', { ascending: false })
+                .limit(1000);
+            if (!error && data && data.length > 0) return data;
+        } catch (err) {
+            console.error('Search failed:', err);
+        }
+    }
+
+    // Fallback to localStorage
+    try {
+        const localRecipes = localStorage.getItem('saved_recipes');
+        if (localRecipes) {
+            const parsed = JSON.parse(localRecipes);
+            return parsed.filter(r =>
+                r.coffee_name && r.coffee_name.toLowerCase().includes(query.toLowerCase())
+            ).sort((a, b) => new Date(b.last_brewed) - new Date(a.last_brewed));
+        }
+    } catch (err) {
+        console.error('Local search failed:', err);
+    }
+    return [];
+}
+
+// Render recipe items in the searchable dropdown
+function renderRecipeDropdownItems(recipes) {
+    const dropdown = elements.savedRecipesDropdown;
+    if (!recipes || recipes.length === 0) {
+        dropdown.innerHTML = '<div style="padding: 12px; color: var(--secondary-color); font-size: 0.85rem; text-align: center;">No recipes found</div>';
+        return;
+    }
+
+    dropdown.innerHTML = recipes.map((recipe, index) => {
+        let label = recipe.coffee_name && recipe.coffee_name !== 'Unknown'
+            ? recipe.coffee_name : 'Coffee Recipe';
+        label += ` - ${recipe.brew_method}`;
+
+        let meta = '';
+        if (recipe.roaster && recipe.roaster !== 'Unknown') {
+            meta += recipe.roaster;
+        }
+        if (recipe.times_brewed && recipe.times_brewed > 1) {
+            meta += meta ? ` · ${recipe.times_brewed}x brewed` : `${recipe.times_brewed}x brewed`;
+        }
+
+        return `<div class="recipe-option" data-recipe-index="${index}">
+            <div>${label}</div>
+            ${meta ? `<div class="recipe-meta">${meta}</div>` : ''}
+        </div>`;
+    }).join('');
+
+    // Add click handlers
+    dropdown.querySelectorAll('.recipe-option').forEach((el, idx) => {
+        el.addEventListener('click', () => {
+            const recipe = recipes[idx];
+            let label = recipe.coffee_name && recipe.coffee_name !== 'Unknown'
+                ? recipe.coffee_name : 'Coffee Recipe';
+            label += ` - ${recipe.brew_method}`;
+            elements.savedRecipesInput.value = label;
+            state.selectedRecipeData = recipe;
+            elements.loadSavedRecipeBtn.disabled = false;
+            elements.savedRecipesDropdown.classList.add('hidden');
+        });
+    });
 }
 
 // Load a saved recipe directly without uploading a photo
@@ -522,6 +580,11 @@ async function init() {
 
     // Load saved recipes dropdown
     await populateSavedRecipesDropdown();
+
+    // Show brew history button if authenticated
+    if (window.auth && window.auth.isAuthenticated()) {
+        elements.brewHistoryBtn.classList.remove('hidden');
+    }
 }
 
 // Handle auth state changes
@@ -534,11 +597,17 @@ function handleAuthStateChange(event, session) {
         loadEquipmentFromDatabase();
         // Refresh saved recipes dropdown after sign in
         populateSavedRecipesDropdown();
+        elements.brewHistoryBtn.classList.remove('hidden');
     } else if (event === 'SIGNED_OUT') {
         hideUserProfile();
         showSignInButton();
         // Update saved recipes dropdown after sign out
         populateSavedRecipesDropdown();
+        elements.brewHistoryBtn.classList.add('hidden');
+        // Hide history section if open
+        if (elements.brewHistorySection) {
+            elements.brewHistorySection.classList.add('hidden');
+        }
     }
 }
 
@@ -802,21 +871,6 @@ function setupEventListeners() {
         }
     });
 
-    // User feedback textarea - show submit button when text is entered
-    elements.userFeedback.addEventListener('input', (e) => {
-        const hasText = e.target.value.trim().length > 0;
-        if (hasText) {
-            elements.submitFeedbackBtn.classList.remove('hidden');
-        } else {
-            elements.submitFeedbackBtn.classList.add('hidden');
-        }
-    });
-
-    // Submit feedback button (for standalone feedback without rating)
-    elements.submitFeedbackBtn.addEventListener('click', async () => {
-        await submitFeedbackOnly();
-    });
-
     // Adjust recipe button
     elements.adjustRecipeBtn.addEventListener('click', async () => {
         const rating = parseFloat(elements.tasteRating.value);
@@ -854,18 +908,60 @@ function setupEventListeners() {
         showEquipmentForm();
     });
 
-    // Saved recipes dropdown
-    elements.savedRecipesSelect.addEventListener('change', () => {
-        const selectedIndex = elements.savedRecipesSelect.value;
-        elements.loadSavedRecipeBtn.disabled = !selectedIndex;
+    // Saved recipes searchable input
+    let searchDebounceTimer = null;
+    elements.savedRecipesInput.addEventListener('focus', () => {
+        if (state.recentRecipes.length > 0) {
+            renderRecipeDropdownItems(state.recentRecipes);
+            elements.savedRecipesDropdown.classList.remove('hidden');
+        }
+    });
+
+    elements.savedRecipesInput.addEventListener('input', (e) => {
+        const query = e.target.value.trim();
+        clearTimeout(searchDebounceTimer);
+        state.selectedRecipeData = null;
+        elements.loadSavedRecipeBtn.disabled = true;
+
+        if (query.length < 2) {
+            renderRecipeDropdownItems(state.recentRecipes);
+            elements.savedRecipesDropdown.classList.remove('hidden');
+            return;
+        }
+
+        searchDebounceTimer = setTimeout(async () => {
+            const results = await searchSavedRecipes(query);
+            renderRecipeDropdownItems(results);
+            elements.savedRecipesDropdown.classList.remove('hidden');
+        }, 300);
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#saved-recipes-input') && !e.target.closest('#saved-recipes-dropdown')) {
+            elements.savedRecipesDropdown.classList.add('hidden');
+        }
     });
 
     elements.loadSavedRecipeBtn.addEventListener('click', () => {
-        const selectedOption = elements.savedRecipesSelect.selectedOptions[0];
-        if (selectedOption && selectedOption.dataset.recipeData) {
-            const recipeData = JSON.parse(selectedOption.dataset.recipeData);
-            loadSavedRecipeDirectly(recipeData);
+        if (state.selectedRecipeData) {
+            loadSavedRecipeDirectly(state.selectedRecipeData);
         }
+    });
+
+    // Cancel analysis button
+    elements.cancelAnalysisBtn.addEventListener('click', () => {
+        if (state.currentAbortController) {
+            state.currentAbortController.abort();
+        }
+    });
+
+    // Brew history
+    elements.brewHistoryBtn.addEventListener('click', () => {
+        toggleBrewHistory();
+    });
+
+    elements.closeHistoryBtn.addEventListener('click', () => {
+        elements.brewHistorySection.classList.add('hidden');
     });
 
     elements.signinForRecipesBtn.addEventListener('click', () => {
@@ -1043,18 +1139,18 @@ async function analyzeImage(specificMethod = null) {
             requestBody.selectedFilterType = filterType;
         }
 
+        state.currentAbortController = new AbortController();
+
         const response = await fetch('/api/analyze', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(requestBody)
+            body: JSON.stringify(requestBody),
+            signal: state.currentAbortController.signal
         });
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || `API request failed with status ${response.status}`);
-        }
+        await handleApiResponse(response);
 
         const data = await response.json();
         const analysisText = data.content[0].text;
@@ -1124,10 +1220,16 @@ async function analyzeImage(specificMethod = null) {
         showSection('results');
 
     } catch (error) {
+        if (error.name === 'AbortError') {
+            console.log('Analysis cancelled by user');
+            showSection('preview');
+            return;
+        }
         console.error('Analysis error:', error);
         showError(`Failed to analyze image: ${error.message}`);
     } finally {
         state.analysisInProgress = false;
+        state.currentAbortController = null;
     }
 }
 
@@ -1289,7 +1391,7 @@ function displayResults(data) {
         console.log(`Rendering technique ${index}:`, technique.technique_name, 'is_saved_recipe:', technique.is_saved_recipe);
 
         techniquesHTML += `
-            <div class="technique-card" style="border: 2px solid ${technique.is_saved_recipe ? 'var(--success-color)' : 'var(--border-color)'}; border-radius: 8px; padding: 20px; background: ${technique.is_saved_recipe ? 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)' : 'white'}; display: flex; flex-direction: column; justify-content: center;">
+            <div class="technique-card" data-technique-index="${index}" style="border: 2px solid ${technique.is_saved_recipe ? 'var(--success-color)' : 'var(--border-color)'}; border-radius: 8px; padding: 20px; background: ${technique.is_saved_recipe ? 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)' : 'white'}; display: flex; flex-direction: column; justify-content: center;">
                 <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; margin-bottom: 15px;">
                     <div style="flex: 1;">
                         <h4 style="margin: 0 0 5px 0; font-size: 1rem;">${technique.technique_name}</h4>
@@ -1482,6 +1584,8 @@ function displayResults(data) {
                 state.selectedFilters = {};
             }
             state.selectedFilters[techniqueIndex] = selectedFilter;
+            // Show prompt to update recipe for this filter
+            showFilterUpdatePrompt(techniqueIndex, selectedFilter);
         });
     });
 
@@ -1528,6 +1632,18 @@ function revealAiRecommendations() {
 function showError(message) {
     elements.errorMessage.textContent = message;
     showSection('error');
+}
+
+// Reusable API response handler with rate limit parsing
+async function handleApiResponse(response) {
+    if (response.ok) return response;
+    if (response.status === 429) {
+        const retryAfter = response.headers.get('Retry-After');
+        const minutes = retryAfter ? Math.ceil(parseInt(retryAfter) / 60) : 5;
+        throw new Error(`Too many requests. Please try again in ${minutes} minute${minutes > 1 ? 's' : ''}.`);
+    }
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Request failed (${response.status})`);
 }
 
 // Reset app
@@ -2951,69 +3067,6 @@ function updateRatingLabel(value) {
     elements.ratingLabel.textContent = label;
 }
 
-async function submitFeedbackOnly() {
-    const userFeedback = elements.userFeedback.value.trim();
-
-    if (!userFeedback) {
-        return;
-    }
-
-    if (!state.currentCoffeeAnalysis || !state.currentBrewMethod) {
-        console.error('No current coffee analysis or brew method available');
-        return;
-    }
-
-    // Show loading state
-    elements.submitFeedbackBtn.disabled = true;
-    elements.submitFeedbackBtn.textContent = '...';
-
-    try {
-        const equipmentDescription = getEquipmentDescription();
-
-        const response = await fetch('/api/analyze', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                equipment: equipmentDescription,
-                currentBrewMethod: state.currentBrewMethod,
-                selectedFilterType: getSelectedFilterType(),
-                adjustmentRequest: `User feedback: ${userFeedback}`,
-                previousAnalysis: state.currentCoffeeAnalysis
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error(`API request failed: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        // Display AI response
-        const responseText = data.content?.[0]?.text || 'Thank you for your feedback!';
-
-        elements.adjustmentFeedback.classList.remove('hidden');
-        elements.adjustmentFeedback.querySelector('p').innerHTML = responseText.replace(/\n/g, '<br>');
-
-        // Reset button
-        elements.submitFeedbackBtn.textContent = '💬 Submit Feedback';
-        elements.submitFeedbackBtn.disabled = false;
-
-        // Clear feedback textarea
-        elements.userFeedback.value = '';
-        elements.submitFeedbackBtn.classList.add('hidden');
-
-    } catch (error) {
-        console.error('Failed to submit feedback:', error);
-        elements.adjustmentFeedback.classList.remove('hidden');
-        elements.adjustmentFeedback.querySelector('p').textContent = 'Failed to submit feedback. Please try again.';
-
-        elements.submitFeedbackBtn.textContent = '💬 Submit Feedback';
-        elements.submitFeedbackBtn.disabled = false;
-    }
-}
-
 async function adjustRecipeBasedOnRating(rating) {
     if (!state.currentCoffeeAnalysis || !state.currentBrewMethod) {
         console.error('No current coffee analysis or brew method available');
@@ -3076,10 +3129,7 @@ async function adjustRecipeBasedOnRating(rating) {
             })
         });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || `HTTP ${response.status}`);
-        }
+        await handleApiResponse(response);
 
         const result = await response.json();
 
@@ -3643,6 +3693,7 @@ async function savePerfectRecipe(technique, techniqueIndex) {
         const userId = window.auth.getUserId();
 
         // Create brew session
+        const feedbackText = elements.userFeedback ? elements.userFeedback.value.trim() : '';
         const session = {
             user_id: userId,
             coffee_name: state.currentCoffeeAnalysis.name || 'Unknown',
@@ -3654,7 +3705,8 @@ async function savePerfectRecipe(technique, techniqueIndex) {
             brew_method: technique.technique_name,
             original_recipe: technique.parameters,
             actual_brew: technique.parameters, // Used as-is
-            rating: 'perfect'
+            rating: 'perfect',
+            ...(feedbackText && { user_notes: feedbackText })
         };
 
         const { error } = await supabase
@@ -4152,6 +4204,409 @@ function updateWizardUI() {
     if (prevBtn) prevBtn.style.display = wizardStep > 1 ? '' : 'none';
     if (nextBtn) nextBtn.style.display = wizardStep < WIZARD_TOTAL_STEPS ? '' : 'none';
     if (saveBtn) saveBtn.style.display = wizardStep === WIZARD_TOTAL_STEPS ? '' : 'none';
+}
+
+// ============================================
+// Brew History Functions
+// ============================================
+
+function toggleBrewHistory() {
+    const section = elements.brewHistorySection;
+    if (!section) return;
+
+    if (section.classList.contains('hidden')) {
+        // Show history section
+        section.classList.remove('hidden');
+        loadBrewHistory();
+    } else {
+        section.classList.add('hidden');
+    }
+}
+
+async function loadBrewHistory(limit = 20) {
+    if (!window.auth || !window.auth.isAuthenticated()) return;
+
+    const content = elements.brewHistoryContent;
+    const empty = elements.brewHistoryEmpty;
+    const loading = elements.brewHistoryLoading;
+
+    if (!content) return;
+
+    // Show loading
+    content.innerHTML = '';
+    if (empty) empty.classList.add('hidden');
+    if (loading) loading.classList.remove('hidden');
+
+    try {
+        const supabase = window.getSupabase();
+        const userId = window.auth.getUserId();
+
+        const { data, error } = await supabase
+            .from('brew_sessions')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(limit);
+
+        if (loading) loading.classList.add('hidden');
+
+        if (error) {
+            console.error('Failed to load brew history:', error);
+            content.innerHTML = '<p style="color: var(--error-color);">Failed to load brew history.</p>';
+            return;
+        }
+
+        if (!data || data.length === 0) {
+            if (empty) empty.classList.remove('hidden');
+            return;
+        }
+
+        renderBrewHistory(data);
+    } catch (err) {
+        console.error('Error loading brew history:', err);
+        if (loading) loading.classList.add('hidden');
+        content.innerHTML = '<p style="color: var(--error-color);">Failed to load brew history.</p>';
+    }
+}
+
+function renderBrewHistory(sessions) {
+    const content = elements.brewHistoryContent;
+    if (!content) return;
+
+    const html = sessions.map(session => {
+        const date = new Date(session.created_at);
+        const dateStr = date.toLocaleDateString('en-US', {
+            month: 'short', day: 'numeric', year: 'numeric'
+        });
+        const timeStr = date.toLocaleTimeString('en-US', {
+            hour: 'numeric', minute: '2-digit'
+        });
+
+        // Rating badge
+        let ratingClass = '';
+        let ratingText = '';
+        switch (session.rating) {
+            case 'perfect':
+                ratingClass = 'rating-perfect';
+                ratingText = 'Perfect';
+                break;
+            case 'too_sour':
+                ratingClass = 'rating-sour';
+                ratingText = 'Too Sour';
+                break;
+            case 'too_bitter':
+                ratingClass = 'rating-bitter';
+                ratingText = 'Too Bitter';
+                break;
+            case 'manual_adjustment':
+                ratingClass = 'rating-adjustment';
+                ratingText = 'Adjusted';
+                break;
+            default:
+                ratingClass = '';
+                ratingText = session.rating || 'Rated';
+        }
+
+        // Key params summary from original_recipe
+        const recipe = session.original_recipe || {};
+        const paramSummary = [];
+        if (recipe.dose) paramSummary.push(`Dose: ${recipe.dose}`);
+        if (recipe.grind_size) paramSummary.push(`Grind: ${recipe.grind_size}`);
+        if (recipe.water_temp) paramSummary.push(`Temp: ${recipe.water_temp}`);
+        if (recipe.brew_time) paramSummary.push(`Time: ${recipe.brew_time}`);
+
+        return `
+            <div class="brew-history-card ${ratingClass}" data-session-id="${session.id}">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; cursor: pointer;" onclick="toggleHistoryDetail('${session.id}')">
+                    <div>
+                        <strong>${session.coffee_name || 'Unknown Coffee'}</strong>
+                        <div style="font-size: 0.85rem; color: var(--secondary-color); margin-top: 2px;">
+                            ${session.brew_method || 'Unknown Method'}${session.roaster ? ` · ${session.roaster}` : ''}
+                        </div>
+                        <div style="font-size: 0.8rem; color: var(--secondary-color); margin-top: 2px;">
+                            ${dateStr} at ${timeStr}
+                        </div>
+                    </div>
+                    <span class="rating-badge ${ratingClass}">${ratingText}</span>
+                </div>
+                ${paramSummary.length > 0 ? `
+                    <div style="font-size: 0.8rem; color: var(--secondary-color); margin-top: 6px;">
+                        ${paramSummary.join(' · ')}
+                    </div>
+                ` : ''}
+                <div class="brew-history-detail hidden" id="history-detail-${session.id}">
+                    ${renderHistoryDetailContent(session)}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    content.innerHTML = html;
+}
+
+function renderHistoryDetailContent(session) {
+    let detailHtml = '';
+
+    // Original recipe parameters
+    if (session.original_recipe && typeof session.original_recipe === 'object') {
+        detailHtml += '<div style="margin-top: 8px;"><strong style="font-size: 0.85rem;">Original Recipe</strong>';
+        detailHtml += '<table class="brew-parameters-table" style="margin-top: 6px; font-size: 0.8rem;">';
+        detailHtml += '<thead><tr><th>Parameter</th><th>Value</th></tr></thead><tbody>';
+        for (const [key, value] of Object.entries(session.original_recipe)) {
+            if (value && typeof value !== 'object') {
+                const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                detailHtml += `<tr><td>${label}</td><td>${value}</td></tr>`;
+            }
+        }
+        detailHtml += '</tbody></table></div>';
+    }
+
+    // Actual brew if different from original
+    if (session.actual_brew && typeof session.actual_brew === 'object' &&
+        JSON.stringify(session.actual_brew) !== JSON.stringify(session.original_recipe)) {
+        detailHtml += '<div style="margin-top: 8px;"><strong style="font-size: 0.85rem;">Actual Brew</strong>';
+        detailHtml += '<table class="brew-parameters-table" style="margin-top: 6px; font-size: 0.8rem;">';
+        detailHtml += '<thead><tr><th>Parameter</th><th>Value</th></tr></thead><tbody>';
+        for (const [key, value] of Object.entries(session.actual_brew)) {
+            if (value && typeof value !== 'object') {
+                const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                detailHtml += `<tr><td>${label}</td><td>${value}</td></tr>`;
+            }
+        }
+        detailHtml += '</tbody></table></div>';
+    }
+
+    // Adjusted recipe if present
+    if (session.adjusted_recipe && typeof session.adjusted_recipe === 'object') {
+        detailHtml += '<div style="margin-top: 8px;"><strong style="font-size: 0.85rem;">Adjusted Recipe</strong>';
+        detailHtml += '<table class="brew-parameters-table" style="margin-top: 6px; font-size: 0.8rem;">';
+        detailHtml += '<thead><tr><th>Parameter</th><th>Value</th></tr></thead><tbody>';
+        for (const [key, value] of Object.entries(session.adjusted_recipe)) {
+            if (value && typeof value !== 'object') {
+                const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                detailHtml += `<tr><td>${label}</td><td>${value}</td></tr>`;
+            }
+        }
+        detailHtml += '</tbody></table></div>';
+    }
+
+    // User notes if present
+    if (session.user_notes) {
+        detailHtml += `<div style="margin-top: 8px;"><strong style="font-size: 0.85rem;">Notes</strong>
+            <p style="font-size: 0.85rem; margin-top: 4px; color: var(--secondary-color);">${session.user_notes}</p></div>`;
+    }
+
+    // Additional info
+    const meta = [];
+    if (session.roast_level && session.roast_level !== 'Unknown') meta.push(`Roast: ${session.roast_level}`);
+    if (session.origin && session.origin !== 'Unknown') meta.push(`Origin: ${session.origin}`);
+    if (session.processing && session.processing !== 'Unknown') meta.push(`Processing: ${session.processing}`);
+    if (session.flavor_notes && Array.isArray(session.flavor_notes) && session.flavor_notes.length > 0) {
+        meta.push(`Flavors: ${session.flavor_notes.join(', ')}`);
+    }
+
+    if (meta.length > 0) {
+        detailHtml += `<div style="margin-top: 8px; font-size: 0.8rem; color: var(--secondary-color);">
+            ${meta.join(' · ')}
+        </div>`;
+    }
+
+    return detailHtml || '<p style="font-size: 0.85rem; color: var(--secondary-color);">No detailed data available.</p>';
+}
+
+function toggleHistoryDetail(sessionId) {
+    const detail = document.getElementById(`history-detail-${sessionId}`);
+    if (detail) {
+        detail.classList.toggle('hidden');
+    }
+}
+
+// ============================================
+// Filter Update Functions
+// ============================================
+
+function showFilterUpdatePrompt(techniqueIndex, filterType) {
+    // Remove any existing filter update buttons
+    const existing = document.querySelectorAll('.filter-update-prompt');
+    existing.forEach(el => el.remove());
+
+    if (!filterType) return;
+
+    // Find the filter selector and insert button after it
+    const filterSelector = document.querySelector(`.filter-selector[data-technique-index="${techniqueIndex}"]`);
+    if (!filterSelector) return;
+
+    const promptDiv = document.createElement('div');
+    promptDiv.className = 'filter-update-prompt';
+    promptDiv.style.cssText = 'margin-top: 8px; text-align: center;';
+    promptDiv.innerHTML = `
+        <button class="btn btn-primary filter-update-btn" style="font-size: 0.85rem; padding: 6px 14px;"
+                data-technique-index="${techniqueIndex}" data-filter-type="${filterType}">
+            Update recipe for ${filterType}
+        </button>
+    `;
+
+    filterSelector.parentNode.insertBefore(promptDiv, filterSelector.nextSibling);
+
+    // Add click handler
+    promptDiv.querySelector('.filter-update-btn').addEventListener('click', async function() {
+        const idx = parseInt(this.getAttribute('data-technique-index'));
+        const filter = this.getAttribute('data-filter-type');
+
+        if (state.imageFile) {
+            // Re-analyze with the new filter - analyzeImage already reads selectedFilters
+            const techniques = state.currentCoffeeAnalysis?.recommended_techniques;
+            if (techniques && techniques[idx]) {
+                promptDiv.innerHTML = '<span style="font-size: 0.85rem; color: var(--secondary-color);">Updating recipe...</span>';
+                await updateRecipeForFilter(idx, filter);
+                promptDiv.remove();
+            }
+        } else {
+            // No image (loaded from saved recipe) - send adjustment request
+            promptDiv.innerHTML = '<span style="font-size: 0.85rem; color: var(--secondary-color);">Updating recipe...</span>';
+            await updateRecipeForFilter(idx, filter);
+            promptDiv.remove();
+        }
+    });
+}
+
+async function updateRecipeForFilter(techniqueIndex, filterType) {
+    if (!state.currentCoffeeAnalysis) {
+        console.error('No current coffee analysis available');
+        return;
+    }
+
+    const techniques = state.currentCoffeeAnalysis.recommended_techniques;
+    if (!techniques || !techniques[techniqueIndex]) {
+        console.error('No technique found at index', techniqueIndex);
+        return;
+    }
+
+    const technique = techniques[techniqueIndex];
+
+    try {
+        const equipmentDescription = getEquipmentDescription();
+
+        const adjustmentGuidance = `The user changed their filter to "${filterType}". Please adjust the recipe parameters (especially grind size, brew time, and pour schedule/technique) to optimize for this filter type. Keep the same coffee, dose, and brew method but adjust extraction parameters for the filter characteristics.
+
+Filter characteristics to consider:
+- Paper filters (like Sibarist Fast, Fellow/standard white): Clean cup, absorb oils. Fast-flow filters allow finer grinds and faster pours.
+- Metal/mesh filters: Allow oils and some fines through for fuller body. May need slightly coarser grind.
+- Cloth filters: Between paper and metal. Good clarity with some body.
+
+Current recipe parameters: ${JSON.stringify(technique.parameters)}`;
+
+        const response = await fetch('/api/analyze', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                equipment: equipmentDescription,
+                currentBrewMethod: technique.technique_name,
+                selectedFilterType: filterType,
+                adjustmentRequest: adjustmentGuidance,
+                previousAnalysis: state.currentCoffeeAnalysis
+            })
+        });
+
+        await handleApiResponse(response);
+
+        const result = await response.json();
+        const adjustmentText = result.content[0].text;
+
+        // Parse JSON response
+        let adjustedData;
+        try {
+            adjustedData = JSON.parse(adjustmentText);
+        } catch (e) {
+            let cleanText = adjustmentText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+            const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                adjustedData = JSON.parse(jsonMatch[0]);
+            } else {
+                throw new Error('Could not parse filter adjustment response');
+            }
+        }
+
+        if (adjustedData && adjustedData.adjusted_parameters) {
+            // Update the technique's parameters in state
+            technique.parameters = {
+                ...technique.parameters,
+                ...adjustedData.adjusted_parameters,
+                filter_type: filterType
+            };
+
+            // Re-render the results to show updated parameters
+            if (state.currentRecipe && state.currentRecipe.recommended_techniques) {
+                state.currentRecipe.recommended_techniques[techniqueIndex] = technique;
+            }
+
+            // Re-render just the recipe table for this technique
+            const techniqueCard = document.querySelector(`.technique-card[data-technique-index="${techniqueIndex}"]`);
+            if (techniqueCard) {
+                const tableBody = techniqueCard.querySelector('.brew-parameters-table tbody');
+                if (tableBody) {
+                    updateRecipeTableBody(tableBody, adjustedData.adjusted_parameters, technique.technique_name);
+                }
+            }
+
+            // Show success message
+            const card = document.querySelector(`.technique-card[data-technique-index="${techniqueIndex}"]`);
+            if (card) {
+                const notice = document.createElement('div');
+                notice.style.cssText = 'background: #d4edda; color: #155724; padding: 8px 12px; border-radius: 6px; margin-bottom: 10px; font-size: 0.85rem;';
+                notice.textContent = `✓ Recipe updated for ${filterType} filter`;
+                const firstChild = card.querySelector('.brew-parameters-table');
+                if (firstChild) {
+                    firstChild.parentNode.insertBefore(notice, firstChild);
+                    setTimeout(() => notice.remove(), 3000);
+                }
+            }
+        }
+
+    } catch (error) {
+        console.error('Failed to update recipe for filter:', error);
+        alert(error.message || 'Failed to update recipe for the selected filter. Please try again.');
+    }
+}
+
+function updateRecipeTableBody(tableBody, params, techniqueName) {
+    if (!tableBody || !params) return;
+
+    // Build new rows from adjusted parameters
+    const rows = [];
+    const paramOrder = ['dose', 'yield', 'ratio', 'water_temp', 'grind_size', 'brew_time',
+                        'pressure', 'flow_control', 'total_water', 'bloom', 'pours',
+                        'technique', 'filter_type', 'notes'];
+
+    const paramLabels = {
+        dose: 'Dose', yield: 'Yield', ratio: 'Ratio', water_temp: 'Water Temp',
+        grind_size: 'Grind Size', brew_time: 'Brew Time', pressure: 'Pressure',
+        flow_control: 'Flow Control', total_water: 'Total Water', bloom: 'Bloom',
+        pours: 'Pours', technique: 'Technique', filter_type: 'Filter Type', notes: 'Notes'
+    };
+
+    // First add params in preferred order
+    for (const key of paramOrder) {
+        if (params[key] && params[key] !== 'N/A') {
+            let value = params[key];
+            if (key === 'grind_size') {
+                value = formatGrindSize(value, state.equipment?.grinder);
+            }
+            rows.push(`<tr><td>${paramLabels[key] || key}</td><td>${value}</td></tr>`);
+        }
+    }
+
+    // Then add any remaining params not in the order list
+    for (const [key, value] of Object.entries(params)) {
+        if (!paramOrder.includes(key) && value && value !== 'N/A' && typeof value !== 'object') {
+            const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            rows.push(`<tr><td>${label}</td><td>${value}</td></tr>`);
+        }
+    }
+
+    tableBody.innerHTML = rows.join('');
 }
 
 // Initialize app when DOM is ready

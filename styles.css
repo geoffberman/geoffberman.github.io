@@ -888,6 +888,129 @@ footer {
     }
 }
 
+/* Recipe table mobile overflow */
+@media (max-width: 600px) {
+    .brew-parameters-table .adjustment-column {
+        min-width: 120px;
+    }
+    .brew-parameters-table .param-input {
+        font-size: 0.8rem;
+        padding: 4px 6px;
+    }
+}
+
+@media (max-width: 480px) {
+    .brew-parameters-table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .brew-parameters-table th,
+    .brew-parameters-table td {
+        padding: 8px;
+        font-size: 0.85rem;
+        min-width: 80px;
+    }
+    .brew-parameters-table td:first-child {
+        min-width: 70px;
+        width: auto;
+    }
+}
+
+@media (max-width: 360px) {
+    .brew-parameters-table th,
+    .brew-parameters-table td {
+        padding: 6px;
+        font-size: 0.8rem;
+    }
+}
+
+/* Searchable saved recipes dropdown */
+.saved-recipes-dropdown {
+    max-height: 300px;
+    overflow-y: auto;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.saved-recipes-dropdown .recipe-option {
+    padding: 10px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 0.9rem;
+}
+.saved-recipes-dropdown .recipe-option:hover {
+    background: #f5f0eb;
+}
+.saved-recipes-dropdown .recipe-option .recipe-meta {
+    font-size: 0.75rem;
+    color: var(--secondary-color);
+    margin-top: 2px;
+}
+
+/* Brew history styles */
+.brew-history-card {
+    padding: 12px 15px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    border-left: 4px solid var(--border-color);
+    background: #fafafa;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.brew-history-card:hover {
+    background: #f0f0f0;
+}
+.brew-history-card.rating-perfect {
+    border-left-color: var(--success-color);
+}
+.brew-history-card.rating-sour {
+    border-left-color: #E67E22;
+}
+.brew-history-card.rating-bitter {
+    border-left-color: var(--error-color);
+}
+.brew-history-card.rating-adjustment {
+    border-left-color: var(--primary-color);
+}
+.brew-history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+}
+.brew-history-meta {
+    font-size: 0.8rem;
+    color: var(--secondary-color);
+    margin-top: 4px;
+}
+.brew-history-params {
+    font-size: 0.8rem;
+    color: var(--secondary-color);
+    margin-top: 4px;
+}
+.rating-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    color: white;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.rating-badge.rating-perfect { background: var(--success-color); }
+.rating-badge.rating-sour { background: #E67E22; }
+.rating-badge.rating-bitter { background: var(--error-color); }
+.rating-badge.rating-adjustment { background: var(--primary-color); }
+.brew-history-detail {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.85rem;
+}
+
 /* Responsive layout for brew recommendations */
 @media (max-width: 768px) {
     #method-content > div {
