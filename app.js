@@ -1121,7 +1121,7 @@ async function analyzeImage(specificMethod = null) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(requestBody),
+            body: safeJsonStringify(requestBody),
             signal: state.currentAbortController.signal
         });
 
@@ -1610,6 +1610,16 @@ function showError(message) {
 }
 
 // Reusable API response handler with rate limit parsing
+// Sanitize JSON body to remove any stray control characters that break server-side parsing
+function safeJsonStringify(obj) {
+    const json = JSON.stringify(obj);
+    // Replace any literal control characters (0x00-0x1F) that aren't already part of
+    // valid JSON escape sequences with their Unicode escape form
+    return json.replace(/[\x00-\x1f]/g, (ch) => {
+        return '\\u' + ('0000' + ch.charCodeAt(0).toString(16)).slice(-4);
+    });
+}
+
 async function handleApiResponse(response) {
     if (response.ok) return response;
     if (response.status === 429) {
@@ -3095,7 +3105,7 @@ async function adjustRecipeBasedOnRating(rating) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
+            body: safeJsonStringify({
                 equipment: equipmentDescription,
                 currentBrewMethod: state.currentBrewMethod,
                 selectedFilterType: getSelectedFilterType(),
@@ -4281,7 +4291,7 @@ async function updateRecipeForFilter(techniqueIndex, filterType) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
+            body: safeJsonStringify({
                 equipment: equipmentDescription,
                 currentBrewMethod: technique.technique_name,
                 selectedFilterType: filterType,
