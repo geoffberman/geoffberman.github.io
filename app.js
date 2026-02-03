@@ -4247,6 +4247,18 @@ async function updateRecipeForFilter(techniqueIndex, filterType) {
     try {
         const equipmentDescription = getEquipmentDescription();
 
+        // Sanitize parameters to avoid control characters in JSON
+        const sanitizedParams = {};
+        if (technique.parameters && typeof technique.parameters === 'object') {
+            for (const [key, value] of Object.entries(technique.parameters)) {
+                if (typeof value === 'string') {
+                    sanitizedParams[key] = value.replace(/[\n\r\t]/g, ' ').replace(/\s+/g, ' ').trim();
+                } else if (value != null && typeof value !== 'object') {
+                    sanitizedParams[key] = value;
+                }
+            }
+        }
+
         const adjustmentGuidance = `The user changed their filter to "${filterType}". Please adjust the recipe parameters (especially grind size, brew time, and pour schedule/technique) to optimize for this filter type. Keep the same coffee, dose, and brew method but adjust extraction parameters for the filter characteristics.
 
 Filter characteristics to consider:
@@ -4254,7 +4266,7 @@ Filter characteristics to consider:
 - Metal/mesh filters: Allow oils and some fines through for fuller body. May need slightly coarser grind.
 - Cloth filters: Between paper and metal. Good clarity with some body.
 
-Current recipe parameters: ${JSON.stringify(technique.parameters)}`;
+Current recipe parameters: ${JSON.stringify(sanitizedParams)}`;
 
         const response = await fetch('/api/analyze', {
             method: 'POST',
