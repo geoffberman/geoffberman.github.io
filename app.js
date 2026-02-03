@@ -1610,14 +1610,31 @@ function showError(message) {
 }
 
 // Reusable API response handler with rate limit parsing
-// Sanitize JSON body to remove any stray control characters that break server-side parsing
+// Recursively sanitize all string values to remove control characters before JSON.stringify
+function sanitizeValue(val) {
+    if (typeof val === 'string') {
+        // Remove all control characters (0x00-0x1F) except tab, newline, carriage return
+        // Then replace remaining whitespace chars with spaces
+        return val.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '')
+                  .replace(/[\t\n\r]+/g, ' ')
+                  .replace(/\s+/g, ' ')
+                  .trim();
+    }
+    if (Array.isArray(val)) {
+        return val.map(sanitizeValue);
+    }
+    if (val && typeof val === 'object') {
+        const result = {};
+        for (const [k, v] of Object.entries(val)) {
+            result[k] = sanitizeValue(v);
+        }
+        return result;
+    }
+    return val;
+}
+
 function safeJsonStringify(obj) {
-    const json = JSON.stringify(obj);
-    // Replace any literal control characters (0x00-0x1F) that aren't already part of
-    // valid JSON escape sequences with their Unicode escape form
-    return json.replace(/[\x00-\x1f]/g, (ch) => {
-        return '\\u' + ('0000' + ch.charCodeAt(0).toString(16)).slice(-4);
-    });
+    return JSON.stringify(sanitizeValue(obj));
 }
 
 async function handleApiResponse(response) {
