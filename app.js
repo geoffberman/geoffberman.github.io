@@ -3533,6 +3533,13 @@ function showAdjustmentColumn(techniqueIndex) {
         col.classList.remove('hidden');
     });
 
+    // Sync param-input filter with filter-selector value (so it's correct when saving)
+    const filterSelector = document.querySelector(`.filter-selector[data-technique-index="${techniqueIndex}"]`);
+    const paramInputFilter = table.querySelector('.param-input[data-param="filter_type"]');
+    if (filterSelector && paramInputFilter && filterSelector.value) {
+        paramInputFilter.value = filterSelector.value;
+    }
+
     // Show the save button
     const saveBtn = document.getElementById(`save-adjustments-${techniqueIndex}`);
     if (saveBtn) {
