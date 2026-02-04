@@ -3570,12 +3570,14 @@ async function saveInlineAdjustments(technique, techniqueIndex) {
             adjustedParams[param] = input.tagName === 'TEXTAREA' ? input.value : input.value;
         });
 
-        // Capture selected filter type if available
-        const filterSelector = document.querySelector(`.filter-selector[data-technique-index="${techniqueIndex}"]`);
-        if (filterSelector && filterSelector.value) {
-            adjustedParams.filter_type = filterSelector.value;
-        } else if (state.selectedFilters && state.selectedFilters[techniqueIndex]) {
-            adjustedParams.filter_type = state.selectedFilters[techniqueIndex];
+        // Capture selected filter type - prefer param-input value, fallback to dropdown/state
+        if (!adjustedParams.filter_type) {
+            const filterSelector = document.querySelector(`.filter-selector[data-technique-index="${techniqueIndex}"]`);
+            if (filterSelector && filterSelector.value) {
+                adjustedParams.filter_type = filterSelector.value;
+            } else if (state.selectedFilters && state.selectedFilters[techniqueIndex]) {
+                adjustedParams.filter_type = state.selectedFilters[techniqueIndex];
+            }
         }
 
         console.log('[SAVE] Collected adjustedParams:', JSON.stringify(adjustedParams));
