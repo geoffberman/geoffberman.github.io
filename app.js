@@ -3943,7 +3943,8 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
 
     try {
         // Check if recipe already exists (use limit(1) instead of maybeSingle to handle duplicates gracefully)
-        const { data: existingArr } = await supabase
+        console.log('[SAVE-DB] Checking for existing recipe:', { userId, coffeeHash, brewMethod });
+        const { data: existingArr, error: queryError } = await supabase
             .from('saved_recipes')
             .select('id, times_brewed, notes')
             .eq('user_id', userId)
@@ -3951,6 +3952,12 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
             .eq('brew_method', brewMethod)
             .order('last_brewed', { ascending: false })
             .limit(1);
+
+        if (queryError) {
+            console.error('[SAVE-DB] Query error:', queryError);
+            throw queryError;
+        }
+        console.log('[SAVE-DB] Query result:', existingArr);
         const existing = existingArr && existingArr.length > 0 ? existingArr[0] : null;
 
         if (existing) {
@@ -3996,6 +4003,13 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
         console.log('[SAVE-DB] Saved as preferred recipe successfully');
     } catch (error) {
         console.error('[SAVE-DB] Failed to save preferred recipe:', error);
+        console.error('[SAVE-DB] Error details:', {
+            message: error?.message,
+            code: error?.code,
+            details: error?.details,
+            hint: error?.hint,
+            status: error?.status
+        });
     }
 }
 
