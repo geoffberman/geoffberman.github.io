@@ -3946,7 +3946,7 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
         console.log('[SAVE-DB] Checking for existing recipe:', { userId, coffeeHash, brewMethod });
         const { data: existingArr, error: queryError } = await supabase
             .from('saved_recipes')
-            .select('id, times_brewed, notes')
+            .select('id, times_brewed')
             .eq('user_id', userId)
             .eq('coffee_hash', coffeeHash)
             .eq('brew_method', brewMethod)
@@ -3967,14 +3967,7 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
                 last_brewed: new Date().toISOString()
             };
 
-            // Append new notes to existing notes if provided
-            if (notes && notes.trim()) {
-                const timestamp = new Date().toLocaleString();
-                const newNote = `[${timestamp}] ${notes.trim()}`;
-                updateData.notes = existing.notes
-                    ? `${existing.notes}\n\n${newNote}`
-                    : newNote;
-            }
+            // Notes are stored inside recipeData.notes (in the recipe JSONB column)
 
             const { error } = await supabase
                 .from('saved_recipes')
@@ -3986,10 +3979,7 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
             console.log('[SAVE-DB] Update data recipe.notes:', recipeData?.notes);
         } else {
             // Insert new preferred recipe
-            if (notes && notes.trim()) {
-                const timestamp = new Date().toLocaleString();
-                preferredRecipe.notes = `[${timestamp}] ${notes.trim()}`;
-            }
+            // Notes are stored inside recipeData.notes (in the recipe JSONB column)
 
             const { error } = await supabase
                 .from('saved_recipes')
