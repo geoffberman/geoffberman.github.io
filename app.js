@@ -464,8 +464,12 @@ async function loadSavedRecipeDirectly(recipeData) {
         }
 
         console.log('[LOAD] Loading saved recipe:', recipeData.coffee_name, '-', recipeData.brew_method);
-        console.log('[LOAD] recipeData.recipe:', JSON.stringify(recipeData.recipe));
-        console.log('[LOAD] recipeParams.notes:', JSON.stringify(recipeParams.notes));
+        console.log('[LOAD] recipeData.recipe (full):', JSON.stringify(recipeData.recipe));
+        console.log('[LOAD] recipeData.recipe type:', typeof recipeData.recipe);
+        console.log('[LOAD] recipeParams (after assignment):', JSON.stringify(recipeParams));
+        console.log('[LOAD] recipeParams.dose:', recipeParams.dose);
+        console.log('[LOAD] recipeParams.water_temp:', recipeParams.water_temp);
+        console.log('[LOAD] recipeParams.notes:', recipeParams.notes);
         console.log('[LOAD] recipeData.notes (top-level):', JSON.stringify(recipeData.notes));
 
         // Ensure recipe field is parsed if it was stored as a string
@@ -3463,10 +3467,18 @@ async function saveInlineAdjustments(technique, techniqueIndex) {
 
         // Collect adjustments from the table inputs (includes notes as a param row)
         const table = document.getElementById(`recipe-table-${techniqueIndex}`);
+        console.log('[SAVE-DEBUG] Looking for table with ID:', `recipe-table-${techniqueIndex}`);
+        console.log('[SAVE-DEBUG] Table found:', table ? 'yes' : 'no');
+
         const adjustedParams = {};
-        table.querySelectorAll('.param-input').forEach(input => {
+        const paramInputs = table.querySelectorAll('.param-input');
+        console.log('[SAVE-DEBUG] Number of .param-input elements found:', paramInputs.length);
+
+        paramInputs.forEach(input => {
             const param = input.getAttribute('data-param');
-            adjustedParams[param] = input.tagName === 'TEXTAREA' ? input.value : input.value;
+            const value = input.value;
+            console.log(`[SAVE-DEBUG] Collecting: ${param} = "${value}"`);
+            adjustedParams[param] = value;
         });
 
         // DEBUG: Log all param-input elements found
