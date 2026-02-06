@@ -464,8 +464,12 @@ async function loadSavedRecipeDirectly(recipeData) {
         }
 
         console.log('[LOAD] Loading saved recipe:', recipeData.coffee_name, '-', recipeData.brew_method);
-        console.log('[LOAD] recipeData.recipe:', JSON.stringify(recipeData.recipe));
-        console.log('[LOAD] recipeParams.notes:', JSON.stringify(recipeParams.notes));
+        console.log('[LOAD] recipeData.recipe (full):', JSON.stringify(recipeData.recipe));
+        console.log('[LOAD] recipeData.recipe type:', typeof recipeData.recipe);
+        console.log('[LOAD] recipeParams (after assignment):', JSON.stringify(recipeParams));
+        console.log('[LOAD] recipeParams.dose:', recipeParams.dose);
+        console.log('[LOAD] recipeParams.water_temp:', recipeParams.water_temp);
+        console.log('[LOAD] recipeParams.notes:', recipeParams.notes);
         console.log('[LOAD] recipeData.notes (top-level):', JSON.stringify(recipeData.notes));
 
         // Ensure recipe field is parsed if it was stored as a string
@@ -3463,21 +3467,59 @@ async function saveInlineAdjustments(technique, techniqueIndex) {
 
         // Collect adjustments from the table inputs (includes notes as a param row)
         const table = document.getElementById(`recipe-table-${techniqueIndex}`);
+        console.log('[SAVE-DEBUG] Looking for table with ID:', `recipe-table-${techniqueIndex}`);
+        console.log('[SAVE-DEBUG] Table found:', table ? 'yes' : 'no');
+
         const adjustedParams = {};
-        table.querySelectorAll('.param-input').forEach(input => {
+        const paramInputs = table.querySelectorAll('.param-input');
+        console.log('[SAVE-DEBUG] Number of .param-input elements found:', paramInputs.length);
+
+        paramInputs.forEach(input => {
             const param = input.getAttribute('data-param');
-            adjustedParams[param] = input.tagName === 'TEXTAREA' ? input.value : input.value;
+            const value = input.value;
+            console.log(`[SAVE-DEBUG] Collecting: ${param} = "${value}"`);
+            adjustedParams[param] = value;
         });
 
-        // Capture selected filter type - prefer param-input value if set, fallback to dropdown/state
-        if (!adjustedParams.filter_type) {
-            const filterSelector = document.querySelector(`.filter-selector[data-technique-index="${techniqueIndex}"]`);
-            if (filterSelector && filterSelector.value) {
-                adjustedParams.filter_type = filterSelector.value;
-            } else if (state.selectedFilters && state.selectedFilters[techniqueIndex]) {
-                adjustedParams.filter_type = state.selectedFilters[techniqueIndex];
-            }
+        // DEBUG: Log all param-input elements found
+        console.log('[SAVE-DEBUG] Found param-inputs:',
+            Array.from(table.querySelectorAll('.param-input')).map(el => ({
+                param: el.getAttribute('data-param'),
+                tagName: el.tagName,
+                value: el.value
+            }))
+        );
+
+        // Capture filter_type - try multiple sources with explicit checks
+        // 1. First check param-input in adjustment column (user's direct selection)
+        const paramFilterInput = table.querySelector('.param-input[data-param="filter_type"]');
+        const paramFilterValue = paramFilterInput ? paramFilterInput.value : null;
+        console.log('[SAVE-DEBUG] paramFilterInput element:', paramFilterInput);
+        console.log('[SAVE-DEBUG] paramFilterInput.value:', paramFilterValue);
+
+        // 2. Check filter-selector dropdown (top of card)
+        const filterSelector = document.querySelector(`.filter-selector[data-technique-index="${techniqueIndex}"]`);
+        const filterSelectorValue = filterSelector ? filterSelector.value : null;
+        console.log('[SAVE-DEBUG] filterSelector element:', filterSelector);
+        console.log('[SAVE-DEBUG] filterSelector.value:', filterSelectorValue);
+
+        // 3. Check state
+        const stateFilterValue = state.selectedFilters ? state.selectedFilters[techniqueIndex] : null;
+        console.log('[SAVE-DEBUG] state.selectedFilters[' + techniqueIndex + ']:', stateFilterValue);
+
+        // Priority: param-input > filter-selector > state
+        if (paramFilterValue && paramFilterValue.trim() !== '') {
+            adjustedParams.filter_type = paramFilterValue;
+            console.log('[SAVE-DEBUG] Using paramFilterValue:', paramFilterValue);
+        } else if (filterSelectorValue && filterSelectorValue.trim() !== '') {
+            adjustedParams.filter_type = filterSelectorValue;
+            console.log('[SAVE-DEBUG] Using filterSelectorValue:', filterSelectorValue);
+        } else if (stateFilterValue) {
+            adjustedParams.filter_type = stateFilterValue;
+            console.log('[SAVE-DEBUG] Using stateFilterValue:', stateFilterValue);
         }
+
+        console.log('[SAVE-DEBUG] Final filter_type:', adjustedParams.filter_type);
 
         console.log('[SAVE] Collected adjustedParams:', JSON.stringify(adjustedParams));
         console.log('[SAVE] Notes value:', JSON.stringify(adjustedParams.notes));
@@ -3901,14 +3943,20 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
 
     try {
         // Check if recipe already exists (use limit(1) instead of maybeSingle to handle duplicates gracefully)
-        const { data: existingArr } = await supabase
+        console.log('[SAVE-DB] Checking for existing recipe:', { userId, coffeeHash, brewMethod });
+        const { data: existingArr, error: queryError } = await supabase
             .from('saved_recipes')
-            .select('id, times_brewed, notes')
+            .select('id, times_brewed')
             .eq('user_id', userId)
             .eq('coffee_hash', coffeeHash)
             .eq('brew_method', brewMethod)
-            .order('last_brewed', { ascending: false })
             .limit(1);
+
+        if (queryError) {
+            console.error('[SAVE-DB] Query error:', queryError);
+            throw queryError;
+        }
+        console.log('[SAVE-DB] Query result:', existingArr);
         const existing = existingArr && existingArr.length > 0 ? existingArr[0] : null;
 
         if (existing) {
@@ -3919,14 +3967,7 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
                 last_brewed: new Date().toISOString()
             };
 
-            // Append new notes to existing notes if provided
-            if (notes && notes.trim()) {
-                const timestamp = new Date().toLocaleString();
-                const newNote = `[${timestamp}] ${notes.trim()}`;
-                updateData.notes = existing.notes
-                    ? `${existing.notes}\n\n${newNote}`
-                    : newNote;
-            }
+            // Notes are stored inside recipeData.notes (in the recipe JSONB column)
 
             const { error } = await supabase
                 .from('saved_recipes')
@@ -3938,10 +3979,7 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
             console.log('[SAVE-DB] Update data recipe.notes:', recipeData?.notes);
         } else {
             // Insert new preferred recipe
-            if (notes && notes.trim()) {
-                const timestamp = new Date().toLocaleString();
-                preferredRecipe.notes = `[${timestamp}] ${notes.trim()}`;
-            }
+            // Notes are stored inside recipeData.notes (in the recipe JSONB column)
 
             const { error } = await supabase
                 .from('saved_recipes')
@@ -3954,6 +3992,13 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
         console.log('[SAVE-DB] Saved as preferred recipe successfully');
     } catch (error) {
         console.error('[SAVE-DB] Failed to save preferred recipe:', error);
+        console.error('[SAVE-DB] Error details:', {
+            message: error?.message,
+            code: error?.code,
+            details: error?.details,
+            hint: error?.hint,
+            status: error?.status
+        });
     }
 }
 
