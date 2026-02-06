@@ -1445,13 +1445,13 @@ function displayResults(data) {
                             </tr>
                             <tr>
                                 <td>Pressure</td>
-                                <td>${params.pressure}</td>
-                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="pressure" placeholder="Your pressure" value="${params.pressure}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                                <td>${params.pressure || 'N/A'}</td>
+                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="pressure" placeholder="Your pressure" value="${params.pressure || ''}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
                             </tr>
                             <tr>
                                 <td>Flow Control</td>
-                                <td>${params.flow_control}</td>
-                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="flow_control" placeholder="Your profile" value="${params.flow_control}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                                <td>${params.flow_control || 'N/A'}</td>
+                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="flow_control" placeholder="Your profile" value="${params.flow_control || ''}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
                             </tr>
                             ${isPourOver(technique.technique_name) && hasFilters() ? `<tr>
                                 <td>Filter Type</td>
@@ -3304,13 +3304,13 @@ async function adjustRecipeBasedOnRating(rating) {
                     </tr>
                     <tr>
                         <td>Pressure</td>
-                        <td>${params.pressure}</td>
-                        <td><input type="text" class="param-input" data-param="pressure" placeholder="Your pressure" value="${params.pressure}"></td>
+                        <td>${params.pressure || 'N/A'}</td>
+                        <td><input type="text" class="param-input" data-param="pressure" placeholder="Your pressure" value="${params.pressure || ''}"></td>
                     </tr>
                     <tr>
                         <td>Flow Control</td>
-                        <td>${params.flow_control}</td>
-                        <td><input type="text" class="param-input" data-param="flow_control" placeholder="Your profile" value="${params.flow_control}"></td>
+                        <td>${params.flow_control || 'N/A'}</td>
+                        <td><input type="text" class="param-input" data-param="flow_control" placeholder="Your profile" value="${params.flow_control || ''}"></td>
                     </tr>
                 </tbody>
             </table>
@@ -3637,13 +3637,13 @@ function showManualAdjustmentTable(technique) {
                     </tr>
                     <tr>
                         <td>Pressure</td>
-                        <td>${params.pressure}</td>
-                        <td><input type="text" class="manual-input" data-param="pressure" value="${params.pressure}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                        <td>${params.pressure || 'N/A'}</td>
+                        <td><input type="text" class="manual-input" data-param="pressure" value="${params.pressure || ''}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
                     </tr>
                     <tr>
                         <td>Flow Control</td>
-                        <td>${params.flow_control}</td>
-                        <td><input type="text" class="manual-input" data-param="flow_control" value="${params.flow_control}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                        <td>${params.flow_control || 'N/A'}</td>
+                        <td><input type="text" class="manual-input" data-param="flow_control" value="${params.flow_control || ''}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
                     </tr>
                 </tbody>
             </table>
