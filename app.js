@@ -3469,15 +3469,45 @@ async function saveInlineAdjustments(technique, techniqueIndex) {
             adjustedParams[param] = input.tagName === 'TEXTAREA' ? input.value : input.value;
         });
 
-        // Capture selected filter type - prefer param-input value if set, fallback to dropdown/state
-        if (!adjustedParams.filter_type) {
-            const filterSelector = document.querySelector(`.filter-selector[data-technique-index="${techniqueIndex}"]`);
-            if (filterSelector && filterSelector.value) {
-                adjustedParams.filter_type = filterSelector.value;
-            } else if (state.selectedFilters && state.selectedFilters[techniqueIndex]) {
-                adjustedParams.filter_type = state.selectedFilters[techniqueIndex];
-            }
+        // DEBUG: Log all param-input elements found
+        console.log('[SAVE-DEBUG] Found param-inputs:',
+            Array.from(table.querySelectorAll('.param-input')).map(el => ({
+                param: el.getAttribute('data-param'),
+                tagName: el.tagName,
+                value: el.value
+            }))
+        );
+
+        // Capture filter_type - try multiple sources with explicit checks
+        // 1. First check param-input in adjustment column (user's direct selection)
+        const paramFilterInput = table.querySelector('.param-input[data-param="filter_type"]');
+        const paramFilterValue = paramFilterInput ? paramFilterInput.value : null;
+        console.log('[SAVE-DEBUG] paramFilterInput element:', paramFilterInput);
+        console.log('[SAVE-DEBUG] paramFilterInput.value:', paramFilterValue);
+
+        // 2. Check filter-selector dropdown (top of card)
+        const filterSelector = document.querySelector(`.filter-selector[data-technique-index="${techniqueIndex}"]`);
+        const filterSelectorValue = filterSelector ? filterSelector.value : null;
+        console.log('[SAVE-DEBUG] filterSelector element:', filterSelector);
+        console.log('[SAVE-DEBUG] filterSelector.value:', filterSelectorValue);
+
+        // 3. Check state
+        const stateFilterValue = state.selectedFilters ? state.selectedFilters[techniqueIndex] : null;
+        console.log('[SAVE-DEBUG] state.selectedFilters[' + techniqueIndex + ']:', stateFilterValue);
+
+        // Priority: param-input > filter-selector > state
+        if (paramFilterValue && paramFilterValue.trim() !== '') {
+            adjustedParams.filter_type = paramFilterValue;
+            console.log('[SAVE-DEBUG] Using paramFilterValue:', paramFilterValue);
+        } else if (filterSelectorValue && filterSelectorValue.trim() !== '') {
+            adjustedParams.filter_type = filterSelectorValue;
+            console.log('[SAVE-DEBUG] Using filterSelectorValue:', filterSelectorValue);
+        } else if (stateFilterValue) {
+            adjustedParams.filter_type = stateFilterValue;
+            console.log('[SAVE-DEBUG] Using stateFilterValue:', stateFilterValue);
         }
+
+        console.log('[SAVE-DEBUG] Final filter_type:', adjustedParams.filter_type);
 
         console.log('[SAVE] Collected adjustedParams:', JSON.stringify(adjustedParams));
         console.log('[SAVE] Notes value:', JSON.stringify(adjustedParams.notes));
