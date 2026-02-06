@@ -3950,7 +3950,6 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
             .eq('user_id', userId)
             .eq('coffee_hash', coffeeHash)
             .eq('brew_method', brewMethod)
-            .order('last_brewed', { ascending: false })
             .limit(1);
 
         if (queryError) {
