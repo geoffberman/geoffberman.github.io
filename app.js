@@ -1445,13 +1445,13 @@ function displayResults(data) {
                             </tr>
                             <tr>
                                 <td>Pressure</td>
-                                <td>${params.pressure}</td>
-                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="pressure" placeholder="Your pressure" value="${params.pressure}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                                <td>${params.pressure || 'N/A'}</td>
+                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="pressure" placeholder="Your pressure" value="${params.pressure || ''}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
                             </tr>
                             <tr>
                                 <td>Flow Control</td>
-                                <td>${params.flow_control}</td>
-                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="flow_control" placeholder="Your profile" value="${params.flow_control}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                                <td>${params.flow_control || 'N/A'}</td>
+                                <td class="adjustment-column hidden"><input type="text" class="param-input" data-param="flow_control" placeholder="Your profile" value="${params.flow_control || ''}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
                             </tr>
                             ${isPourOver(technique.technique_name) && hasFilters() ? `<tr>
                                 <td>Filter Type</td>
@@ -1477,6 +1477,12 @@ function displayResults(data) {
                                 💾 Save My Adjustments
                             </button>
                         </div>
+                    </div>
+
+                    <div style="margin-top: 15px; text-align: center;">
+                        <button class="btn btn-secondary copy-for-ai-btn" data-technique-index="${index}" style="font-size: 0.85rem; padding: 8px 16px;">
+                            📋 Copy for AI Analysis
+                        </button>
                     </div>
 
                     ${technique.technique_notes ? `<div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 3px solid var(--accent-color); border-radius: 4px;">
@@ -1549,6 +1555,14 @@ function displayResults(data) {
             const techniqueIndex = parseInt(this.getAttribute('data-technique-index'));
             const technique = data.recommended_techniques[techniqueIndex];
             await saveInlineAdjustments(technique, techniqueIndex);
+        });
+    });
+
+    // Add event listeners for "Copy for AI Analysis" buttons
+    document.querySelectorAll('.copy-for-ai-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const techniqueIndex = parseInt(this.getAttribute('data-technique-index'));
+            openAICopyModal(techniqueIndex, data.recommended_techniques);
         });
     });
 
@@ -3304,13 +3318,13 @@ async function adjustRecipeBasedOnRating(rating) {
                     </tr>
                     <tr>
                         <td>Pressure</td>
-                        <td>${params.pressure}</td>
-                        <td><input type="text" class="param-input" data-param="pressure" placeholder="Your pressure" value="${params.pressure}"></td>
+                        <td>${params.pressure || 'N/A'}</td>
+                        <td><input type="text" class="param-input" data-param="pressure" placeholder="Your pressure" value="${params.pressure || ''}"></td>
                     </tr>
                     <tr>
                         <td>Flow Control</td>
-                        <td>${params.flow_control}</td>
-                        <td><input type="text" class="param-input" data-param="flow_control" placeholder="Your profile" value="${params.flow_control}"></td>
+                        <td>${params.flow_control || 'N/A'}</td>
+                        <td><input type="text" class="param-input" data-param="flow_control" placeholder="Your profile" value="${params.flow_control || ''}"></td>
                     </tr>
                 </tbody>
             </table>
@@ -3637,13 +3651,13 @@ function showManualAdjustmentTable(technique) {
                     </tr>
                     <tr>
                         <td>Pressure</td>
-                        <td>${params.pressure}</td>
-                        <td><input type="text" class="manual-input" data-param="pressure" value="${params.pressure}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                        <td>${params.pressure || 'N/A'}</td>
+                        <td><input type="text" class="manual-input" data-param="pressure" value="${params.pressure || ''}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
                     </tr>
                     <tr>
                         <td>Flow Control</td>
-                        <td>${params.flow_control}</td>
-                        <td><input type="text" class="manual-input" data-param="flow_control" value="${params.flow_control}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
+                        <td>${params.flow_control || 'N/A'}</td>
+                        <td><input type="text" class="manual-input" data-param="flow_control" value="${params.flow_control || ''}" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); border-radius: 4px;"></td>
                     </tr>
                 </tbody>
             </table>
@@ -4475,9 +4489,217 @@ function updateRecipeTableBody(tableBody, params, techniqueName) {
     });
 }
 
+// ========== AI Copy for Analysis Feature ==========
+
+// State for AI copy modal
+let aiCopyState = {
+    techniqueIndex: null,
+    techniques: null
+};
+
+// Generate markdown text for AI analysis
+function generateRecipeTextForAI(techniqueIndex, techniques, userImpressions) {
+    const technique = techniques[techniqueIndex];
+    const params = technique.parameters || {};
+    const coffee = state.currentCoffeeAnalysis || {};
+    const equipment = state.equipment || {};
+
+    let text = `## Coffee Recipe for AI Analysis\n\n`;
+
+    // Coffee Details
+    text += `### Coffee Details\n`;
+    text += `- **Name**: ${coffee.name || 'Unknown'}\n`;
+    text += `- **Roaster**: ${coffee.roaster || 'Unknown'}\n`;
+    text += `- **Roast Level**: ${coffee.roast_level || 'Unknown'}\n`;
+    text += `- **Origin**: ${coffee.origin || 'Unknown'}\n`;
+    text += `- **Processing**: ${coffee.processing || 'Unknown'}\n`;
+    if (coffee.flavor_notes && coffee.flavor_notes.length > 0) {
+        text += `- **Flavor Notes**: ${coffee.flavor_notes.join(', ')}\n`;
+    }
+    text += `\n`;
+
+    // Equipment
+    text += `### My Equipment\n`;
+    if (equipment.grinder) {
+        text += `- **Grinder**: ${equipment.grinder}\n`;
+    }
+    if (equipment.espressoMachine) {
+        text += `- **Espresso Machine**: ${equipment.espressoMachine}${equipment.flowControl ? ' (with flow control)' : ''}\n`;
+    }
+    if (equipment.pourOverDevices && equipment.pourOverDevices.length > 0) {
+        text += `- **Pour Over**: ${equipment.pourOverDevices.join(', ')}\n`;
+    }
+    if (equipment.otherMethods && equipment.otherMethods.length > 0) {
+        text += `- **Other Methods**: ${equipment.otherMethods.join(', ')}\n`;
+    }
+    text += `\n`;
+
+    // Brew Method and Recipe
+    text += `### Brew Method: ${technique.technique_name}\n`;
+    text += `| Parameter | Value |\n`;
+    text += `|-----------|-------|\n`;
+    text += `| Dose | ${params.dose || 'N/A'} |\n`;
+    text += `| Yield | ${params.yield || 'N/A'} |\n`;
+    text += `| Ratio | ${params.ratio || 'N/A'} |\n`;
+    text += `| Water Temp | ${params.water_temp || 'N/A'} |\n`;
+    text += `| Grind Size | ${formatGrindSize(params.grind_size, equipment.grinder) || 'N/A'} |\n`;
+    text += `| Brew Time | ${params.brew_time || 'N/A'} |\n`;
+    if (params.pressure) {
+        text += `| Pressure | ${params.pressure} |\n`;
+    }
+    if (params.flow_control) {
+        text += `| Flow Control | ${params.flow_control} |\n`;
+    }
+    if (params.filter_type) {
+        text += `| Filter | ${params.filter_type} |\n`;
+    }
+    text += `\n`;
+
+    // Technique notes if available
+    if (technique.technique_notes) {
+        text += `### Brewing Notes\n`;
+        text += technique.technique_notes.replace(/\*\*/g, '**') + '\n\n';
+    }
+
+    // User Impressions
+    text += `### My Tasting Impressions\n`;
+    text += userImpressions || '(No impressions added)';
+    text += `\n\n`;
+
+    // AI Prompt
+    text += `---\n\n`;
+    text += `Please analyze this recipe and my tasting impressions. Suggest specific adjustments to improve my next brew based on the coffee characteristics and my feedback.`;
+
+    return text;
+}
+
+// Open the AI copy modal
+function openAICopyModal(techniqueIndex, techniques) {
+    aiCopyState.techniqueIndex = techniqueIndex;
+    aiCopyState.techniques = techniques;
+
+    const modal = document.getElementById('ai-copy-modal');
+    const impressionsInput = document.getElementById('ai-impressions-input');
+    const preview = document.getElementById('ai-copy-preview');
+    const successMsg = document.getElementById('ai-copy-success');
+
+    if (!modal || !impressionsInput || !preview) return;
+
+    // Reset state
+    impressionsInput.value = '';
+    successMsg.classList.add('hidden');
+
+    // Generate initial preview
+    updateAICopyPreview();
+
+    // Add input listener for live preview
+    impressionsInput.removeEventListener('input', updateAICopyPreview);
+    impressionsInput.addEventListener('input', updateAICopyPreview);
+
+    // Show modal
+    modal.classList.remove('hidden');
+}
+
+// Update the preview as user types
+function updateAICopyPreview() {
+    const impressionsInput = document.getElementById('ai-impressions-input');
+    const preview = document.getElementById('ai-copy-preview');
+
+    if (!preview || aiCopyState.techniqueIndex === null) return;
+
+    const text = generateRecipeTextForAI(
+        aiCopyState.techniqueIndex,
+        aiCopyState.techniques,
+        impressionsInput ? impressionsInput.value : ''
+    );
+
+    // Convert markdown to displayable HTML for preview
+    preview.innerHTML = `<pre style="white-space: pre-wrap; word-wrap: break-word; font-size: 0.8rem; line-height: 1.4; max-height: 250px; overflow-y: auto; margin: 0;">${escapeHtml(text)}</pre>`;
+}
+
+// Copy recipe text to clipboard
+async function copyRecipeToClipboard() {
+    const impressionsInput = document.getElementById('ai-impressions-input');
+    const successMsg = document.getElementById('ai-copy-success');
+    const copyBtn = document.getElementById('ai-copy-btn');
+
+    if (aiCopyState.techniqueIndex === null) return;
+
+    const text = generateRecipeTextForAI(
+        aiCopyState.techniqueIndex,
+        aiCopyState.techniques,
+        impressionsInput ? impressionsInput.value : ''
+    );
+
+    try {
+        await navigator.clipboard.writeText(text);
+
+        // Show success message
+        successMsg.classList.remove('hidden');
+        copyBtn.textContent = 'Copied!';
+        copyBtn.style.backgroundColor = 'var(--success-color)';
+
+        // Reset after delay
+        setTimeout(() => {
+            successMsg.classList.add('hidden');
+            copyBtn.textContent = 'Copy to Clipboard';
+            copyBtn.style.backgroundColor = '';
+        }, 2000);
+
+    } catch (err) {
+        console.error('Failed to copy:', err);
+        alert('Failed to copy to clipboard. Please try selecting and copying manually.');
+    }
+}
+
+// Close the AI copy modal
+function closeAICopyModal() {
+    const modal = document.getElementById('ai-copy-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    aiCopyState.techniqueIndex = null;
+    aiCopyState.techniques = null;
+}
+
+// Helper function to escape HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Set up AI copy modal event listeners (called once on init)
+function initAICopyModalListeners() {
+    const copyBtn = document.getElementById('ai-copy-btn');
+    const cancelBtn = document.getElementById('ai-copy-cancel-btn');
+    const modal = document.getElementById('ai-copy-modal');
+
+    if (copyBtn) {
+        copyBtn.addEventListener('click', copyRecipeToClipboard);
+    }
+
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', closeAICopyModal);
+    }
+
+    // Close on click outside
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeAICopyModal();
+            }
+        });
+    }
+}
+
 // Initialize app when DOM is ready
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', () => {
+        init();
+        initAICopyModalListeners();
+    });
 } else {
     init();
+    initAICopyModalListeners();
 }
