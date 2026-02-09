@@ -1392,6 +1392,12 @@ function displayResults(data) {
                         </div>
                     </div>
 
+                    <div style="margin-top: 15px; text-align: center;">
+                        <button class="btn btn-secondary copy-for-ai-btn" data-technique-index="${index}" style="font-size: 0.85rem; padding: 8px 16px;">
+                            📋 Copy for AI Analysis
+                        </button>
+                    </div>
+
                     ${technique.technique_notes ? `<div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 3px solid var(--accent-color); border-radius: 4px;">
                         <div style="margin: 0; line-height: 1.6; color: var(--secondary-color); font-size: 0.9rem;">${technique.technique_notes
                             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
@@ -1462,6 +1468,14 @@ function displayResults(data) {
             const techniqueIndex = parseInt(this.getAttribute('data-technique-index'));
             const technique = data.recommended_techniques[techniqueIndex];
             await saveInlineAdjustments(technique, techniqueIndex);
+        });
+    });
+
+    // Add event listeners for "Copy for AI Analysis" buttons
+    document.querySelectorAll('.copy-for-ai-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const techniqueIndex = parseInt(this.getAttribute('data-technique-index'));
+            openAICopyModal(techniqueIndex, data.recommended_techniques);
         });
     });
 
@@ -4261,9 +4275,473 @@ function saveRecipeToLocalStorage(coffeeAnalysis, brewMethod, recipeData, notes 
     }
 }
 
+// ============ Equipment Wizard ============
+
+function initWizard() {
+    document.getElementById('wizard-next')?.addEventListener('click', wizardNext);
+    document.getElementById('wizard-prev')?.addEventListener('click', wizardPrev);
+    updateWizardUI();
+}
+
+function wizardNext() {
+    let nextStep = wizardStep + 1;
+    // Skip filters step if no pour-over devices selected
+    if (nextStep === 2 && !hasPourOverSelected()) {
+        nextStep = 3;
+    }
+    if (nextStep <= WIZARD_TOTAL_STEPS) {
+        wizardStep = nextStep;
+        updateWizardUI();
+    }
+}
+
+function wizardPrev() {
+    let prevStep = wizardStep - 1;
+    // Skip filters step if no pour-over devices selected
+    if (prevStep === 2 && !hasPourOverSelected()) {
+        prevStep = 1;
+    }
+    if (prevStep >= 1) {
+        wizardStep = prevStep;
+        updateWizardUI();
+    }
+}
+
+function hasPourOverSelected() {
+    return document.querySelectorAll('input[name="pour-over"]:checked').length > 0;
+}
+
+function updateWizardUI() {
+    // Update step content visibility
+    document.querySelectorAll('.wizard-step-content').forEach(el => {
+        el.classList.toggle('active', parseInt(el.dataset.step) === wizardStep);
+    });
+
+    // Update progress indicators
+    document.querySelectorAll('.wizard-progress .wizard-step').forEach(el => {
+        const step = parseInt(el.dataset.step);
+        el.classList.toggle('active', step === wizardStep);
+        el.classList.toggle('completed', step < wizardStep);
+    });
+
+    // Update navigation buttons
+    const prevBtn = document.getElementById('wizard-prev');
+    const nextBtn = document.getElementById('wizard-next');
+    const saveBtn = document.getElementById('wizard-save');
+
+    if (prevBtn) prevBtn.style.display = wizardStep > 1 ? '' : 'none';
+    if (nextBtn) nextBtn.style.display = wizardStep < WIZARD_TOTAL_STEPS ? '' : 'none';
+    if (saveBtn) saveBtn.style.display = wizardStep === WIZARD_TOTAL_STEPS ? '' : 'none';
+}
+
+// ============================================
+// Filter Update Functions
+// ============================================
+
+function showFilterUpdatePrompt(techniqueIndex, filterType) {
+    // Remove any existing filter update buttons
+    const existing = document.querySelectorAll('.filter-update-prompt');
+    existing.forEach(el => el.remove());
+
+    if (!filterType) return;
+
+    // Find the filter selector and insert button after it
+    const filterSelector = document.querySelector(`.filter-selector[data-technique-index="${techniqueIndex}"]`);
+    if (!filterSelector) return;
+
+    const promptDiv = document.createElement('div');
+    promptDiv.className = 'filter-update-prompt';
+    promptDiv.style.cssText = 'margin-top: 8px; text-align: center;';
+    promptDiv.innerHTML = `
+        <button class="btn btn-primary filter-update-btn" style="font-size: 0.85rem; padding: 6px 14px;"
+                data-technique-index="${techniqueIndex}" data-filter-type="${filterType}">
+            Update recipe for ${filterType}
+        </button>
+    `;
+
+    filterSelector.parentNode.insertBefore(promptDiv, filterSelector.nextSibling);
+
+    // Add click handler
+    promptDiv.querySelector('.filter-update-btn').addEventListener('click', async function() {
+        const idx = parseInt(this.getAttribute('data-technique-index'));
+        const filter = this.getAttribute('data-filter-type');
+
+        if (state.imageFile) {
+            // Re-analyze with the new filter - analyzeImage already reads selectedFilters
+            const techniques = state.currentCoffeeAnalysis?.recommended_techniques;
+            if (techniques && techniques[idx]) {
+                promptDiv.innerHTML = '<span style="font-size: 0.85rem; color: var(--secondary-color);">Updating recipe...</span>';
+                await updateRecipeForFilter(idx, filter);
+                promptDiv.remove();
+            }
+        } else {
+            // No image (loaded from saved recipe) - send adjustment request
+            promptDiv.innerHTML = '<span style="font-size: 0.85rem; color: var(--secondary-color);">Updating recipe...</span>';
+            await updateRecipeForFilter(idx, filter);
+            promptDiv.remove();
+        }
+    });
+}
+
+async function updateRecipeForFilter(techniqueIndex, filterType) {
+    if (!state.currentCoffeeAnalysis) {
+        console.error('No current coffee analysis available');
+        return;
+    }
+
+    const techniques = state.currentCoffeeAnalysis.recommended_techniques;
+    if (!techniques || !techniques[techniqueIndex]) {
+        console.error('No technique found at index', techniqueIndex);
+        return;
+    }
+
+    const technique = techniques[techniqueIndex];
+
+    try {
+        const equipmentDescription = getEquipmentDescription();
+
+        // Build a flat, single-line adjustment guidance string to avoid control chars
+        const paramParts = [];
+        if (technique.parameters && typeof technique.parameters === 'object') {
+            for (const [key, value] of Object.entries(technique.parameters)) {
+                if (value != null && typeof value !== 'object') {
+                    paramParts.push(key + ': ' + String(value).replace(/[\n\r\t]/g, ' ').replace(/\s+/g, ' ').trim());
+                }
+            }
+        }
+
+        const adjustmentGuidance = 'The user changed their filter to "' + filterType + '". Please adjust the recipe parameters (especially grind size, brew time, and pour schedule/technique) to optimize for this filter type. Keep the same coffee, dose, and brew method but adjust extraction parameters for the filter characteristics. ' +
+            'Filter info: Paper filters (Sibarist Fast, standard white) = clean cup, fast-flow allows finer grinds. Metal/mesh = fuller body, slightly coarser grind. Cloth = between paper and metal. ' +
+            'Current recipe parameters: ' + paramParts.join('; ');
+
+        // Only send the fields the server actually uses from previousAnalysis
+        const slimAnalysis = {
+            name: state.currentCoffeeAnalysis.name || 'Unknown',
+            roaster: state.currentCoffeeAnalysis.roaster || 'Unknown',
+            roast_level: state.currentCoffeeAnalysis.roast_level || 'Unknown',
+            origin: state.currentCoffeeAnalysis.origin || 'Unknown',
+            processing: state.currentCoffeeAnalysis.processing || 'Unknown'
+        };
+
+        const response = await fetch('/api/analyze', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: safeJsonStringify({
+                equipment: equipmentDescription,
+                currentBrewMethod: technique.technique_name,
+                selectedFilterType: filterType,
+                adjustmentRequest: adjustmentGuidance,
+                previousAnalysis: slimAnalysis
+            })
+        });
+
+        await handleApiResponse(response);
+
+        const result = await response.json();
+        const adjustmentText = result.content[0].text;
+
+        // Parse JSON response
+        let adjustedData;
+        try {
+            adjustedData = JSON.parse(adjustmentText);
+        } catch (e) {
+            let cleanText = adjustmentText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+            const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                adjustedData = JSON.parse(jsonMatch[0]);
+            } else {
+                throw new Error('Could not parse filter adjustment response');
+            }
+        }
+
+        if (adjustedData && adjustedData.adjusted_parameters) {
+            // Update the technique's parameters in state
+            technique.parameters = {
+                ...technique.parameters,
+                ...adjustedData.adjusted_parameters,
+                filter_type: filterType
+            };
+
+            // Re-render the results to show updated parameters
+            if (state.currentRecipe && state.currentRecipe.recommended_techniques) {
+                state.currentRecipe.recommended_techniques[techniqueIndex] = technique;
+            }
+
+            // Re-render just the recipe table for this technique
+            const techniqueCard = document.querySelector(`.technique-card[data-technique-index="${techniqueIndex}"]`);
+            if (techniqueCard) {
+                const tableBody = techniqueCard.querySelector('.brew-parameters-table tbody');
+                if (tableBody) {
+                    updateRecipeTableBody(tableBody, adjustedData.adjusted_parameters, technique.technique_name);
+                }
+            }
+
+            // Show success message
+            const card = document.querySelector(`.technique-card[data-technique-index="${techniqueIndex}"]`);
+            if (card) {
+                const notice = document.createElement('div');
+                notice.style.cssText = 'background: #d4edda; color: #155724; padding: 8px 12px; border-radius: 6px; margin-bottom: 10px; font-size: 0.85rem;';
+                notice.textContent = `✓ Recipe updated for ${filterType} filter`;
+                const firstChild = card.querySelector('.brew-parameters-table');
+                if (firstChild) {
+                    firstChild.parentNode.insertBefore(notice, firstChild);
+                    setTimeout(() => notice.remove(), 3000);
+                }
+            }
+        }
+
+    } catch (error) {
+        console.error('Failed to update recipe for filter:', error);
+        alert(error.message || 'Failed to update recipe for the selected filter. Please try again.');
+    }
+}
+
+function updateRecipeTableBody(tableBody, params, techniqueName) {
+    if (!tableBody || !params) return;
+
+    // Update existing rows in-place rather than replacing them,
+    // to preserve the adjustment column, notes textarea, and other interactive elements
+    const rows = tableBody.querySelectorAll('tr');
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length < 2) return;
+
+        // Find which param this row represents by checking the input/textarea data-param
+        const input = row.querySelector('.param-input');
+        const paramKey = input ? input.getAttribute('data-param') : null;
+
+        if (paramKey && params[paramKey] !== undefined) {
+            let value = params[paramKey];
+            if (paramKey === 'grind_size') {
+                value = formatGrindSize(value, state.equipment?.grinder);
+            }
+            // Update the display cell (second td)
+            if (paramKey === 'notes') {
+                cells[1].innerHTML = value || '';
+            } else {
+                cells[1].textContent = value;
+            }
+            // Update the input/textarea value too
+            if (input) {
+                input.value = value || '';
+            }
+        }
+    });
+}
+
+// ========== AI Copy for Analysis Feature ==========
+
+// State for AI copy modal
+let aiCopyState = {
+    techniqueIndex: null,
+    techniques: null
+};
+
+// Generate markdown text for AI analysis
+function generateRecipeTextForAI(techniqueIndex, techniques, userImpressions) {
+    const technique = techniques[techniqueIndex];
+    const params = technique.parameters || {};
+    const coffee = state.currentCoffeeAnalysis || {};
+    const equipment = state.equipment || {};
+
+    let text = `## Coffee Recipe for AI Analysis\n\n`;
+
+    // Coffee Details
+    text += `### Coffee Details\n`;
+    text += `- **Name**: ${coffee.name || 'Unknown'}\n`;
+    text += `- **Roaster**: ${coffee.roaster || 'Unknown'}\n`;
+    text += `- **Roast Level**: ${coffee.roast_level || 'Unknown'}\n`;
+    text += `- **Origin**: ${coffee.origin || 'Unknown'}\n`;
+    text += `- **Processing**: ${coffee.processing || 'Unknown'}\n`;
+    if (coffee.flavor_notes && coffee.flavor_notes.length > 0) {
+        text += `- **Flavor Notes**: ${coffee.flavor_notes.join(', ')}\n`;
+    }
+    text += `\n`;
+
+    // Equipment
+    text += `### My Equipment\n`;
+    if (equipment.grinder) {
+        text += `- **Grinder**: ${equipment.grinder}\n`;
+    }
+    if (equipment.espressoMachine) {
+        text += `- **Espresso Machine**: ${equipment.espressoMachine}${equipment.flowControl ? ' (with flow control)' : ''}\n`;
+    }
+    if (equipment.pourOverDevices && equipment.pourOverDevices.length > 0) {
+        text += `- **Pour Over**: ${equipment.pourOverDevices.join(', ')}\n`;
+    }
+    if (equipment.otherMethods && equipment.otherMethods.length > 0) {
+        text += `- **Other Methods**: ${equipment.otherMethods.join(', ')}\n`;
+    }
+    text += `\n`;
+
+    // Brew Method and Recipe
+    text += `### Brew Method: ${technique.technique_name}\n`;
+    text += `| Parameter | Value |\n`;
+    text += `|-----------|-------|\n`;
+    text += `| Dose | ${params.dose || 'N/A'} |\n`;
+    text += `| Yield | ${params.yield || 'N/A'} |\n`;
+    text += `| Ratio | ${params.ratio || 'N/A'} |\n`;
+    text += `| Water Temp | ${params.water_temp || 'N/A'} |\n`;
+    text += `| Grind Size | ${formatGrindSize(params.grind_size, equipment.grinder) || 'N/A'} |\n`;
+    text += `| Brew Time | ${params.brew_time || 'N/A'} |\n`;
+    if (params.pressure) {
+        text += `| Pressure | ${params.pressure} |\n`;
+    }
+    if (params.flow_control) {
+        text += `| Flow Control | ${params.flow_control} |\n`;
+    }
+    if (params.filter_type) {
+        text += `| Filter | ${params.filter_type} |\n`;
+    }
+    text += `\n`;
+
+    // Technique notes if available
+    if (technique.technique_notes) {
+        text += `### Brewing Notes\n`;
+        text += technique.technique_notes.replace(/\*\*/g, '**') + '\n\n';
+    }
+
+    // User Impressions
+    text += `### My Tasting Impressions\n`;
+    text += userImpressions || '(No impressions added)';
+    text += `\n\n`;
+
+    // AI Prompt
+    text += `---\n\n`;
+    text += `Please analyze this recipe and my tasting impressions. Suggest specific adjustments to improve my next brew based on the coffee characteristics and my feedback.`;
+
+    return text;
+}
+
+// Open the AI copy modal
+function openAICopyModal(techniqueIndex, techniques) {
+    aiCopyState.techniqueIndex = techniqueIndex;
+    aiCopyState.techniques = techniques;
+
+    const modal = document.getElementById('ai-copy-modal');
+    const impressionsInput = document.getElementById('ai-impressions-input');
+    const preview = document.getElementById('ai-copy-preview');
+    const successMsg = document.getElementById('ai-copy-success');
+
+    if (!modal || !impressionsInput || !preview) return;
+
+    // Reset state
+    impressionsInput.value = '';
+    successMsg.classList.add('hidden');
+
+    // Generate initial preview
+    updateAICopyPreview();
+
+    // Add input listener for live preview
+    impressionsInput.removeEventListener('input', updateAICopyPreview);
+    impressionsInput.addEventListener('input', updateAICopyPreview);
+
+    // Show modal
+    modal.classList.remove('hidden');
+}
+
+// Update the preview as user types
+function updateAICopyPreview() {
+    const impressionsInput = document.getElementById('ai-impressions-input');
+    const preview = document.getElementById('ai-copy-preview');
+
+    if (!preview || aiCopyState.techniqueIndex === null) return;
+
+    const text = generateRecipeTextForAI(
+        aiCopyState.techniqueIndex,
+        aiCopyState.techniques,
+        impressionsInput ? impressionsInput.value : ''
+    );
+
+    // Convert markdown to displayable HTML for preview
+    preview.innerHTML = `<pre style="white-space: pre-wrap; word-wrap: break-word; font-size: 0.8rem; line-height: 1.4; max-height: 250px; overflow-y: auto; margin: 0;">${escapeHtml(text)}</pre>`;
+}
+
+// Copy recipe text to clipboard
+async function copyRecipeToClipboard() {
+    const impressionsInput = document.getElementById('ai-impressions-input');
+    const successMsg = document.getElementById('ai-copy-success');
+    const copyBtn = document.getElementById('ai-copy-btn');
+
+    if (aiCopyState.techniqueIndex === null) return;
+
+    const text = generateRecipeTextForAI(
+        aiCopyState.techniqueIndex,
+        aiCopyState.techniques,
+        impressionsInput ? impressionsInput.value : ''
+    );
+
+    try {
+        await navigator.clipboard.writeText(text);
+
+        // Show success message
+        successMsg.classList.remove('hidden');
+        copyBtn.textContent = 'Copied!';
+        copyBtn.style.backgroundColor = 'var(--success-color)';
+
+        // Reset after delay
+        setTimeout(() => {
+            successMsg.classList.add('hidden');
+            copyBtn.textContent = 'Copy to Clipboard';
+            copyBtn.style.backgroundColor = '';
+        }, 2000);
+
+    } catch (err) {
+        console.error('Failed to copy:', err);
+        alert('Failed to copy to clipboard. Please try selecting and copying manually.');
+    }
+}
+
+// Close the AI copy modal
+function closeAICopyModal() {
+    const modal = document.getElementById('ai-copy-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    aiCopyState.techniqueIndex = null;
+    aiCopyState.techniques = null;
+}
+
+// Helper function to escape HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Set up AI copy modal event listeners (called once on init)
+function initAICopyModalListeners() {
+    const copyBtn = document.getElementById('ai-copy-btn');
+    const cancelBtn = document.getElementById('ai-copy-cancel-btn');
+    const modal = document.getElementById('ai-copy-modal');
+
+    if (copyBtn) {
+        copyBtn.addEventListener('click', copyRecipeToClipboard);
+    }
+
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', closeAICopyModal);
+    }
+
+    // Close on click outside
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeAICopyModal();
+            }
+        });
+    }
+}
+
 // Initialize app when DOM is ready
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', () => {
+        init();
+        initAICopyModalListeners();
+    });
 } else {
     init();
+    initAICopyModalListeners();
 }
