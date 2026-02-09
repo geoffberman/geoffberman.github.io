@@ -32,10 +32,24 @@ function checkRateLimit(ip) {
     return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - record.count };
 }
 
-// Using Claude 3 Haiku for API compatibility
+// Sanitize response to remove control characters that break client JSON parsing
+function sanitizeApiResponse(data) {
+    return JSON.parse(JSON.stringify(data, (key, value) => {
+        if (typeof value === 'string') {
+            return value.replace(/[\x00-\x1f]/g, (ch) => {
+                const code = ch.charCodeAt(0);
+                if (code === 9 || code === 10 || code === 13) return ' ';
+                return '';
+            });
+        }
+        return value;
+    }));
+}
+
 module.exports = async function handler(req, res) {
-    // Enable CORS
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    // Enable CORS - restrict to same-origin deployments
+    const allowedOrigin = process.env.CORS_ORIGIN || req.headers.origin || '*';
+    res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Access-Control-Expose-Headers', 'Retry-After, X-RateLimit-Limit, X-RateLimit-Remaining');
@@ -136,18 +150,7 @@ Make the adjusted_parameters complete and ready to display in a table. The adjus
             }
 
             const adjustmentData = await adjustmentResponse.json();
-            // Sanitize response to remove control characters that break client JSON parsing
-            const sanitizedData = JSON.parse(JSON.stringify(adjustmentData, (key, value) => {
-                if (typeof value === 'string') {
-                    return value.replace(/[\x00-\x1f]/g, (ch) => {
-                        const code = ch.charCodeAt(0);
-                        if (code === 9 || code === 10 || code === 13) return ' '; // tab, newline, CR -> space
-                        return ''; // remove other control chars
-                    });
-                }
-                return value;
-            }));
-            res.status(200).json(sanitizedData);
+            res.status(200).json(sanitizeApiResponse(adjustmentData));
             return;
         }
 
@@ -442,18 +445,7 @@ Read the image carefully and extract all visible information accurately. Provide
         }
 
         const data = await response.json();
-        // Sanitize response to remove control characters that break client JSON parsing
-        const sanitizedData = JSON.parse(JSON.stringify(data, (key, value) => {
-            if (typeof value === 'string') {
-                return value.replace(/[\x00-\x1f]/g, (ch) => {
-                    const code = ch.charCodeAt(0);
-                    if (code === 9 || code === 10 || code === 13) return ' '; // tab, newline, CR -> space
-                    return ''; // remove other control chars
-                });
-            }
-            return value;
-        }));
-        res.status(200).json(sanitizedData);
+        res.status(200).json(sanitizeApiResponse(data));
 
     } catch (error) {
         console.error('Analysis error:', error);
