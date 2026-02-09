@@ -121,6 +121,37 @@
             </div>
         </div>
 
+        <!-- AI Copy Modal -->
+        <div id="ai-copy-modal" class="auth-modal hidden">
+            <div class="auth-modal-content" style="max-width: 600px;">
+                <h2>Copy for AI Analysis</h2>
+                <p style="color: var(--secondary-color); margin-bottom: 20px;">Add your taste impressions, then copy everything to paste into your AI chat.</p>
+
+                <div class="form-group">
+                    <label for="ai-impressions-input">Your Taste Impressions</label>
+                    <textarea id="ai-impressions-input" rows="4" placeholder="e.g., Tasted a bit sour, wanted more body and sweetness. The bloom looked uneven."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Preview (what will be copied)</label>
+                    <div id="ai-copy-preview" class="ai-copy-preview"></div>
+                </div>
+
+                <div id="ai-copy-success" class="hidden" style="background: #d4edda; color: #155724; padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: center;">
+                    Copied to clipboard!
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button id="ai-copy-btn" class="btn btn-primary" style="flex: 1;">
+                        Copy to Clipboard
+                    </button>
+                    <button id="ai-copy-cancel-btn" class="btn btn-secondary" style="flex: 1;">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div id="settings-section" class="section hidden">
             <div class="card">
                 <h3>Your Coffee Equipment</h3>
