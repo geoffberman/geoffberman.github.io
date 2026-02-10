@@ -251,6 +251,30 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Parse JSON from AI response text, handling markdown code blocks and other wrappers
+function parseAIJsonResponse(text) {
+    // Method 1: Try direct parse
+    try {
+        return JSON.parse(text);
+    } catch (e) { /* continue */ }
+
+    // Method 2: Extract from markdown code blocks
+    const codeBlockMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+    if (codeBlockMatch) {
+        try {
+            return JSON.parse(codeBlockMatch[1]);
+        } catch (e) { /* continue */ }
+    }
+
+    // Method 3: Find JSON object directly (outermost braces)
+    const directMatch = text.match(/\{[\s\S]*\}/);
+    if (directMatch) {
+        return JSON.parse(directMatch[0]);
+    }
+
+    throw new Error('No JSON found in AI response');
+}
+
 // Fetch user's most recent saved recipes (across all coffees)
 async function getRecentSavedRecipes(limit = 5) {
     let allRecipes = [];
@@ -1127,45 +1151,15 @@ async function analyzeImage(specificMethod = null) {
             signal: state.currentAbortController.signal
         });
 
-        await handleApiResponse(response);
-
-        const data = await response.json();
+        const data = await handleApiResponse(response);
         const analysisText = data.content[0].text;
 
         // Parse the JSON response
         let analysisData;
         try {
-            // Try multiple extraction methods
-            let jsonStr = null;
-
-            // Method 1: Extract from markdown code blocks
-            const codeBlockMatch = analysisText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
-            if (codeBlockMatch) {
-                jsonStr = codeBlockMatch[1];
-            }
-
-            // Method 2: Find JSON object directly
-            if (!jsonStr) {
-                const directMatch = analysisText.match(/\{[\s\S]*\}/);
-                if (directMatch) {
-                    jsonStr = directMatch[0];
-                }
-            }
-
-            // Method 3: Try parsing the entire response as JSON
-            if (!jsonStr) {
-                jsonStr = analysisText.trim();
-            }
-
-            if (jsonStr) {
-                analysisData = JSON.parse(jsonStr);
-            } else {
-                throw new Error('No JSON found in response');
-            }
+            analysisData = parseAIJsonResponse(analysisText);
         } catch (parseError) {
-            // If JSON parsing fails, create a fallback structure
             console.error('JSON parsing failed:', parseError);
-            console.error('Failed text:', analysisText);
             analysisData = parseFallbackResponse(analysisText);
         }
 
@@ -1366,7 +1360,7 @@ function displayResults(data) {
                         <h4 style="margin: 0 0 5px 0; font-size: 1rem;">${escapeHtml(technique.technique_name)}</h4>
                         ${technique.is_saved_recipe ? '<span style="display: inline-block; background: var(--success-color); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;">💾 YOUR SAVED RECIPE</span>' : ''}
                     </div>
-                    <img src="${imageUrl}" alt="${technique.technique_name}" style="width: 80px; height: 60px; object-fit: cover; border-radius: 6px; flex-shrink: 0;" loading="lazy" />
+                    <img src="${imageUrl}" alt="${escapeHtml(technique.technique_name)}" style="width: 80px; height: 60px; object-fit: cover; border-radius: 6px; flex-shrink: 0;" loading="lazy" />
                 </div>
                 <div id="active-indicator-${index}" class="hidden" style="margin-bottom: 10px; text-align: left; color: var(--primary-color); font-weight: bold; font-size: 0.9rem;">
                     ⭐ Currently Using This Recipe
@@ -1647,20 +1641,45 @@ function safeJsonStringify(obj) {
 }
 
 async function handleApiResponse(response) {
-    if (response.ok) return response;
     if (response.status === 429) {
         const retryAfter = response.headers.get('Retry-After');
         const minutes = retryAfter ? Math.ceil(parseInt(retryAfter) / 60) : 5;
         throw new Error(`Too many requests. Please try again in ${minutes} minute${minutes > 1 ? 's' : ''}.`);
     }
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `Request failed (${response.status})`);
+    const data = await response.json();
+    if (!response.ok) {
+        throw new Error(data.error || `Request failed (${response.status})`);
+    }
+    return data;
 }
 
-// Reset app
+// Reset app to initial upload state without a full page reload
 function resetApp() {
-    // Reload the page to ensure proper initialization and saved recipe detection
-    window.location.reload();
+    // Reset state (keep equipment and auth)
+    state.imageData = null;
+    state.imageFile = null;
+    state.currentCoffeeAnalysis = null;
+    state.currentBrewMethod = null;
+    state.currentRecipe = null;
+    state.hiddenAiRecommendations = null;
+    state.currentImageHash = null;
+    state.analysisInProgress = false;
+    state.selectedFilters = {};
+    state.currentAbortController = null;
+    state.selectedRecipeData = null;
+
+    // Clear displayed content
+    if (elements.imagePreview) elements.imagePreview.src = '';
+    if (elements.analysisContent) elements.analysisContent.innerHTML = '';
+    if (elements.methodContent) elements.methodContent.innerHTML = '';
+    if (elements.adjustmentFeedback) elements.adjustmentFeedback.classList.add('hidden');
+
+    // Reset file input
+    if (elements.imageInput) elements.imageInput.value = '';
+    if (elements.cameraInput) elements.cameraInput.value = '';
+
+    // Show upload section
+    showSection('upload');
 }
 
 // Equipment management functions
@@ -2811,29 +2830,11 @@ async function saveEquipmentToDatabase(equipment) {
             updated_at: new Date().toISOString()
         };
 
-        // Try to update existing equipment first
-        const { data: existing } = await supabase
+        const { error } = await supabase
             .from('equipment')
-            .select('id')
-            .eq('user_id', userId)
-            .single();
+            .upsert(dbEquipment, { onConflict: 'user_id' });
 
-        if (existing) {
-            // Update existing
-            const { error } = await supabase
-                .from('equipment')
-                .update(dbEquipment)
-                .eq('user_id', userId);
-
-            if (error) throw error;
-        } else {
-            // Insert new
-            const { error } = await supabase
-                .from('equipment')
-                .insert([dbEquipment]);
-
-            if (error) throw error;
-        }
+        if (error) throw error;
 
         console.log('Equipment saved to database');
         return true;
@@ -3111,9 +3112,7 @@ async function adjustRecipeBasedOnRating(rating) {
             })
         });
 
-        await handleApiResponse(response);
-
-        const result = await response.json();
+        const result = await handleApiResponse(response);
 
         // Extract the text from the API response
         const adjustmentText = result.content[0].text;
@@ -3121,85 +3120,69 @@ async function adjustRecipeBasedOnRating(rating) {
         // Try to parse JSON from the response
         let adjustedData;
         try {
-            // Try direct JSON parse first
-            adjustedData = JSON.parse(adjustmentText);
-        } catch (parseError1) {
+            adjustedData = parseAIJsonResponse(adjustmentText);
+        } catch (parseError) {
+            console.error('JSON parsing failed, trying manual extraction:', parseError);
 
+            // Fallback - manual regex extraction from text
             try {
-                // Remove markdown code blocks if present
-                let cleanText = adjustmentText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+                const doseMatch = adjustmentText.match(/"dose":\s*"([^"]+)"/);
+                const yieldMatch = adjustmentText.match(/"yield":\s*"([^"]+)"/);
+                const ratioMatch = adjustmentText.match(/"ratio":\s*"([^"]+)"/);
+                const tempMatch = adjustmentText.match(/"water_temp":\s*"([^"]+)"/);
+                const grindMatch = adjustmentText.match(/"grind_size":\s*"([^"]+)"/);
+                const timeMatch = adjustmentText.match(/"brew_time":\s*"([^"]+)"/);
+                const pressureMatch = adjustmentText.match(/"pressure":\s*"([^"]+)"/);
+                const flowMatch = adjustmentText.match(/"flow_control":\s*"([^"]+)"/);
+                const explanationMatch = adjustmentText.match(/"adjustments_explained":\s*"([^"]+(?:\\.[^"]+)*)"/);
 
-                // Find JSON object - match outermost braces
-                const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    adjustedData = JSON.parse(jsonMatch[0]);
+                if (doseMatch && yieldMatch && ratioMatch) {
+                    adjustedData = {
+                        adjusted_parameters: {
+                            dose: doseMatch[1],
+                            yield: yieldMatch[1],
+                            ratio: ratioMatch[1],
+                            water_temp: tempMatch ? tempMatch[1] : 'N/A',
+                            grind_size: grindMatch ? grindMatch[1] : 'N/A',
+                            brew_time: timeMatch ? timeMatch[1] : 'N/A',
+                            pressure: pressureMatch ? pressureMatch[1] : 'N/A',
+                            flow_control: flowMatch ? flowMatch[1] : 'N/A'
+                        },
+                        adjustments_explained: explanationMatch ? explanationMatch[1].replace(/\\n/g, '\n') : adjustmentText.split('"adjustments_explained":')[1] || 'See details below'
+                    };
                 } else {
-                    throw new Error('No JSON object found in text');
+                    throw new Error('Could not extract parameters');
                 }
-            } catch (parseError2) {
-                console.error('All JSON parsing attempts failed:', parseError2);
+            } catch (manualError) {
+                console.error('Manual extraction failed:', manualError);
 
-                // Final fallback - manual extraction from text
-                try {
-                    // Extract parameters using regex
-                    const doseMatch = adjustmentText.match(/"dose":\s*"([^"]+)"/);
-                    const yieldMatch = adjustmentText.match(/"yield":\s*"([^"]+)"/);
-                    const ratioMatch = adjustmentText.match(/"ratio":\s*"([^"]+)"/);
-                    const tempMatch = adjustmentText.match(/"water_temp":\s*"([^"]+)"/);
-                    const grindMatch = adjustmentText.match(/"grind_size":\s*"([^"]+)"/);
-                    const timeMatch = adjustmentText.match(/"brew_time":\s*"([^"]+)"/);
-                    const pressureMatch = adjustmentText.match(/"pressure":\s*"([^"]+)"/);
-                    const flowMatch = adjustmentText.match(/"flow_control":\s*"([^"]+)"/);
-                    const explanationMatch = adjustmentText.match(/"adjustments_explained":\s*"([^"]+(?:\\.[^"]+)*)"/);
+                // Absolute final fallback - display formatted text
+                const htmlText = adjustmentText
+                    .replace(/\{[\s\S]*?"adjustments_explained":\s*"/g, '')
+                    .replace(/\n\n/g, '</p><p>')
+                    .replace(/\\n/g, '<br>')
+                    .replace(/\n/g, '<br>')
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>');
 
-                    if (doseMatch && yieldMatch && ratioMatch) {
-                        adjustedData = {
-                            adjusted_parameters: {
-                                dose: doseMatch[1],
-                                yield: yieldMatch[1],
-                                ratio: ratioMatch[1],
-                                water_temp: tempMatch ? tempMatch[1] : 'N/A',
-                                grind_size: grindMatch ? grindMatch[1] : 'N/A',
-                                brew_time: timeMatch ? timeMatch[1] : 'N/A',
-                                pressure: pressureMatch ? pressureMatch[1] : 'N/A',
-                                flow_control: flowMatch ? flowMatch[1] : 'N/A'
-                            },
-                            adjustments_explained: explanationMatch ? explanationMatch[1].replace(/\\n/g, '\n') : adjustmentText.split('"adjustments_explained":')[1] || 'See details below'
-                        };
-                    } else {
-                        throw new Error('Could not extract parameters');
-                    }
-                } catch (manualError) {
-                    console.error('Manual extraction failed:', manualError);
-
-                    // Absolute final fallback - display formatted text
-                    const htmlText = adjustmentText
-                        .replace(/\{[\s\S]*?"adjustments_explained":\s*"/g, '')
-                        .replace(/\n\n/g, '</p><p>')
-                        .replace(/\\n/g, '<br>')
-                        .replace(/\n/g, '<br>')
-                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                        .replace(/\*(.*?)\*/g, '<em>$1</em>');
-
-                    elements.methodContent.innerHTML = `
-                        <div class="adjustment-notice" style="background: #FFF3CD; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
-                            <strong>📊 Recipe Adjusted Based on Your Feedback</strong>
-                        </div>
-                        <p style="color: var(--secondary-color); font-size: 0.9rem; margin-bottom: 15px;">
-                            ⚠️ Could not parse recipe format. Here are the recommendations:
-                        </p>
-                        <div style="line-height: 1.6;"><p>${htmlText}</p></div>
-                    `;
-                    elements.adjustmentFeedback.classList.remove('hidden');
-                    elements.adjustmentFeedback.querySelector('p').textContent = rating < 0
-                        ? '✓ Recipe adjusted to increase extraction (reduce sourness)'
-                        : '✓ Recipe adjusted to decrease extraction (reduce bitterness)';
-                    elements.adjustRecipeBtn.textContent = 'Adjust Recipe Based on Rating';
-                    elements.adjustRecipeBtn.disabled = true;
-                    elements.tasteRating.value = 0;
-                    updateRatingLabel(0);
-                    return;
-                }
+                elements.methodContent.innerHTML = `
+                    <div class="adjustment-notice" style="background: #FFF3CD; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
+                        <strong>📊 Recipe Adjusted Based on Your Feedback</strong>
+                    </div>
+                    <p style="color: var(--secondary-color); font-size: 0.9rem; margin-bottom: 15px;">
+                        ⚠️ Could not parse recipe format. Here are the recommendations:
+                    </p>
+                    <div style="line-height: 1.6;"><p>${htmlText}</p></div>
+                `;
+                elements.adjustmentFeedback.classList.remove('hidden');
+                elements.adjustmentFeedback.querySelector('p').textContent = rating < 0
+                    ? '✓ Recipe adjusted to increase extraction (reduce sourness)'
+                    : '✓ Recipe adjusted to decrease extraction (reduce bitterness)';
+                elements.adjustRecipeBtn.textContent = 'Adjust Recipe Based on Rating';
+                elements.adjustRecipeBtn.disabled = true;
+                elements.tasteRating.value = 0;
+                updateRatingLabel(0);
+                return;
             }
         }
 
@@ -3863,7 +3846,7 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
     };
 
     try {
-        // Check if recipe already exists (use limit(1) instead of maybeSingle to handle duplicates gracefully)
+        // Check if recipe already exists to increment times_brewed counter
         const { data: existingArr, error: queryError } = await supabase
             .from('saved_recipes')
             .select('id, times_brewed')
@@ -3872,32 +3855,22 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
             .eq('brew_method', brewMethod)
             .limit(1);
 
-        if (queryError) {
-            console.error('[SAVE-DB] Query error:', queryError);
-            throw queryError;
-        }
+        if (queryError) throw queryError;
+
         const existing = existingArr && existingArr.length > 0 ? existingArr[0] : null;
 
         if (existing) {
-            // Update existing recipe and append notes
-            const updateData = {
-                recipe: recipeData,
-                times_brewed: existing.times_brewed + 1,
-                last_brewed: new Date().toISOString()
-            };
-
-            // Notes are stored inside recipeData.notes (in the recipe JSONB column)
-
             const { error } = await supabase
                 .from('saved_recipes')
-                .update(updateData)
+                .update({
+                    recipe: recipeData,
+                    times_brewed: existing.times_brewed + 1,
+                    last_brewed: new Date().toISOString()
+                })
                 .eq('id', existing.id);
 
             if (error) throw error;
         } else {
-            // Insert new preferred recipe
-            // Notes are stored inside recipeData.notes (in the recipe JSONB column)
-
             const { error } = await supabase
                 .from('saved_recipes')
                 .insert([preferredRecipe]);
@@ -3906,13 +3879,6 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
         }
     } catch (error) {
         console.error('Failed to save preferred recipe:', error);
-        console.error('[SAVE-DB] Error details:', {
-            message: error?.message,
-            code: error?.code,
-            details: error?.details,
-            hint: error?.hint,
-            status: error?.status
-        });
     }
 }
 
@@ -4276,24 +4242,11 @@ async function updateRecipeForFilter(techniqueIndex, filterType) {
             })
         });
 
-        await handleApiResponse(response);
-
-        const result = await response.json();
+        const result = await handleApiResponse(response);
         const adjustmentText = result.content[0].text;
 
         // Parse JSON response
-        let adjustedData;
-        try {
-            adjustedData = JSON.parse(adjustmentText);
-        } catch (e) {
-            let cleanText = adjustmentText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-            const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                adjustedData = JSON.parse(jsonMatch[0]);
-            } else {
-                throw new Error('Could not parse filter adjustment response');
-            }
-        }
+        const adjustedData = parseAIJsonResponse(adjustmentText);
 
         if (adjustedData && adjustedData.adjusted_parameters) {
             // Update the technique's parameters in state
