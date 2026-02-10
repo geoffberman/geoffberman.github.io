@@ -4543,14 +4543,50 @@ function closeAICopyModal() {
     aiCopyState.techniques = null;
 }
 
+// Close the AI copy modal and return to the recipe with adjustment inputs visible
+function returnToRecipeFromAICopy() {
+    const techniqueIndex = aiCopyState.techniqueIndex;
+    const techniques = aiCopyState.techniques;
+
+    // Close the modal (but preserve state references before clearing)
+    const modal = document.getElementById('ai-copy-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    aiCopyState.techniqueIndex = null;
+    aiCopyState.techniques = null;
+
+    if (techniqueIndex === null || !techniques) return;
+
+    // Ensure the recipe details are visible
+    const recipeDetails = document.getElementById(`recipe-details-${techniqueIndex}`);
+    if (recipeDetails) {
+        recipeDetails.classList.remove('hidden');
+    }
+
+    // Show the adjustment column so the user can input changes
+    showAdjustmentColumn(techniqueIndex);
+
+    // Scroll to the recipe table
+    const table = document.getElementById(`recipe-table-${techniqueIndex}`);
+    if (table) {
+        table.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+
 // Set up AI copy modal event listeners (called once on init)
 function initAICopyModalListeners() {
     const copyBtn = document.getElementById('ai-copy-btn');
     const cancelBtn = document.getElementById('ai-copy-cancel-btn');
+    const returnBtn = document.getElementById('ai-return-to-recipe-btn');
     const modal = document.getElementById('ai-copy-modal');
 
     if (copyBtn) {
         copyBtn.addEventListener('click', copyRecipeToClipboard);
+    }
+
+    if (returnBtn) {
+        returnBtn.addEventListener('click', returnToRecipeFromAICopy);
     }
 
     if (cancelBtn) {
