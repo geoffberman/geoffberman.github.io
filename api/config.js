@@ -1,7 +1,8 @@
 // API endpoint to serve public environment variables to the frontend
 module.exports = async function handler(req, res) {
-    // Enable CORS
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    // Enable CORS - restrict to same-origin deployments
+    const allowedOrigin = process.env.CORS_ORIGIN || req.headers.origin || '*';
+    res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 

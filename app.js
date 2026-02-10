@@ -422,8 +422,8 @@ function renderRecipeDropdownItems(recipes) {
         }
 
         return `<div class="recipe-option" data-recipe-index="${index}">
-            <div>${label}</div>
-            ${meta ? `<div class="recipe-meta">${meta}</div>` : ''}
+            <div>${escapeHtml(label)}</div>
+            ${meta ? `<div class="recipe-meta">${escapeHtml(meta)}</div>` : ''}
         </div>`;
     }).join('');
 
@@ -463,21 +463,11 @@ async function loadSavedRecipeDirectly(recipeData) {
             recipeParams.notes = recipeData.notes;
         }
 
-        console.log('[LOAD] Loading saved recipe:', recipeData.coffee_name, '-', recipeData.brew_method);
-        console.log('[LOAD] recipeData.recipe (full):', JSON.stringify(recipeData.recipe));
-        console.log('[LOAD] recipeData.recipe type:', typeof recipeData.recipe);
-        console.log('[LOAD] recipeParams (after assignment):', JSON.stringify(recipeParams));
-        console.log('[LOAD] recipeParams.dose:', recipeParams.dose);
-        console.log('[LOAD] recipeParams.water_temp:', recipeParams.water_temp);
-        console.log('[LOAD] recipeParams.notes:', recipeParams.notes);
-        console.log('[LOAD] recipeData.notes (top-level):', JSON.stringify(recipeData.notes));
-
         // Ensure recipe field is parsed if it was stored as a string
         if (typeof recipeData.recipe === 'string') {
             try {
                 const parsed = JSON.parse(recipeData.recipe);
                 Object.assign(recipeParams, parsed);
-                console.log('[LOAD] Parsed recipe string into object, notes:', parsed.notes);
             } catch (e) {
                 console.error('[LOAD] Failed to parse recipe string:', e);
             }
@@ -520,16 +510,12 @@ async function init() {
     setupEventListeners();
     initWizard();
 
-    console.log('=== App Initialization Started ===');
-
     // Initialize Supabase and Auth
     const supabaseConfigured = await window.initSupabase();
-    console.log('Supabase configured:', supabaseConfigured);
 
     if (supabaseConfigured) {
         // Initialize auth
         const isAuthenticated = await window.auth.init();
-        console.log('User authenticated:', isAuthenticated);
 
         if (isAuthenticated) {
             // User is logged in - load from database
@@ -542,13 +528,10 @@ async function init() {
 
             // Show auth modal on first visit (unless user has skipped before)
             const hasSkipped = localStorage.getItem('auth_skipped');
-            console.log('Auth previously skipped:', hasSkipped);
 
             if (!hasSkipped) {
-                console.log('Showing auth modal for first-time user');
                 showAuthModal();
             } else {
-                console.log('User previously skipped auth - using localStorage only');
                 showSignInButton();
             }
         }
@@ -557,18 +540,8 @@ async function init() {
         window.auth.onAuthStateChange(handleAuthStateChange);
     } else {
         // Supabase not configured - use localStorage only
-        console.log('⚠️ Running in DEMO MODE - Supabase not configured');
-        console.log('Equipment will only be saved in browser localStorage (not synced across devices)');
-
         loadEquipment();
-
-        // Check if equipment was loaded
-        if (!state.equipment || !hasEquipment()) {
-            console.log('No equipment found - user needs to add equipment via settings');
-        }
     }
-
-    console.log('=== App Initialization Complete ===');
 
     // Update equipment button to show correct state
     updateEquipmentButton();
@@ -680,7 +653,6 @@ function setupEventListeners() {
 
         if (isHidden) {
             // Opening settings - show summary if equipment exists, otherwise show form
-            console.log('Opening equipment settings...');
             updateEquipmentDisplay();
         }
     });
@@ -946,12 +918,41 @@ function setupEventListeners() {
     elements.signinForRecipesBtn.addEventListener('click', () => {
         showAuthModal();
     });
+
+    // Close modals on Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            if (!elements.authModal.classList.contains('hidden')) {
+                hideAuthModal();
+            }
+            if (!elements.editProfileModal.classList.contains('hidden')) {
+                hideEditProfileModal();
+            }
+            const aiCopyModal = document.getElementById('ai-copy-modal');
+            if (aiCopyModal && !aiCopyModal.classList.contains('hidden')) {
+                closeAICopyModal();
+            }
+        }
+    });
+
+    // Close user dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#user-profile')) {
+            elements.userDropdown.classList.add('hidden');
+        }
+    });
 }
 
 // Handle image upload
+const MAX_IMAGE_SIZE_MB = 20;
 function handleImageUpload(file) {
     if (!file.type.startsWith('image/')) {
         showError('Please upload a valid image file.');
+        return;
+    }
+
+    if (file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
+        showError(`Image is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum size is ${MAX_IMAGE_SIZE_MB}MB.`);
         return;
     }
 
@@ -998,7 +999,6 @@ async function compressImage(file, maxDimension = 1200, quality = 0.7) {
     return new Promise((resolve) => {
         // Skip compression for small files (under 500KB)
         if (file.size < 500 * 1024) {
-            console.log(`[IMG] File is ${(file.size / 1024).toFixed(0)}KB, skipping compression`);
             resolve(file);
             return;
         }
@@ -1028,8 +1028,6 @@ async function compressImage(file, maxDimension = 1200, quality = 0.7) {
 
             canvas.toBlob((blob) => {
                 const compressed = new File([blob], file.name, { type: 'image/jpeg' });
-                const ratio = ((1 - compressed.size / file.size) * 100).toFixed(0);
-                console.log(`[IMG] Compressed: ${(file.size / 1024).toFixed(0)}KB → ${(compressed.size / 1024).toFixed(0)}KB (${ratio}% reduction, ${width}x${height})`);
                 resolve(compressed);
             }, 'image/jpeg', quality);
         };
@@ -1134,8 +1132,6 @@ async function analyzeImage(specificMethod = null) {
         const data = await response.json();
         const analysisText = data.content[0].text;
 
-        console.log('Raw AI response:', analysisText);
-
         // Parse the JSON response
         let analysisData;
         try {
@@ -1146,7 +1142,6 @@ async function analyzeImage(specificMethod = null) {
             const codeBlockMatch = analysisText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
             if (codeBlockMatch) {
                 jsonStr = codeBlockMatch[1];
-                console.log('Extracted JSON from code block');
             }
 
             // Method 2: Find JSON object directly
@@ -1154,19 +1149,16 @@ async function analyzeImage(specificMethod = null) {
                 const directMatch = analysisText.match(/\{[\s\S]*\}/);
                 if (directMatch) {
                     jsonStr = directMatch[0];
-                    console.log('Extracted JSON directly');
                 }
             }
 
             // Method 3: Try parsing the entire response as JSON
             if (!jsonStr) {
                 jsonStr = analysisText.trim();
-                console.log('Attempting to parse entire response as JSON');
             }
 
             if (jsonStr) {
                 analysisData = JSON.parse(jsonStr);
-                console.log('Successfully parsed JSON:', analysisData);
             } else {
                 throw new Error('No JSON found in response');
             }
@@ -1330,7 +1322,7 @@ function displayResults(data) {
                     💡 Equipment Recommendations
                 </p>
                 <p style="margin: 0; color: #1565C0; font-size: 0.9rem; line-height: 1.5;">
-                    ${data.equipment_suggestions}
+                    ${escapeHtml(data.equipment_suggestions)}
                 </p>
             </div>
         `;
@@ -1339,22 +1331,22 @@ function displayResults(data) {
     analysisHTML += '<div class="analysis-details">';
 
     if (analysis.name) {
-        analysisHTML += `<p><strong>Coffee:</strong> ${analysis.name}</p>`;
+        analysisHTML += `<p><strong>Coffee:</strong> ${escapeHtml(analysis.name)}</p>`;
     }
     if (analysis.roaster) {
-        analysisHTML += `<p><strong>Roaster:</strong> ${analysis.roaster}</p>`;
+        analysisHTML += `<p><strong>Roaster:</strong> ${escapeHtml(analysis.roaster)}</p>`;
     }
     if (analysis.roast_level) {
-        analysisHTML += `<p><strong>Roast Level:</strong> ${analysis.roast_level}</p>`;
+        analysisHTML += `<p><strong>Roast Level:</strong> ${escapeHtml(analysis.roast_level)}</p>`;
     }
     if (analysis.origin) {
-        analysisHTML += `<p><strong>Origin:</strong> ${analysis.origin}</p>`;
+        analysisHTML += `<p><strong>Origin:</strong> ${escapeHtml(analysis.origin)}</p>`;
     }
     if (analysis.processing) {
-        analysisHTML += `<p><strong>Processing:</strong> ${analysis.processing}</p>`;
+        analysisHTML += `<p><strong>Processing:</strong> ${escapeHtml(analysis.processing)}</p>`;
     }
     if (analysis.flavor_notes && analysis.flavor_notes.length > 0) {
-        analysisHTML += `<p><strong>Flavor Notes:</strong> ${analysis.flavor_notes.join(', ')}</p>`;
+        analysisHTML += `<p><strong>Flavor Notes:</strong> ${analysis.flavor_notes.map(n => escapeHtml(n)).join(', ')}</p>`;
     }
 
     analysisHTML += '</div>';
@@ -1367,13 +1359,11 @@ function displayResults(data) {
         const params = technique.parameters;
         const imageUrl = getBrewMethodImage(technique.technique_name);
 
-        console.log(`Rendering technique ${index}:`, technique.technique_name, 'is_saved_recipe:', technique.is_saved_recipe);
-
         techniquesHTML += `
             <div class="technique-card" data-technique-index="${index}" style="border: 2px solid ${technique.is_saved_recipe ? 'var(--success-color)' : 'var(--border-color)'}; border-radius: 8px; padding: 20px; background: ${technique.is_saved_recipe ? 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)' : 'white'}; display: flex; flex-direction: column; justify-content: center;">
                 <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; margin-bottom: 15px;">
                     <div style="flex: 1;">
-                        <h4 style="margin: 0 0 5px 0; font-size: 1rem;">${technique.technique_name}</h4>
+                        <h4 style="margin: 0 0 5px 0; font-size: 1rem;">${escapeHtml(technique.technique_name)}</h4>
                         ${technique.is_saved_recipe ? '<span style="display: inline-block; background: var(--success-color); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;">💾 YOUR SAVED RECIPE</span>' : ''}
                     </div>
                     <img src="${imageUrl}" alt="${technique.technique_name}" style="width: 80px; height: 60px; object-fit: cover; border-radius: 6px; flex-shrink: 0;" loading="lazy" />
@@ -1382,7 +1372,7 @@ function displayResults(data) {
                     ⭐ Currently Using This Recipe
                 </div>
 
-                <p style="margin-bottom: 15px; line-height: 1.5; font-size: 0.9rem; color: var(--secondary-color);">${technique.reasoning}</p>
+                <p style="margin-bottom: 15px; line-height: 1.5; font-size: 0.9rem; color: var(--secondary-color);">${escapeHtml(technique.reasoning)}</p>
 
                 ${isPourOver(technique.technique_name) && hasFilters() ? `
                     <div style="margin-bottom: 15px; padding: 12px; background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%); border: 2px solid var(--success-color); border-radius: 8px;">
@@ -1571,7 +1561,6 @@ function displayResults(data) {
         select.addEventListener('change', function() {
             const techniqueIndex = parseInt(this.getAttribute('data-technique-index'));
             const selectedFilter = this.value;
-            console.log(`Filter selected for technique ${techniqueIndex}: ${selectedFilter}`);
             // Store in state for later use
             if (!state.selectedFilters) {
                 state.selectedFilters = {};
@@ -1599,11 +1588,8 @@ function displayResults(data) {
 // Reveal hidden AI recommendations
 function revealAiRecommendations() {
     if (!state.hiddenAiRecommendations || state.hiddenAiRecommendations.length === 0) {
-        console.log('No hidden AI recommendations to reveal');
         return;
     }
-
-    console.log(`Revealing ${state.hiddenAiRecommendations.length} hidden AI recommendation(s)`);
 
     // Get current techniques (saved recipes) and append hidden AI recommendations
     const currentTechniques = state.currentCoffeeAnalysis.recommended_techniques || [];
@@ -1694,8 +1680,6 @@ async function saveEquipment() {
         additionalEquipment: document.getElementById('additional-equipment').value.trim()
     };
 
-    console.log('Saving equipment with customBrewMethods:', equipment.customBrewMethods);
-
     // Save to localStorage (always, as backup)
     try {
         localStorage.setItem('coffee_equipment', JSON.stringify(equipment));
@@ -1729,12 +1713,10 @@ async function saveEquipment() {
 function loadEquipment() {
     try {
         const savedEquipment = localStorage.getItem('coffee_equipment');
-        console.log('Loading equipment from localStorage:', savedEquipment);
 
         if (savedEquipment) {
             const equipment = JSON.parse(savedEquipment);
             state.equipment = equipment;
-            console.log('✓ Parsed equipment object:', equipment);
 
             // Check if equipment is actually empty (all fields blank)
             const actuallyHasEquipment = !!(
@@ -1750,12 +1732,9 @@ function loadEquipment() {
             );
 
             if (!actuallyHasEquipment) {
-                console.log('⚠️ Equipment object exists but all fields are empty - clearing');
                 localStorage.removeItem('coffee_equipment');
                 state.equipment = null;
             } else {
-                console.log('✓ Equipment has data - loading into form');
-
                 // Populate form fields
                 if (equipment.espressoMachine) {
                     document.getElementById('espresso-machine').value = equipment.espressoMachine;
@@ -1811,8 +1790,6 @@ function loadEquipment() {
                 showEquipmentSummary();
             }
         } else {
-            console.log('⚠️ No saved equipment found in localStorage');
-            console.log('→ Click "My Equipment" button to add your coffee gear');
             state.equipment = null;
         }
     } catch (e) {
@@ -1978,7 +1955,6 @@ function addCustomBrewMethod(methodName) {
     // Update brew method dropdown
     updateBrewMethodDropdown();
 
-    console.log('Added custom brew method:', methodName);
 }
 
 // Render custom brew methods as checkboxes
@@ -2033,7 +2009,6 @@ function removeCustomBrewMethod(methodName) {
         state.equipment = equipment;
         renderCustomBrewMethods(equipment.customBrewMethods);
         updateBrewMethodDropdown();
-        console.log('Removed custom brew method:', methodName);
     }
 }
 
@@ -2062,7 +2037,6 @@ function addCustomFilter(filterName) {
     // Render the updated list
     renderCustomFilters(equipment.customFilters);
 
-    console.log('Added custom filter:', filterName);
 }
 
 // Render custom filters as checkboxes
@@ -2116,7 +2090,6 @@ function removeCustomFilter(filterName) {
         localStorage.setItem('coffee_equipment', JSON.stringify(equipment));
         state.equipment = equipment;
         renderCustomFilters(equipment.customFilters);
-        console.log('Removed custom filter:', filterName);
     }
 }
 
@@ -2217,21 +2190,15 @@ function checkForPoorEquipment() {
 }
 
 function updateEquipmentDisplay() {
-    console.log('updateEquipmentDisplay called');
-    console.log('Current state.equipment:', state.equipment);
-
     if (state.equipment && hasEquipment()) {
-        console.log('Showing equipment summary');
         showEquipmentSummary();
     } else {
-        console.log('Showing equipment form (no equipment found)');
         showEquipmentForm();
     }
 }
 
 function hasEquipment() {
     if (!state.equipment) {
-        console.log('hasEquipment: No equipment object in state');
         return false;
     }
 
@@ -2251,14 +2218,10 @@ function hasEquipment() {
         state.equipment.noGrinder
     );
 
-    console.log('hasEquipment check - brewing method:', hasBrewingMethod, 'grinder/no-grinder:', hasGrinderOrNoGrinder);
-    console.log('Equipment:', state.equipment);
-
     return hasBrewingMethod && hasGrinderOrNoGrinder;
 }
 
 function showEquipmentSummary() {
-    console.log('showEquipmentSummary called with state.equipment:', state.equipment);
     elements.equipmentSummary.classList.remove('hidden');
     elements.equipmentFormContainer.classList.add('hidden');
 
@@ -2278,7 +2241,6 @@ function showEquipmentSummary() {
 
     // Safety check
     if (!state.equipment) {
-        console.log('No equipment in state, showing empty message');
         elements.equipmentSummaryContent.innerHTML = '<p style="color: var(--secondary-color);">No equipment saved yet.</p>';
         return;
     }
@@ -2287,7 +2249,7 @@ function showEquipmentSummary() {
         summaryHTML += `
             <div class="equipment-summary-item">
                 <strong>Espresso Machine</strong>
-                <span>${state.equipment.espressoMachine}${state.equipment.flowControl ? ' (with flow control)' : ''}</span>
+                <span>${escapeHtml(state.equipment.espressoMachine)}${state.equipment.flowControl ? ' (with flow control)' : ''}</span>
             </div>
         `;
     }
@@ -2296,7 +2258,7 @@ function showEquipmentSummary() {
         summaryHTML += `
             <div class="equipment-summary-item">
                 <strong>Pour Over Devices</strong>
-                <span>${state.equipment.pourOver.join(', ')}</span>
+                <span>${state.equipment.pourOver.map(v => escapeHtml(v)).join(', ')}</span>
             </div>
         `;
     }
@@ -2306,7 +2268,7 @@ function showEquipmentSummary() {
         summaryHTML += `
             <div class="equipment-summary-item">
                 <strong>Coffee Filters</strong>
-                <span>${allFilters.join(', ')}</span>
+                <span>${allFilters.map(v => escapeHtml(v)).join(', ')}</span>
             </div>
         `;
     }
@@ -2315,7 +2277,7 @@ function showEquipmentSummary() {
         summaryHTML += `
             <div class="equipment-summary-item">
                 <strong>Pod/Capsule Machines</strong>
-                <span>${state.equipment.podMachines.join(', ')}</span>
+                <span>${state.equipment.podMachines.map(v => escapeHtml(v)).join(', ')}</span>
             </div>
         `;
     }
@@ -2324,7 +2286,7 @@ function showEquipmentSummary() {
         summaryHTML += `
             <div class="equipment-summary-item">
                 <strong>Grinder</strong>
-                <span>${state.equipment.grinder}</span>
+                <span>${escapeHtml(state.equipment.grinder)}</span>
             </div>
         `;
     } else if (state.equipment.noGrinder) {
@@ -2341,19 +2303,17 @@ function showEquipmentSummary() {
         if (state.equipment.customBrewMethods && state.equipment.customBrewMethods.length > 0) {
             allOtherMethods.push(...state.equipment.customBrewMethods);
         }
-        console.log('Displaying Other Brewing Methods:', allOtherMethods);
         summaryHTML += `
             <div class="equipment-summary-item">
                 <strong>Other Brewing Methods</strong>
-                <span>${allOtherMethods.join(', ')}</span>
+                <span>${allOtherMethods.map(v => escapeHtml(v)).join(', ')}</span>
             </div>
         `;
     } else if (state.equipment.customBrewMethods && state.equipment.customBrewMethods.length > 0) {
-        console.log('Displaying Custom Brewing Methods only:', state.equipment.customBrewMethods);
         summaryHTML += `
             <div class="equipment-summary-item">
                 <strong>Other Brewing Methods</strong>
-                <span>${state.equipment.customBrewMethods.join(', ')}</span>
+                <span>${state.equipment.customBrewMethods.map(v => escapeHtml(v)).join(', ')}</span>
             </div>
         `;
     }
@@ -2362,7 +2322,7 @@ function showEquipmentSummary() {
         summaryHTML += `
             <div class="equipment-summary-item">
                 <strong>Other Brewing Equipment</strong>
-                <span>${state.equipment.otherEquipment}</span>
+                <span>${escapeHtml(state.equipment.otherEquipment)}</span>
             </div>
         `;
     }
@@ -2371,7 +2331,7 @@ function showEquipmentSummary() {
         summaryHTML += `
             <div class="equipment-summary-item">
                 <strong>Additional Notes</strong>
-                <span>${state.equipment.additionalEquipment}</span>
+                <span>${escapeHtml(state.equipment.additionalEquipment)}</span>
             </div>
         `;
     }
@@ -2381,9 +2341,7 @@ function showEquipmentSummary() {
         summaryHTML = '<p style="color: var(--secondary-color);">No equipment saved yet.</p>';
     }
 
-    console.log('Setting equipmentSummaryContent innerHTML to:', summaryHTML);
     elements.equipmentSummaryContent.innerHTML = summaryHTML;
-    console.log('Equipment summary display updated');
 }
 
 function showEquipmentForm() {
@@ -2396,17 +2354,13 @@ function showEquipmentForm() {
 function updateEquipmentButton() {
     const hasEquipmentSaved = state.equipment && hasEquipment();
 
-    console.log('updateEquipmentButton: hasEquipmentSaved =', hasEquipmentSaved);
-
     // Get the SVG element and preserve it
     const svg = elements.settingsToggleBtn.querySelector('svg');
     const svgHTML = svg ? svg.outerHTML : '';
 
     if (hasEquipmentSaved) {
-        console.log('Setting button to "My Equipment"');
         elements.settingsToggleBtn.innerHTML = svgHTML + ' My Equipment';
     } else {
-        console.log('Setting button to "Set Up Equipment ⚠️"');
         elements.settingsToggleBtn.innerHTML = svgHTML + ' Set Up Equipment ⚠️';
     }
 }
@@ -3017,8 +2971,6 @@ async function checkCachedAnalysis(imageHash) {
                 .limit(10); // Get up to 10 recipes for this image
 
             if (!error && data && data.length > 0) {
-                console.log(`Found ${data.length} saved recipe(s) for this image`);
-
                 // Reconstruct analysis data from saved recipes
                 const firstRecipe = data[0];
                 const coffeeAnalysis = {
@@ -3054,7 +3006,6 @@ async function checkCachedAnalysis(imageHash) {
         const cacheKey = `analysis_cache_${imageHash}`;
         const cached = localStorage.getItem(cacheKey);
         if (cached) {
-            console.log('Found cached analysis in localStorage');
             return JSON.parse(cached);
         }
     } catch (error) {
@@ -3169,14 +3120,10 @@ async function adjustRecipeBasedOnRating(rating) {
 
         // Try to parse JSON from the response
         let adjustedData;
-        console.log('Raw adjustment text:', adjustmentText);
-
         try {
             // Try direct JSON parse first
             adjustedData = JSON.parse(adjustmentText);
-            console.log('✓ Parsed JSON directly');
         } catch (parseError1) {
-            console.log('Direct parse failed, trying extraction...');
 
             try {
                 // Remove markdown code blocks if present
@@ -3186,7 +3133,6 @@ async function adjustRecipeBasedOnRating(rating) {
                 const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
                     adjustedData = JSON.parse(jsonMatch[0]);
-                    console.log('✓ Parsed JSON from extracted text');
                 } else {
                     throw new Error('No JSON object found in text');
                 }
@@ -3195,8 +3141,6 @@ async function adjustRecipeBasedOnRating(rating) {
 
                 // Final fallback - manual extraction from text
                 try {
-                    console.log('Attempting manual parameter extraction...');
-
                     // Extract parameters using regex
                     const doseMatch = adjustmentText.match(/"dose":\s*"([^"]+)"/);
                     const yieldMatch = adjustmentText.match(/"yield":\s*"([^"]+)"/);
@@ -3222,7 +3166,6 @@ async function adjustRecipeBasedOnRating(rating) {
                             },
                             adjustments_explained: explanationMatch ? explanationMatch[1].replace(/\\n/g, '\n') : adjustmentText.split('"adjustments_explained":')[1] || 'See details below'
                         };
-                        console.log('✓ Manually extracted parameters from text');
                     } else {
                         throw new Error('Could not extract parameters');
                     }
@@ -3402,7 +3345,6 @@ function setActiveTechnique(techniqueIndex, techniques) {
     });
     document.getElementById(`active-indicator-${techniqueIndex}`)?.classList.remove('hidden');
 
-    console.log('Active technique set to:', state.currentBrewMethod);
 }
 
 // Show recipe details when "Use This and Show Recipe" is clicked
@@ -3481,63 +3423,36 @@ async function saveInlineAdjustments(technique, techniqueIndex) {
 
         // Collect adjustments from the table inputs (includes notes as a param row)
         const table = document.getElementById(`recipe-table-${techniqueIndex}`);
-        console.log('[SAVE-DEBUG] Looking for table with ID:', `recipe-table-${techniqueIndex}`);
-        console.log('[SAVE-DEBUG] Table found:', table ? 'yes' : 'no');
 
         const adjustedParams = {};
         const paramInputs = table.querySelectorAll('.param-input');
-        console.log('[SAVE-DEBUG] Number of .param-input elements found:', paramInputs.length);
 
         paramInputs.forEach(input => {
             const param = input.getAttribute('data-param');
             const value = input.value;
-            console.log(`[SAVE-DEBUG] Collecting: ${param} = "${value}"`);
             adjustedParams[param] = value;
         });
-
-        // DEBUG: Log all param-input elements found
-        console.log('[SAVE-DEBUG] Found param-inputs:',
-            Array.from(table.querySelectorAll('.param-input')).map(el => ({
-                param: el.getAttribute('data-param'),
-                tagName: el.tagName,
-                value: el.value
-            }))
-        );
 
         // Capture filter_type - try multiple sources with explicit checks
         // 1. First check param-input in adjustment column (user's direct selection)
         const paramFilterInput = table.querySelector('.param-input[data-param="filter_type"]');
         const paramFilterValue = paramFilterInput ? paramFilterInput.value : null;
-        console.log('[SAVE-DEBUG] paramFilterInput element:', paramFilterInput);
-        console.log('[SAVE-DEBUG] paramFilterInput.value:', paramFilterValue);
 
         // 2. Check filter-selector dropdown (top of card)
         const filterSelector = document.querySelector(`.filter-selector[data-technique-index="${techniqueIndex}"]`);
         const filterSelectorValue = filterSelector ? filterSelector.value : null;
-        console.log('[SAVE-DEBUG] filterSelector element:', filterSelector);
-        console.log('[SAVE-DEBUG] filterSelector.value:', filterSelectorValue);
 
         // 3. Check state
         const stateFilterValue = state.selectedFilters ? state.selectedFilters[techniqueIndex] : null;
-        console.log('[SAVE-DEBUG] state.selectedFilters[' + techniqueIndex + ']:', stateFilterValue);
 
         // Priority: param-input > filter-selector > state
         if (paramFilterValue && paramFilterValue.trim() !== '') {
             adjustedParams.filter_type = paramFilterValue;
-            console.log('[SAVE-DEBUG] Using paramFilterValue:', paramFilterValue);
         } else if (filterSelectorValue && filterSelectorValue.trim() !== '') {
             adjustedParams.filter_type = filterSelectorValue;
-            console.log('[SAVE-DEBUG] Using filterSelectorValue:', filterSelectorValue);
         } else if (stateFilterValue) {
             adjustedParams.filter_type = stateFilterValue;
-            console.log('[SAVE-DEBUG] Using stateFilterValue:', stateFilterValue);
         }
-
-        console.log('[SAVE-DEBUG] Final filter_type:', adjustedParams.filter_type);
-
-        console.log('[SAVE] Collected adjustedParams:', JSON.stringify(adjustedParams));
-        console.log('[SAVE] Notes value:', JSON.stringify(adjustedParams.notes));
-        console.log('[SAVE] Filter type:', adjustedParams.filter_type || 'none');
 
         // Save as preferred recipe (handles both localStorage and database)
         await saveAsPreferredRecipeWithData(technique.technique_name, adjustedParams);
@@ -3587,8 +3502,6 @@ async function saveInlineAdjustments(technique, techniqueIndex) {
 
         // Refresh the saved recipes dropdown so it has the latest data
         populateSavedRecipesDropdown();
-
-        console.log('Inline adjustments saved successfully');
 
     } catch (error) {
         console.error('Failed to save inline adjustments:', error);
@@ -3734,8 +3647,6 @@ async function saveManualAdjustments(technique) {
             btn.disabled = false;
         }, 2000);
 
-        console.log('Manual adjustments saved successfully');
-
     } catch (error) {
         console.error('Failed to save manual adjustments:', error);
         btn.textContent = '❌ Failed';
@@ -3753,7 +3664,7 @@ async function savePerfectRecipe(technique, techniqueIndex) {
         return;
     }
 
-    const btn = document.querySelector(`.perfect-recipe-btn[data-technique-index="${techniqueIndex}"]`);
+    const btn = elements.perfectRecipeBtn;
     if (!btn) return;
 
     try {
@@ -3912,10 +3823,6 @@ async function saveAdjustedBrew() {
 
 // Helper function to save preferred recipe with specific data
 async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = null) {
-    console.log('[SAVE-PREF] Saving preferred recipe:', brewMethod);
-    console.log('[SAVE-PREF] recipeData.notes:', recipeData?.notes);
-    console.log('[SAVE-PREF] coffee_hash:', state.currentCoffeeAnalysis?.coffee_hash);
-
     // Always save to localStorage as backup
     saveRecipeToLocalStorage(
         state.currentCoffeeAnalysis,
@@ -3957,7 +3864,6 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
 
     try {
         // Check if recipe already exists (use limit(1) instead of maybeSingle to handle duplicates gracefully)
-        console.log('[SAVE-DB] Checking for existing recipe:', { userId, coffeeHash, brewMethod });
         const { data: existingArr, error: queryError } = await supabase
             .from('saved_recipes')
             .select('id, times_brewed')
@@ -3970,7 +3876,6 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
             console.error('[SAVE-DB] Query error:', queryError);
             throw queryError;
         }
-        console.log('[SAVE-DB] Query result:', existingArr);
         const existing = existingArr && existingArr.length > 0 ? existingArr[0] : null;
 
         if (existing) {
@@ -3989,8 +3894,6 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
                 .eq('id', existing.id);
 
             if (error) throw error;
-            console.log('[SAVE-DB] Updated existing preferred recipe, id:', existing.id);
-            console.log('[SAVE-DB] Update data recipe.notes:', recipeData?.notes);
         } else {
             // Insert new preferred recipe
             // Notes are stored inside recipeData.notes (in the recipe JSONB column)
@@ -4000,12 +3903,9 @@ async function saveAsPreferredRecipeWithData(brewMethod, recipeData, notes = nul
                 .insert([preferredRecipe]);
 
             if (error) throw error;
-            console.log('[SAVE-DB] Inserted new preferred recipe');
         }
-
-        console.log('[SAVE-DB] Saved as preferred recipe successfully');
     } catch (error) {
-        console.error('[SAVE-DB] Failed to save preferred recipe:', error);
+        console.error('Failed to save preferred recipe:', error);
         console.error('[SAVE-DB] Error details:', {
             message: error?.message,
             code: error?.code,
@@ -4024,14 +3924,6 @@ async function getSavedRecipesForCoffee(coffeeAnalysis) {
         coffeeAnalysis.roast_level,
         coffeeAnalysis.origin
     );
-
-    console.log('Looking for saved recipes with coffee hash:', coffeeHash);
-    console.log('Coffee details:', {
-        name: coffeeAnalysis.name,
-        roaster: coffeeAnalysis.roaster,
-        roast_level: coffeeAnalysis.roast_level,
-        origin: coffeeAnalysis.origin
-    });
 
     const savedRecipes = [];
     const recipeMap = new Map(); // Use Map to deduplicate by brew_method
@@ -4092,11 +3984,8 @@ async function integrateSavedRecipes(analysisData) {
         const savedRecipes = await getSavedRecipesForCoffee(analysisData.coffee_analysis);
 
         if (savedRecipes.length === 0) {
-            console.log('No saved recipes found for this coffee');
             return analysisData;
         }
-
-        console.log(`Found ${savedRecipes.length} saved recipe(s) for this coffee`);
 
         // Get the recommended techniques from AI
         const aiTechniques = analysisData.recommended_techniques || [];
@@ -4131,7 +4020,6 @@ async function integrateSavedRecipes(analysisData) {
                 is_saved_recipe: true
             };
 
-            console.log('Adding saved recipe to techniques:', brewMethod, 'is_saved_recipe:', technique.is_saved_recipe);
             savedTechniques.push(technique);
 
             // Remove from AI map so we don't duplicate
@@ -4151,10 +4039,7 @@ async function integrateSavedRecipes(analysisData) {
         if (hiddenAiTechniques.length > 0) {
             analysisData.hidden_ai_recommendations = hiddenAiTechniques;
             analysisData.has_hidden_ai_recommendations = true;
-            console.log(`Hiding ${hiddenAiTechniques.length} AI recommendation(s) - showing only saved recipes`);
         }
-
-        console.log('Showing saved recipes only:', savedTechniques.length, 'technique(s)');
 
     } catch (error) {
         console.error('Failed to integrate saved recipes:', error);
@@ -4224,10 +4109,6 @@ function saveRecipeToLocalStorage(coffeeAnalysis, brewMethod, recipeData, notes 
         }
 
         localStorage.setItem('saved_recipes', JSON.stringify(savedRecipes));
-        console.log('[SAVE-LS] Recipe saved to localStorage');
-        console.log('[SAVE-LS] Hash:', coffeeHash, 'Method:', brewMethod);
-        console.log('[SAVE-LS] recipe.notes inside recipeData:', recipeData?.notes);
-        console.log('[SAVE-LS] Existing index:', existingIndex);
     } catch (error) {
         console.error('Failed to save recipe to localStorage:', error);
     }
@@ -4662,21 +4543,50 @@ function closeAICopyModal() {
     aiCopyState.techniques = null;
 }
 
-// Helper function to escape HTML
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+// Close the AI copy modal and return to the recipe with adjustment inputs visible
+function returnToRecipeFromAICopy() {
+    const techniqueIndex = aiCopyState.techniqueIndex;
+    const techniques = aiCopyState.techniques;
+
+    // Close the modal (but preserve state references before clearing)
+    const modal = document.getElementById('ai-copy-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    aiCopyState.techniqueIndex = null;
+    aiCopyState.techniques = null;
+
+    if (techniqueIndex === null || !techniques) return;
+
+    // Ensure the recipe details are visible
+    const recipeDetails = document.getElementById(`recipe-details-${techniqueIndex}`);
+    if (recipeDetails) {
+        recipeDetails.classList.remove('hidden');
+    }
+
+    // Show the adjustment column so the user can input changes
+    showAdjustmentColumn(techniqueIndex);
+
+    // Scroll to the recipe table
+    const table = document.getElementById(`recipe-table-${techniqueIndex}`);
+    if (table) {
+        table.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 }
 
 // Set up AI copy modal event listeners (called once on init)
 function initAICopyModalListeners() {
     const copyBtn = document.getElementById('ai-copy-btn');
     const cancelBtn = document.getElementById('ai-copy-cancel-btn');
+    const returnBtn = document.getElementById('ai-return-to-recipe-btn');
     const modal = document.getElementById('ai-copy-modal');
 
     if (copyBtn) {
         copyBtn.addEventListener('click', copyRecipeToClipboard);
+    }
+
+    if (returnBtn) {
+        returnBtn.addEventListener('click', returnToRecipeFromAICopy);
     }
 
     if (cancelBtn) {
