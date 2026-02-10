@@ -50,6 +50,7 @@ module.exports = async function handler(req, res) {
     // Enable CORS - restrict to same-origin deployments
     const allowedOrigin = process.env.CORS_ORIGIN || req.headers.origin || '*';
     res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+    res.setHeader('Vary', 'Origin');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Access-Control-Expose-Headers', 'Retry-After, X-RateLimit-Limit, X-RateLimit-Remaining');
@@ -78,6 +79,13 @@ module.exports = async function handler(req, res) {
 
     try {
         const { image, mediaType, equipment, specificMethod, currentBrewMethod, selectedFilterType, adjustmentRequest, previousAnalysis } = req.body;
+
+        // Validate image size (base64 ~1.37x original, 10MB base64 ≈ ~7.3MB image)
+        const MAX_IMAGE_BASE64_LENGTH = 10 * 1024 * 1024;
+        if (image && image.length > MAX_IMAGE_BASE64_LENGTH) {
+            res.status(413).json({ error: 'Image too large. Please use an image under 7MB.' });
+            return;
+        }
 
         // Handle recipe adjustment requests
         if (adjustmentRequest && previousAnalysis) {
@@ -136,7 +144,7 @@ Make the adjusted_parameters complete and ready to display in a table. The adjus
                     'anthropic-version': '2023-06-01'
                 },
                 body: JSON.stringify({
-                    model: 'claude-3-haiku-20240307',
+                    model: 'claude-haiku-4-5-20251001',
                     max_tokens: 2000,
                     messages: [{
                         role: 'user',
@@ -417,7 +425,7 @@ Read the image carefully and extract all visible information accurately. Provide
                 'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
-                model: 'claude-3-haiku-20240307',
+                model: 'claude-haiku-4-5-20251001',
                 max_tokens: 2048,
                 messages: [{
                     role: 'user',
