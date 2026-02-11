@@ -1359,6 +1359,7 @@ function displayResults(data) {
                     <div style="flex: 1;">
                         <h4 style="margin: 0 0 5px 0; font-size: 1rem;">${escapeHtml(technique.technique_name)}</h4>
                         ${technique.is_saved_recipe ? '<span style="display: inline-block; background: var(--success-color); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;">💾 YOUR SAVED RECIPE</span>' : ''}
+                        ${params.is_dialed ? `<span id="dialed-badge-${index}" style="display: inline-block; background: #D4A017; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;">✓ DIALED</span>` : `<span id="dialed-badge-${index}" style="display: none;"></span>`}
                     </div>
                     <img src="${imageUrl}" alt="${escapeHtml(technique.technique_name)}" style="width: 80px; height: 60px; object-fit: cover; border-radius: 6px; flex-shrink: 0;" loading="lazy" />
                 </div>
@@ -1454,6 +1455,13 @@ function displayResults(data) {
                             </tr>
                         </tbody>
                     </table>
+
+                    <div id="dialed-container-${index}" style="margin-top: 15px; display: flex; align-items: center; justify-content: center;">
+                        <label class="dialed-checkbox-label" style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; border: 2px solid var(--border-color); background: white; transition: all 0.2s ease; user-select: none;">
+                            <input type="checkbox" class="dialed-checkbox" data-technique-index="${index}" ${params.is_dialed ? 'checked' : ''} style="accent-color: #D4A017; width: 16px; height: 16px; cursor: pointer;">
+                            <span class="dialed-label-text">Dialed</span>
+                        </label>
+                    </div>
 
                     <div id="save-adjustments-${index}" class="hidden" style="margin-top: 20px;">
                         <div style="text-align: center;">
@@ -1568,6 +1576,19 @@ function displayResults(data) {
             // Show prompt to update recipe for this filter
             showFilterUpdatePrompt(techniqueIndex, selectedFilter);
         });
+    });
+
+    // Add event listeners for "Dialed" checkboxes
+    document.querySelectorAll('.dialed-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', async function() {
+            const techniqueIndex = parseInt(this.getAttribute('data-technique-index'));
+            const technique = data.recommended_techniques[techniqueIndex];
+            await toggleDialed(techniqueIndex, technique, this.checked);
+        });
+        // Apply initial styling if already checked
+        if (checkbox.checked) {
+            applyDialedStyling(checkbox, true);
+        }
     });
 
     // Add event listener for reveal AI recommendations button
@@ -3437,6 +3458,12 @@ async function saveInlineAdjustments(technique, techniqueIndex) {
             adjustedParams.filter_type = stateFilterValue;
         }
 
+        // Preserve dialed state from checkbox
+        const dialedCheckbox = document.querySelector(`.dialed-checkbox[data-technique-index="${techniqueIndex}"]`);
+        if (dialedCheckbox) {
+            adjustedParams.is_dialed = dialedCheckbox.checked;
+        }
+
         // Save as preferred recipe (handles both localStorage and database)
         await saveAsPreferredRecipeWithData(technique.technique_name, adjustedParams);
 
@@ -3738,6 +3765,12 @@ async function saveAdjustedBrew() {
             }
         }
 
+        // Preserve dialed state from any visible checkbox
+        const dialedCheckbox = document.querySelector('.dialed-checkbox:checked');
+        if (dialedCheckbox) {
+            actualBrew.is_dialed = true;
+        }
+
         // Collect notes
         const notesTextarea = document.getElementById('adjusted-recipe-notes');
         const notes = notesTextarea ? notesTextarea.value.trim() : null;
@@ -3802,6 +3835,54 @@ async function saveAdjustedBrew() {
         btn.textContent = '💾 Save My Brew';
         btn.disabled = false;
     }
+}
+
+// Apply visual styling to dialed checkbox and its label
+function applyDialedStyling(checkbox, isDialed) {
+    const label = checkbox.closest('.dialed-checkbox-label');
+    if (!label) return;
+    if (isDialed) {
+        label.style.background = '#D4A017';
+        label.style.borderColor = '#D4A017';
+        label.style.color = 'white';
+    } else {
+        label.style.background = 'white';
+        label.style.borderColor = 'var(--border-color)';
+        label.style.color = 'inherit';
+    }
+}
+
+// Toggle dialed state for a recipe and persist immediately
+async function toggleDialed(techniqueIndex, technique, isDialed) {
+    // Update the in-memory technique parameters
+    technique.parameters.is_dialed = isDialed;
+
+    // Update checkbox styling
+    const checkbox = document.querySelector(`.dialed-checkbox[data-technique-index="${techniqueIndex}"]`);
+    if (checkbox) {
+        applyDialedStyling(checkbox, isDialed);
+    }
+
+    // Update badge on technique card header
+    const badge = document.getElementById(`dialed-badge-${techniqueIndex}`);
+    if (badge) {
+        if (isDialed) {
+            badge.style.display = 'inline-block';
+            badge.style.background = '#D4A017';
+            badge.style.color = 'white';
+            badge.style.padding = '2px 8px';
+            badge.style.borderRadius = '12px';
+            badge.style.fontSize = '0.75rem';
+            badge.style.fontWeight = 'bold';
+            badge.textContent = '✓ DIALED';
+        } else {
+            badge.style.display = 'none';
+            badge.textContent = '';
+        }
+    }
+
+    // Persist to Supabase and localStorage
+    await saveAsPreferredRecipeWithData(technique.technique_name, technique.parameters);
 }
 
 // Helper function to save preferred recipe with specific data
