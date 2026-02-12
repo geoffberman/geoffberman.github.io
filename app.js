@@ -244,6 +244,46 @@ function formatGrindSize(grindSize, userGrinder) {
     return grindSize; // Return original if no match found
 }
 
+// Focus trap for modals — keeps Tab cycling within the modal
+let activeFocusTrap = null;
+let previouslyFocusedElement = null;
+
+function trapFocus(modal) {
+    previouslyFocusedElement = document.activeElement;
+    const focusable = modal.querySelectorAll('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    first.focus();
+
+    activeFocusTrap = (e) => {
+        if (e.key !== 'Tab') return;
+        if (e.shiftKey) {
+            if (document.activeElement === first) {
+                e.preventDefault();
+                last.focus();
+            }
+        } else {
+            if (document.activeElement === last) {
+                e.preventDefault();
+                first.focus();
+            }
+        }
+    };
+    modal.addEventListener('keydown', activeFocusTrap);
+}
+
+function releaseFocusTrap(modal) {
+    if (activeFocusTrap) {
+        modal.removeEventListener('keydown', activeFocusTrap);
+        activeFocusTrap = null;
+    }
+    if (previouslyFocusedElement) {
+        previouslyFocusedElement.focus();
+        previouslyFocusedElement = null;
+    }
+}
+
 // Utility: Escape HTML to prevent XSS and formatting issues
 function escapeHtml(text) {
     const div = document.createElement('div');
@@ -576,6 +616,10 @@ async function init() {
     // Load saved recipes dropdown
     await populateSavedRecipesDropdown();
 
+    // Register service worker for PWA/offline support
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
 }
 
 // Handle auth state changes
@@ -601,6 +645,14 @@ function setupEventListeners() {
     // Upload area click
     elements.uploadArea.addEventListener('click', () => {
         elements.fileInput.click();
+    });
+
+    // Keyboard support for upload area (Enter/Space)
+    elements.uploadArea.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            elements.fileInput.click();
+        }
     });
 
     // Drag and drop
@@ -1478,7 +1530,7 @@ function displayResults(data) {
                     </div>
 
                     ${technique.technique_notes ? `<div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-left: 3px solid var(--accent-color); border-radius: 4px;">
-                        <div style="margin: 0; line-height: 1.6; color: var(--secondary-color); font-size: 0.9rem;">${technique.technique_notes
+                        <div style="margin: 0; line-height: 1.6; color: var(--secondary-color); font-size: 0.9rem;">${escapeHtml(technique.technique_notes)
                             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                             .replace(/^• (.*?)$/gm, '<li style="margin: 0; padding: 0; line-height: 1.0;">$1</li>')
                             .replace(/(<li.*?<\/li>\n?)+/gs, match => `<ul style="margin: 0; margin-bottom: 0; padding-left: 20px; list-style-position: outside; line-height: 1.0;">${match.replace(/\n/g, '')}</ul>`)
@@ -2423,9 +2475,11 @@ function showAuthModal() {
     elements.authModal.classList.remove('hidden');
     // Ensure we're on the signin tab by default
     switchAuthTab('signin');
+    trapFocus(elements.authModal);
 }
 
 function hideAuthModal() {
+    releaseFocusTrap(elements.authModal);
     elements.authModal.classList.add('hidden');
     elements.authError.classList.add('hidden');
     elements.authForm.reset();
@@ -2606,9 +2660,11 @@ async function showEditProfileModal() {
 
     // Show modal
     elements.editProfileModal.classList.remove('hidden');
+    trapFocus(elements.editProfileModal);
 }
 
 function hideEditProfileModal() {
+    releaseFocusTrap(elements.editProfileModal);
     elements.editProfileModal.classList.add('hidden');
     elements.editProfileError.classList.add('hidden');
     elements.editProfileForm.reset();
@@ -3063,6 +3119,7 @@ function updateRatingLabel(value) {
     }
 
     elements.ratingLabel.textContent = label;
+    elements.tasteRating.setAttribute('aria-valuetext', label);
 }
 
 async function adjustRecipeBasedOnRating(rating) {
@@ -4513,6 +4570,7 @@ function openAICopyModal(techniqueIndex, techniques) {
 
     // Show modal
     modal.classList.remove('hidden');
+    trapFocus(modal);
 }
 
 // Update the preview as user types
@@ -4571,6 +4629,7 @@ async function copyRecipeToClipboard() {
 function closeAICopyModal() {
     const modal = document.getElementById('ai-copy-modal');
     if (modal) {
+        releaseFocusTrap(modal);
         modal.classList.add('hidden');
     }
     aiCopyState.techniqueIndex = null;
