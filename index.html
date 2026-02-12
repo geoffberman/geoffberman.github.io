@@ -38,7 +38,7 @@
         </header>
 
         <!-- Authentication Modal -->
-        <div id="auth-modal" class="auth-modal hidden">
+        <div id="auth-modal" class="auth-modal hidden" role="dialog" aria-modal="true" aria-labelledby="auth-title">
             <div class="auth-modal-content">
                 <h2 id="auth-title">Welcome to Better Coffee</h2>
                 <p id="auth-subtitle">Sign in to save your equipment and brew recipes across devices</p>
@@ -101,9 +101,9 @@
         </div>
 
         <!-- Edit Profile Modal -->
-        <div id="edit-profile-modal" class="auth-modal hidden">
+        <div id="edit-profile-modal" class="auth-modal hidden" role="dialog" aria-modal="true" aria-labelledby="edit-profile-title">
             <div class="auth-modal-content">
-                <h2>Edit Profile</h2>
+                <h2 id="edit-profile-title">Edit Profile</h2>
                 <p style="color: var(--secondary-color); margin-bottom: 20px;">Update your profile information</p>
 
                 <form id="edit-profile-form">
@@ -126,9 +126,9 @@
         </div>
 
         <!-- AI Copy Modal -->
-        <div id="ai-copy-modal" class="auth-modal hidden">
+        <div id="ai-copy-modal" class="auth-modal hidden" role="dialog" aria-modal="true" aria-labelledby="ai-copy-title">
             <div class="auth-modal-content" style="max-width: 600px;">
-                <h2>Copy for AI Analysis</h2>
+                <h2 id="ai-copy-title">Copy for AI Analysis</h2>
                 <p style="color: var(--secondary-color); margin-bottom: 20px;">Add your taste impressions, then copy everything to paste into your AI chat.</p>
 
                 <div class="form-group">
@@ -361,7 +361,7 @@
                     </div>
                 </div>
 
-                <div class="upload-area" id="upload-area">
+                <div class="upload-area" id="upload-area" role="button" tabindex="0" aria-label="Upload a photo of your coffee bag">
                     <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -424,7 +424,7 @@
             <div id="preview-section" class="section hidden">
                 <div class="image-preview">
                     <img id="preview-image" src="" alt="Coffee bag preview">
-                    <button id="remove-image" class="btn-close">✕</button>
+                    <button id="remove-image" class="btn-close" aria-label="Remove image">✕</button>
                 </div>
 
                 <div style="display: flex; gap: 10px; align-items: center; max-width: 600px; margin: 0 auto;">
@@ -477,7 +477,7 @@
                                         <span>Perfect</span>
                                         <span>Too Bitter</span>
                                     </div>
-                                    <input type="range" id="taste-rating" class="taste-slider" min="-2" max="2" step="0.5" value="0" style="width: 100%;">
+                                    <input type="range" id="taste-rating" class="taste-slider" min="-2" max="2" step="0.5" value="0" style="width: 100%;" aria-label="Taste rating" aria-valuetext="Perfect">
                                 </div>
                                 <button id="adjust-recipe-btn" class="btn btn-primary" style="padding: 6px 10px; font-size: 0.7rem; white-space: normal; width: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; line-height: 1.2;" disabled>
                                     <span>Adjust</span>
