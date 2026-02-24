@@ -78,7 +78,7 @@ module.exports = async function handler(req, res) {
     }
 
     try {
-        const { image, mediaType, equipment, specificMethod, currentBrewMethod, selectedFilterType, adjustmentRequest, previousAnalysis } = req.body;
+        const { image, mediaType, equipment, specificMethod, currentBrewMethod, selectedFilterType, adjustmentRequest, previousAnalysis, coffeeAnalysis } = req.body;
 
         // Validate image size (base64 ~1.37x original, 10MB base64 ≈ ~7.3MB image)
         const MAX_IMAGE_BASE64_LENGTH = 10 * 1024 * 1024;
@@ -159,6 +159,90 @@ Make the adjusted_parameters complete and ready to display in a table. The adjus
 
             const adjustmentData = await adjustmentResponse.json();
             res.status(200).json(sanitizeApiResponse(adjustmentData));
+            return;
+        }
+
+        // Handle text-only requests using existing coffee analysis (no image needed)
+        if (coffeeAnalysis && specificMethod && !image) {
+            const coffee = coffeeAnalysis;
+            let textPrompt = `The user has already analyzed a coffee and wants a recipe for a DIFFERENT brew method. Here is what we know about the coffee:
+
+- Coffee Name: ${coffee.name || 'Unknown'}
+- Roaster: ${coffee.roaster || 'Unknown'}
+- Roast Level: ${coffee.roast_level || 'Unknown'}
+- Origin: ${coffee.origin || 'Unknown'}
+- Processing: ${coffee.processing || 'Unknown'}
+- Flavor Notes: ${(coffee.flavor_notes || []).join(', ') || 'Unknown'}
+
+The user wants a recipe for: ${specificMethod}
+
+Equipment: ${equipment}
+${selectedFilterType ? `\nFilter Being Used: ${selectedFilterType}\nAdjust grind size, pour schedule, and brew time based on this filter's flow characteristics.\n` : ''}
+Provide an expert-level brewing recommendation using modern specialty coffee methodologies. Tailor the recipe specifically to this coffee's characteristics.`;
+
+            const hasFlowControl = equipment && equipment.includes('with flow control');
+            if (hasFlowControl) {
+                textPrompt += `\n\nThe user has a FLOW CONTROL device on their espresso machine. For espresso-based methods, provide TAILORED pressure profiling based on this coffee's characteristics.`;
+            }
+
+            if (specificMethod.toLowerCase().includes('latte') || specificMethod.toLowerCase().includes('cappuccino') || specificMethod.toLowerCase().includes('cortado') || specificMethod.toLowerCase().includes('flat white')) {
+                textPrompt += `\n\n⚠️ MILK DRINK: Provide espresso shot parameters AND milk steaming/assembly instructions.`;
+            }
+
+            textPrompt += `\n\n⚠️ CRITICAL OUTPUT FORMAT: Provide your response as pure JSON ONLY. No markdown code blocks. Return ONLY the raw JSON object.
+
+{
+  "coffee_analysis": {
+    "name": "${coffee.name || 'Unknown'}",
+    "roaster": "${coffee.roaster || 'Unknown'}",
+    "roast_level": "${coffee.roast_level || 'Unknown'}",
+    "origin": "${coffee.origin || 'Unknown'}",
+    "flavor_notes": ${JSON.stringify(coffee.flavor_notes || [])},
+    "processing": "${coffee.processing || 'Unknown'}"
+  },
+  "recommended_techniques": [
+    {
+      "technique_name": "${specificMethod}",
+      "reasoning": "Brief technical reason based on this coffee's characteristics (1-2 sentences)",
+      "parameters": {
+        "dose": "Coffee dose in grams",
+        "yield": "Total brew output",
+        "ratio": "Coffee:water ratio",
+        "water_temp": "Water temperature",
+        "grind_size": "Grind size",
+        "brew_time": "Total brew time",
+        "pressure": "Pressure if applicable or N/A",
+        "flow_control": "Pressure profiling if applicable or N/A"
+      },
+      "technique_notes": "2-3 sentences with practical tips. For pour over, include a detailed pouring schedule. For milk drinks, include milk preparation instructions."
+    }
+  ]
+}`;
+
+            const textResponse = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': ANTHROPIC_API_KEY,
+                    'anthropic-version': '2023-06-01'
+                },
+                body: JSON.stringify({
+                    model: 'claude-haiku-4-5-20251001',
+                    max_tokens: 2048,
+                    messages: [{
+                        role: 'user',
+                        content: textPrompt
+                    }]
+                })
+            });
+
+            if (!textResponse.ok) {
+                const errorData = await textResponse.json().catch(() => ({}));
+                throw new Error(errorData.error?.message || `API request failed with status ${textResponse.status}`);
+            }
+
+            const textData = await textResponse.json();
+            res.status(200).json(sanitizeApiResponse(textData));
             return;
         }
 

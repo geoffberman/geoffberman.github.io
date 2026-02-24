@@ -1132,6 +1132,11 @@ async function getBase64Image(file) {
 
 // Analyze image using backend serverless function
 async function analyzeImage(specificMethod = null) {
+    // If no image but we have coffee analysis and a specific method, use text-only path
+    if (!state.imageFile && specificMethod && state.currentCoffeeAnalysis) {
+        return analyzeWithCoffeeData(specificMethod);
+    }
+
     if (!state.imageFile) {
         showError('Please upload an image first.');
         return;
@@ -1253,6 +1258,81 @@ async function analyzeImage(specificMethod = null) {
 // Analyze with a specific brew method
 async function analyzeWithSpecificMethod(method) {
     await analyzeImage(method);
+}
+
+// Analyze using existing coffee data (no image needed) for alt brew method requests
+async function analyzeWithCoffeeData(specificMethod) {
+    if (state.analysisInProgress) return;
+
+    if (!state.equipment || !hasEquipment()) {
+        showError('Please set up your equipment first.');
+        return;
+    }
+
+    state.analysisInProgress = true;
+    showSection('loading');
+
+    try {
+        const equipmentDescription = getEquipmentDescription();
+        const analysis = state.currentCoffeeAnalysis;
+
+        const requestBody = {
+            coffeeAnalysis: {
+                name: analysis.name || 'Unknown',
+                roaster: analysis.roaster || 'Unknown',
+                roast_level: analysis.roast_level || 'Unknown',
+                origin: analysis.origin || 'Unknown',
+                processing: analysis.processing || 'Unknown',
+                flavor_notes: analysis.flavor_notes || []
+            },
+            equipment: equipmentDescription,
+            specificMethod: specificMethod
+        };
+
+        const filterType = getSelectedFilterType();
+        if (filterType) {
+            requestBody.selectedFilterType = filterType;
+        }
+
+        state.currentAbortController = new AbortController();
+
+        const response = await fetch('/api/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: safeJsonStringify(requestBody),
+            signal: state.currentAbortController.signal
+        });
+
+        const data = await handleApiResponse(response);
+        const analysisText = data.content[0].text;
+
+        let analysisData;
+        try {
+            analysisData = parseAIJsonResponse(analysisText);
+        } catch (parseError) {
+            analysisData = parseFallbackResponse(analysisText);
+        }
+
+        // Preserve existing coffee analysis (don't overwrite with AI's re-interpretation)
+        analysisData.coffee_analysis = analysis;
+
+        // Integrate saved recipes
+        analysisData = await integrateSavedRecipes(analysisData);
+
+        displayResults(analysisData);
+        showSection('results');
+
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            showSection('results');
+            return;
+        }
+        console.error('Alt brew analysis error:', error);
+        showError(`Failed to get recipe: ${error.message}`);
+    } finally {
+        state.analysisInProgress = false;
+        state.currentAbortController = null;
+    }
 }
 
 // Parse fallback response if JSON parsing fails
